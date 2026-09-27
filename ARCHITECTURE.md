@@ -251,6 +251,16 @@ When any movie is requested in Stremio or Nuvio (`/stream/movie/tt...json`), `Ca
   - Injects `☁️⬆️ TorBox [Start Caching]` for 1-click cloud caching.
   - Injects native direct stream for zero-wait playback.
 
+### Bidirectional Public Catalog & Scraper Provider Aggregation
+When a user selects an item from any public catalog (`yt:`, `vimeo:`, `archive:`, `dm:`):
+1. **Their Own Links First:** The server resolves the item's own stream(s) (e.g. YouTube adaptive HLS / 1080p, Archive.org direct MP4, Dailymotion / Vimeo streams) along with their TorBox options (`⚡ TorBox [Cached]`, `☁️⬆️ TorBox [Start Caching]`, and native direct play).
+2. **Concurrent Full-Catalog Scraper Sweep:** In parallel, the server retrieves enriched metadata (clean movie title, release year, and verified `imdbId` from TMDB / Cinemeta / OMDb).
+3. **Multi-Source Aggregation:** It passes this metadata to `ScraperEngine.instance.scrapeAll(...)`, scraping all 61+ hoster and torrent providers (4K UHD, 1080p, Vegamovies, UHDMovies, YTS, Torrentio, etc., cached on TorBox if available).
+4. **Sorted Response Guarantee:** The stream list is returned sorted so that **THEIR OWN LINKS APPEAR FIRST**, immediately followed by all other sources:
+   ```dart
+   final allStreams = [...customStreams, ...otherStreams];
+   ```
+
 ---
 
 ## 7. Scraper Engine & TorBox Dual-Rail Flow

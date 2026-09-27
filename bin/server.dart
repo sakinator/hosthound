@@ -267,14 +267,55 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
         print('[Server] Received stream request: type=$type, id=$idWithExt');
 
         // Check custom video streams (YouTube, Vimeo, Archive.org, Dailymotion)
+        // Also scrape all other hoster/torrent sources for this title & year, sorting own links FIRST!
         if (idWithExt.startsWith('yt:') || idWithExt.startsWith('vimeo:') || idWithExt.startsWith('archive:') || idWithExt.startsWith('dm:')) {
-          final customStreams = await CatalogService.instance.resolveCustomStreams(
+          final customStreamsFuture = CatalogService.instance.resolveCustomStreams(
             type, 
             idWithExt,
             localBaseUrl: localBaseUrl,
           );
+          final metaDetailFuture = CatalogService.instance.getMetaDetail(type, idWithExt);
+
+          final results = await Future.wait([customStreamsFuture, metaDetailFuture]);
+          final customStreams = results[0] as List<Map<String, dynamic>>;
+          final meta = results[1] as Map<String, dynamic>?;
+
+          List<Map<String, dynamic>> otherStreams = [];
+          if (meta != null && meta['name'] != null && meta['name'].toString().isNotEmpty) {
+            try {
+              final cleanTitle = meta['name'].toString();
+              int? year;
+              if (meta['year'] != null) {
+                year = int.tryParse(meta['year'].toString());
+              }
+              if (year == null && meta['releaseInfo'] != null) {
+                final match = RegExp(r'\b(19\d\d|20\d\d)\b').firstMatch(meta['releaseInfo'].toString());
+                if (match != null) year = int.tryParse(match.group(1)!);
+              }
+              final imdbId = meta['imdbId']?.toString();
+
+              final mediaMeta = MediaMetadata(
+                id: (imdbId != null && imdbId.isNotEmpty) ? imdbId : idWithExt,
+                type: type,
+                title: cleanTitle,
+                year: year,
+                imdbId: imdbId,
+              );
+
+              final scraped = await ScraperEngine.instance.scrapeAll(
+                meta: mediaMeta,
+                localBaseUrl: localBaseUrl,
+              );
+              otherStreams = scraped.map((s) => s.toJson()).toList();
+            } catch (e) {
+              print('[Server] Error scraping other providers for $idWithExt: $e');
+            }
+          }
+
+          // Combined: Their OWN direct links appear FIRST, followed by all other sources!
+          final allStreams = [...customStreams, ...otherStreams];
           request.response.headers.contentType = ContentType.json;
-          request.response.write(jsonEncode({'streams': customStreams}));
+          request.response.write(jsonEncode({'streams': allStreams}));
           await request.response.close();
           return;
         }

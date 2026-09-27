@@ -680,6 +680,7 @@ class CatalogService {
 
         enriched = {
           'name': omdb.title,
+          if (omdb.imdbId != null) 'imdbId': omdb.imdbId,
           if (poster != null) 'poster': poster,
           if (rating != null) 'imdbRating': rating,
           if (rating != null) 'rating': rating,
@@ -716,8 +717,22 @@ class CatalogService {
               final title = (first['title'] ?? first['name'])?.toString() ?? cleanTitle;
               final overview = first['overview']?.toString();
 
+              String? tmdbImdbId;
+              try {
+                final extUri = Uri.parse('$host/movie/${first['id']}/external_ids?api_key=$apiKey');
+                final extRes = await http.get(extUri).timeout(const Duration(milliseconds: 1500));
+                if (extRes.statusCode == 200) {
+                  final extData = jsonDecode(extRes.body);
+                  final idStr = extData['imdb_id']?.toString();
+                  if (idStr != null && idStr.startsWith('tt')) {
+                    tmdbImdbId = idStr;
+                  }
+                }
+              } catch (_) {}
+
               enriched = {
                 'name': title,
+                if (tmdbImdbId != null) 'imdbId': tmdbImdbId,
                 if (pPath != null) 'poster': 'https://image.tmdb.org/t/p/w500$pPath',
                 if (bPath != null) 'background': 'https://image.tmdb.org/t/p/w1280$bPath',
                 if (rating != null) 'imdbRating': rating,
@@ -756,6 +771,7 @@ class CatalogService {
             final yStr = m['year']?.toString() ?? (year?.toString() ?? '');
             enriched = {
               'name': m['name']?.toString() ?? cleanTitle,
+              if (imdbId != null && imdbId.startsWith('tt')) 'imdbId': imdbId,
               if (poster != null && poster.isNotEmpty) 'poster': poster,
               if (rating != null && rating.isNotEmpty && rating != 'N/A') 'imdbRating': rating,
               if (rating != null && rating.isNotEmpty && rating != 'N/A') 'rating': rating,
@@ -787,6 +803,7 @@ class CatalogService {
     merged['nativePoster'] ??= original['poster'];
 
     if (enriched['name'] != null) merged['name'] = enriched['name'];
+    if (enriched['imdbId'] != null) merged['imdbId'] = enriched['imdbId'];
     if (enriched['poster'] != null) merged['poster'] = enriched['poster'];
     if (enriched['background'] != null) merged['background'] = enriched['background'];
     if (enriched['imdbRating'] != null) merged['imdbRating'] = enriched['imdbRating'];
