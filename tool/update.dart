@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-/// Platform-neutral update pipeline for sakinator-MegaScraper.
+/// Platform-neutral update pipeline for Hostreamio.
 /// Runs seamlessly on Windows, Linux, macOS, Android (Termux), and Docker.
 /// Usage:
 ///   dart run tool/update.dart
@@ -23,25 +23,46 @@ void main(List<String> args) async {
     }
   }
 
-  // 1. Pull updates from git repository
-  print('\n\x1B[33m[1/5] Pulling latest repository updates via git...\x1B[0m');
-  try {
-    final gitPull = await Process.run('git', ['pull', 'origin', 'main']);
-    if (gitPull.exitCode == 0) {
-      print('  \x1B[32m-> ${gitPull.stdout.toString().trim()}\x1B[0m');
-    } else {
-      print('  \x1B[31m-> Git pull notice: ${gitPull.stderr.toString().trim()}\x1B[0m');
+  // 1. Pull updates from authoritative git repository with reliable auto-stash & rebase
+  print('\n\x1B[33m[1/5] Pulling latest repository updates from origin/main...\x1B[0m');
+  final gitDir = Directory('.git');
+  if (await gitDir.exists()) {
+    try {
+      final gitPull = await Process.run('git', ['pull', '--rebase', '--autostash', 'origin', 'main']);
+      if (gitPull.exitCode == 0) {
+        print('  \x1B[32m-> Git pull (origin/main): ${gitPull.stdout.toString().trim()}\x1B[0m');
+      } else {
+        print('  \x1B[33m-> Git pull notice: ${gitPull.stderr.toString().trim()}\x1B[0m');
+      }
+    } catch (e) {
+      print('  \x1B[90m-> Git command skipped or not found ($e)\x1B[0m');
     }
-  } catch (e) {
-    print('  \x1B[90m-> Git command skipped or not found ($e)\x1B[0m');
+  } else {
+    print('  \x1B[90m-> Standalone mode (no .git directory). Checking GitHub releases...\x1B[0m');
+    try {
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+      client.userAgent = 'HostreamioUpdater';
+      final req = await client.getUrl(Uri.parse('https://api.github.com/repos/sakinator/hostreamio/releases/latest'));
+      final res = await req.close();
+      if (res.statusCode == 200) {
+        final body = await res.transform(utf8.decoder).join();
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        print('  \x1B[32m-> Latest release available: ${json['tag_name']} (${json['name']})\x1B[0m');
+      }
+      client.close();
+    } catch (_) {}
   }
 
-  // 2. Check upstream PlayTorrio submodule if present
+  // 2. Safely sync upstream PlayTorrio providers
   print('\n\x1B[33m[2/5] Checking upstream PlayTorrio providers...\x1B[0m');
   final upstreamGit = Directory('upstream/PlayTorrioV3/.git');
   if (await upstreamGit.exists()) {
     try {
-      final upPull = await Process.run('git', ['pull', 'origin', 'main'], workingDirectory: 'upstream/PlayTorrioV3');
+      final upPull = await Process.run(
+        'git',
+        ['pull', '--rebase', '--autostash', 'origin', 'main'],
+        workingDirectory: 'upstream/PlayTorrioV3',
+      );
       if (upPull.exitCode == 0) {
         print('  \x1B[32m-> Upstream PlayTorrio updated: ${upPull.stdout.toString().trim()}\x1B[0m');
       } else {
@@ -53,7 +74,7 @@ void main(List<String> args) async {
   }
 
   // 3. Scan scraper sites & regenerate registry for both server and android_app
-  print('\n\x1B[33m[3/5] Regenerating scraper registry...\x1B[0m');
+  print('\n\x1B[33m[3/5] Regenerating unified scraper registry...\x1B[0m');
   final registryFile = File('tool/generate_registry.dart');
   if (await registryFile.exists()) {
     final regRes = await Process.run(Platform.resolvedExecutable, ['run', 'tool/generate_registry.dart']);
@@ -71,7 +92,7 @@ void main(List<String> args) async {
     }
   }
 
-  // 4. Compile standalone binary (optional)
+  // 4. Compile standalone binary with embedded brand icon
   if (shouldCompile) {
     print('\n\x1B[33m[4/5] Compiling standalone server executable...\x1B[0m');
     final isWindows = Platform.isWindows;
@@ -91,14 +112,28 @@ void main(List<String> args) async {
         final target = File(binaryName);
         final temp = File(tempBinary);
         if (await target.exists()) {
-          // If locked on Windows, catch and inform
-          await temp.rename(target.path);
-        } else {
-          await temp.rename(target.path);
+          try {
+            await target.delete();
+          } catch (_) {}
         }
+        await temp.rename(target.path);
         print('  \x1B[32m-> Successfully compiled $binaryName!\x1B[0m');
-      } catch (_) {
-        print('  \x1B[33m-> Server is currently running. Binary will update on next server restart.\x1B[0m');
+
+        // Inject high-res 8% rounded brand icon into Windows PE header
+        if (isWindows) {
+          final rcedit = File('tool/rcedit.exe');
+          final icon = File('hostreamio.ico');
+          if (await rcedit.exists() && await icon.exists()) {
+            final rcRes = await Process.run('tool/rcedit.exe', [target.path, '--set-icon', 'hostreamio.ico']);
+            if (rcRes.exitCode == 0) {
+              print('  \x1B[32m-> Injected Windows executable icon (hostreamio.ico) successfully!\x1B[0m');
+            } else {
+              print('  \x1B[90m-> Icon injection notice: ${rcRes.stderr}\x1B[0m');
+            }
+          }
+        }
+      } catch (e) {
+        print('  \x1B[33m-> Server binary replaced or currently active ($e).\x1B[0m');
       }
     } else {
       print('  \x1B[31m-> Compilation notice: ${compileRes.stderr.toString().trim()}\x1B[0m');

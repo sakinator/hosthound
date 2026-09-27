@@ -1,12 +1,14 @@
 <div align="center">
-  <img src="hostreamio_logo.png" alt="Hostreamio Logo" width="180" />
+  <a href="https://github.com/sakinator/hostreamio">
+    <img src="https://raw.githubusercontent.com/sakinator/hostreamio/main/hostreamio_logo.png?v=3" alt="Hostreamio Logo" width="180" />
+  </a>
   <h1 align="center" style="font-size: 2.4rem; font-weight: 900; letter-spacing: -0.5px; margin-top: 12px; margin-bottom: 4px;">▶️ Hostreamio Addon</h1>
   <p align="center"><b>Direct Hosters • Streaming Links • TorBox Cloud Debrid • Smart Proxy • Instant Badges</b></p>
-  <p align="center"><i>High-Performance Stream Engine for Nuvio & Stremio (Android TV, Mobile & Desktop)</i></p>
+  <p align="center"><i>High-Performance Stream Engine for Nuvio & Stremio (Windows & Android TV / Mobile)</i></p>
 
   [![Vibe Coded](https://img.shields.io/badge/Vibe%20Coded-100%25%20with%20AI-ff0c82?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://github.com/sakinator/hostreamio)
-  [![Scrapers](https://img.shields.io/badge/Scrapers-56%20Cloud%20Extractors-195feb?style=for-the-badge)](https://github.com/sakinator/hostreamio)
-  [![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20TV%20%7C%20Linux%20%7C%20macOS-f55014?style=for-the-badge)](https://github.com/sakinator/hostreamio)
+  [![Scrapers](https://img.shields.io/badge/Scrapers-58%20Cloud%20Extractors-195feb?style=for-the-badge)](https://github.com/sakinator/hostreamio)
+  [![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20TV%20%26%20Mobile-f55014?style=for-the-badge)](https://github.com/sakinator/hostreamio)
   [![Debrid](https://img.shields.io/badge/TorBox-Cloud%20WebDL%20Caching-0070f3?style=for-the-badge)](https://torbox.app)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 </div>

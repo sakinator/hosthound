@@ -595,25 +595,25 @@ Future<Map<String, dynamic>> _runUpdatePipeline([String channel = 'all']) async 
     if (channel == 'all' || channel == 'cloudstream' || channel == 'scrapers' || channel == 'repo') {
       if (Directory('$baseDir/.git').existsSync()) {
         logs.add('[Repo] Pulling latest repository updates (Cloudstream plugins, Indian/Anime scrapers, badges)...');
-        final rootPull = await Process.run('git', ['pull', 'origin', 'main'], workingDirectory: baseDir);
+        final rootPull = await Process.run('git', ['pull', '--rebase', '--autostash', 'origin', 'main'], workingDirectory: baseDir);
         final out = '${rootPull.stdout}\n${rootPull.stderr}'.trim();
         logs.add(out);
-        if (!out.contains('Already up to date')) anyUpdated = true;
+        if (!out.contains('Already up to date') && !out.contains('Current branch main is up to date')) anyUpdated = true;
       }
     }
 
     // 2. PlayTorrio Submodule Pull (if present)
     if (channel == 'all' || channel == 'playtorrio') {
       if (Directory('$baseDir/upstream/PlayTorrioV3/.git').existsSync()) {
-        logs.add('[PlayTorrio] Pulling upstream PlayTorrio base framework...');
+        logs.add('[PlayTorrio] Safely checking upstream PlayTorrio base framework...');
         final gitRes = await Process.run(
           'git',
-          ['pull', 'origin', 'main'],
+          ['pull', '--rebase', '--autostash', 'origin', 'main'],
           workingDirectory: '$baseDir/upstream/PlayTorrioV3',
         );
         final out = '${gitRes.stdout}\n${gitRes.stderr}'.trim();
         logs.add(out);
-        if (!out.contains('Already up to date')) anyUpdated = true;
+        if (!out.contains('Already up to date') && !out.contains('Current branch main is up to date')) anyUpdated = true;
       }
     }
 
