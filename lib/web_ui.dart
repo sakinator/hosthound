@@ -54,21 +54,26 @@ class WebUI {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hostreamio Addon</title>
+  <link rel="icon" type="image/png" href="/logo.png">
   <!-- HLS.js for embedded web stream player preview -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
   <style>
     :root {
-      --bg: #0d1117;
-      --card-bg: #161b22;
-      --border: #30363d;
-      --accent: #7928ca;
-      --accent-grad: linear-gradient(135deg, #7928ca 0%, #ff0080 100%);
+      --bg: #08090c;
+      --card-bg: #11141c;
+      --card-hover: #151923;
+      --border: #1f2533;
+      --accent: #ff0c82;
+      --brand-blue: #195feb;
+      --brand-orange: #f55014;
+      --brand-pink: #ff0c82;
+      --accent-grad: linear-gradient(135deg, #195feb 0%, #ff0c82 50%, #f55014 100%);
       --text: #f0f6fc;
       --text-muted: #8b949e;
       --green: #238636;
       --green-light: #3fb950;
-      --blue: #58a6ff;
-      --orange: #d29922;
+      --blue: #195feb;
+      --orange: #f55014;
       --red: #f85149;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -82,7 +87,25 @@ class WebUI {
     .container { max-width: 1080px; margin: 0 auto; }
     header {
       text-align: center;
-      padding: 28px 0 20px;
+      padding: 24px 0 18px;
+    }
+    .brand-logo-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .brand-logo {
+      width: 74px;
+      height: 74px;
+      border-radius: 20px;
+      border: 1.5px solid rgba(255, 12, 130, 0.5);
+      box-shadow: 0 0 24px rgba(255, 12, 130, 0.4), 0 0 10px rgba(25, 95, 235, 0.3);
+      background: #000;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .brand-logo:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 32px rgba(255, 12, 130, 0.6), 0 0 14px rgba(25, 95, 235, 0.45);
     }
     h1 {
       font-size: 2.2rem;
@@ -90,8 +113,10 @@ class WebUI {
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 6px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
     }
-    p.subtitle { color: var(--text-muted); font-size: 1.05rem; }
+    p.subtitle { color: var(--text-muted); font-size: 1.02rem; }
 
     /* Engine Status Banner */
     .status-banner {
@@ -527,7 +552,10 @@ class WebUI {
 <body>
   <div class="container">
     <header>
-      <h1>⚡ Hostreamio</h1>
+      <div class="brand-logo-wrap">
+        <img src="/logo.png" alt="Hostreamio" class="brand-logo" />
+      </div>
+      <h1>Hostreamio</h1>
       <p class="subtitle">Direct Hosters • Streaming Links • TorBox Cloud Debrid • Smart Proxy • Instant Badges</p>
     </header>
 

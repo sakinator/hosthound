@@ -214,6 +214,23 @@ class ServerService {
     final localBaseUrl = '${request.requestedUri.scheme}://${request.requestedUri.authority}';
 
     try {
+      // 0. Static Brand Logo & Favicon
+      if (path == '/logo.png' || path == '/favicon.png' || path == '/favicon.ico') {
+        final candidates = [
+          File('hostreamio_logo.png'),
+          File('assets/images/hostreamio_logo.png'),
+          File('android_app/assets/images/hostreamio_logo.png'),
+        ];
+        for (final f in candidates) {
+          if (f.existsSync()) {
+            request.response.headers.contentType = ContentType('image', 'png');
+            await request.response.addStream(f.openRead());
+            await request.response.close();
+            return;
+          }
+        }
+      }
+
       // 1. Web dashboard
       if (path == '/' || path == '/configure') {
         request.response.headers.contentType = ContentType.html;

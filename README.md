@@ -1,10 +1,15 @@
-# ⚡ Hostreamio Addon for Nuvio & Stremio
+<div align="center">
+  <img src="hostreamio_logo.png" alt="Hostreamio Logo" width="160" style="border-radius: 24px; box-shadow: 0 0 32px rgba(255, 12, 130, 0.4);" />
+  <h1 align="center" style="font-size: 2.4rem; font-weight: 900; letter-spacing: -0.5px; margin-top: 12px; margin-bottom: 4px;">⚡ Hostreamio Addon</h1>
+  <p align="center"><b>Direct Hosters • Streaming Links • TorBox Cloud Debrid • Smart Proxy • Instant Badges</b></p>
+  <p align="center"><i>High-Performance Stream Engine for Nuvio & Stremio (Android TV, Mobile & Desktop)</i></p>
 
-[![Vibe Coded](https://img.shields.io/badge/Vibe%20Coded-100%25%20with%20AI-ff69b4?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://github.com/sakinator/hostreamio)
-[![Scrapers](https://img.shields.io/badge/Scrapers-56%20Cloud%20Extractors-blueviolet?style=for-the-badge)](https://github.com/sakinator/hostreamio)
-[![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20TV%20%7C%20Linux%20%7C%20macOS-2ea44f?style=for-the-badge)](https://github.com/sakinator/hostreamio)
-[![Debrid](https://img.shields.io/badge/TorBox-Cloud%20WebDL%20Caching-0070f3?style=for-the-badge)](https://torbox.app)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+  [![Vibe Coded](https://img.shields.io/badge/Vibe%20Coded-100%25%20with%20AI-ff0c82?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://github.com/sakinator/hostreamio)
+  [![Scrapers](https://img.shields.io/badge/Scrapers-56%20Cloud%20Extractors-195feb?style=for-the-badge)](https://github.com/sakinator/hostreamio)
+  [![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20TV%20%7C%20Linux%20%7C%20macOS-f55014?style=for-the-badge)](https://github.com/sakinator/hostreamio)
+  [![Debrid](https://img.shields.io/badge/TorBox-Cloud%20WebDL%20Caching-0070f3?style=for-the-badge)](https://torbox.app)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+</div>
 
 > [!NOTE]
 > **✨ 100% Vibe Coded with AI:** This entire project is vibe-coded through continuous human-AI agentic collaboration, real-time feedback loops, automated regression test suites, and live self-healing pipelines. High velocity, zero bloat, pure vibes.

@@ -102,6 +102,25 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
   final localBaseUrl = '${request.requestedUri.scheme}://${request.requestedUri.authority}';
 
   try {
+    // ── 0. Static Brand Logo & Favicon ──────────────────────────────────
+    if (path == '/logo.png' || path == '/favicon.png' || path == '/favicon.ico') {
+      final exeParent = File(Platform.resolvedExecutable).parent.path;
+      final candidates = [
+        File('hostreamio_logo.png'),
+        File('$exeParent/hostreamio_logo.png'),
+        File('${Directory.current.path}/hostreamio_logo.png'),
+        File('android_app/assets/images/hostreamio_logo.png'),
+      ];
+      for (final f in candidates) {
+        if (f.existsSync()) {
+          request.response.headers.contentType = ContentType('image', 'png');
+          await request.response.addStream(f.openRead());
+          await request.response.close();
+          return;
+        }
+      }
+    }
+
     // ── 1. Root / Configure Web UI ────────────────────────────────────────
     if (path == '/' || path == '/configure') {
       request.response.headers.contentType = ContentType.html;

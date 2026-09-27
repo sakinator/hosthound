@@ -24,11 +24,12 @@ class HostreamioAddonApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0D1117),
+        scaffoldBackgroundColor: const Color(0xFF08090C),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF6366F1),
-          secondary: Color(0xFF38BDF8),
-          surface: Color(0xFF161B22),
+          primary: Color(0xFF195FEB),
+          secondary: Color(0xFFFF0C82),
+          tertiary: Color(0xFFF55014),
+          surface: Color(0xFF11141C),
         ),
         fontFamily: 'sans-serif',
       ),
@@ -254,15 +255,27 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     return Row(
       children: [
         Container(
-          width: isWide ? 56 : 48,
-          height: isWide ? 56 : 48,
+          width: isWide ? 58 : 50,
+          height: isWide ? 58 : 50,
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.2),
+            color: Colors.black,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF6366F1), width: 1.5),
+            border: Border.all(color: const Color(0xFFFF0C82).withOpacity(0.55), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF0C82).withOpacity(0.3),
+                blurRadius: 14,
+                spreadRadius: 1,
+              ),
+            ],
           ),
-          child: Center(
-            child: Icon(Icons.bolt_rounded, color: const Color(0xFF818CF8), size: isWide ? 34 : 28),
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'assets/images/hostreamio_logo_256.png',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Center(
+              child: Icon(Icons.play_arrow_rounded, color: const Color(0xFFFF0C82), size: isWide ? 34 : 28),
+            ),
           ),
         ),
         const SizedBox(width: 14),
@@ -271,7 +284,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'HostHound',
+                'Hostreamio',
                 style: TextStyle(
                   fontSize: isWide ? 26 : 21,
                   fontWeight: FontWeight.w900,
@@ -332,16 +345,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
+        color: const Color(0xFF11141C),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF30363D), width: 1.5),
+        border: Border.all(color: const Color(0xFF1F2432), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.router_rounded, color: Color(0xFF38BDF8), size: 22),
+              const Icon(Icons.router_rounded, color: Color(0xFF195FEB), size: 22),
               const SizedBox(width: 8),
               const Text(
                 'Nuvio Addon Manifest URL',
@@ -356,9 +369,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF38BDF8)),
+                    Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF195FEB)),
                     SizedBox(width: 6),
-                    Text('Detect IP', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13)),
+                    Text('Detect IP', style: TextStyle(color: Color(0xFF195FEB), fontSize: 13, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -368,13 +381,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D1117),
+              color: const Color(0xFF08090C),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF21262D)),
+              border: Border.all(color: const Color(0xFF1F2432)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.link_rounded, color: Color(0xFF818CF8), size: 22),
+                const Icon(Icons.link_rounded, color: Color(0xFFFF0C82), size: 22),
                 const SizedBox(width: 12),
                 Expanded(
                   child: SelectableText(
@@ -789,7 +802,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         _TvFocusableButton(
           focusNode: _oneClickInstallFocus,
           isPrimary: true,
-          primaryColor: const Color(0xFF6366F1),
+          primaryColor: const Color(0xFF195FEB),
           onPressed: () async {
             final port = AddonConfig.instance.port;
             final uri = Uri.parse('stremio://127.0.0.1:$port/manifest.json');
@@ -826,7 +839,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.copy_rounded, size: 20, color: Color(0xFF818CF8)),
+                Icon(Icons.copy_rounded, size: 20, color: Color(0xFFFF0C82)),
                 SizedBox(width: 8),
                 Text(
                   'Copy Manifest URL',
@@ -853,7 +866,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.open_in_browser_rounded, size: 20, color: Color(0xFF38BDF8)),
+                Icon(Icons.open_in_browser_rounded, size: 20, color: Color(0xFFF55014)),
                 SizedBox(width: 8),
                 Text(
                   'Open Web Dashboard',
