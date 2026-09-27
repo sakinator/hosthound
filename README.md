@@ -47,7 +47,12 @@ A high-performance local Stremio & Nuvio-compatible addon server featuring **61 
   - 🏛️ **Internet Archive Classics:** Golden Era Hollywood, film noir, silent cinema, classic horror, and vintage Indian cinema.
   - 📺 **Dailymotion Indian & Global:** Hindi movies, dramas, Pakistani serials, and international titles.
 - **Embedded Streaming Proxy (`/proxy`):** Transparently forwards protected HLS (`.m3u8`) playlists and injects required `Referer`, `Origin`, and `User-Agent` headers so that Nuvio's internal player plays restricted streams without HTTP 403 errors.
-- **Interactive Web Dashboard (`/configure`):** Dark-mode web interface to test scrape titles, toggle scrapers, manage your TorBox key, configure filtering profiles, inspect live supported hosters, and check for updates.
+- **Dual-Tab Web Dashboard (`/configure`):**
+  - 🖥️ **Server & Addon Hub tab:** Quick Install (pill-step breadcrumbs for Stremio/Nuvio), TorBox config, provider toggle checkboxes, and Update Hub.
+  - 🎬 **Native Streaming Theater tab:**
+    - **🗂️ Catalog Browser** — Browse 7 built-in catalogs in a Netflix-style poster grid: **🔥 Trending Movies**, **📺 Trending Series** (via Cinemeta), **🎬 YouTube Indian Cinema**, **🌍 YouTube International**, **🎥 Vimeo**, **🏛️ Archive.org**, **📺 Dailymotion**. Genre sub-filters per catalog. Click any title → instantly loads streams.
+    - **🔍 Search & Stream Theater** — Search any movie or TV series by title or IMDb ID across all scrapers. Season/episode selector for series. Play in browser (Web Mode) or open directly in VLC/PotPlayer/MPV.
+    - **Smart Cache Button Logic:** `⚡ Start TorBox Cache` appears only on links that TorBox *can* cache (supported hosters). Already-cached and HLS/DASH streams never show the button. Wrapped `/torbox/play?url=…` URLs are auto-unwrapped before submission.
 - **Android TV & Mobile APK:** Native Flutter client for NVIDIA Shield, Fire TV, Google TV, and Android phones with full D-pad remote navigation and 24/7 background foreground service.
 
 ---
@@ -119,6 +124,38 @@ Hostreamio unifies direct file hosters, adaptive HLS web streams, and cloud debr
 ### 4. ⚡ `Adaptive HLS (.m3u8)`
 * **What it means:** Adaptive bitrate web streams from providers like VidLink, LookMovie, Movy, Vimeo, and Dailymotion.
 * **Experience:** Smooth playback that automatically scales resolution based on your internet connection speed.
+
+---
+
+### 💡 The Dual-Rail Implementation Philosophy: Why Hostreamio Is Built This Way
+
+Most conventional Stremio / Nuvio debrid addons enforce a rigid all-or-nothing model: if a file isn't pre-cached on debrid, you are blocked from playback, and if the debrid API experiences downtime or maintenance, the entire addon goes dark.
+
+Hostreamio was architected around a resilient, **Dual-Rail Zero Single-Point-of-Failure (SPOF)** philosophy:
+
+```mermaid
+flowchart TD
+    A["Scraper Engine Queries 61 Providers"] --> B{"Link Discovered"}
+    B -->|Check TorBox API| C{"Already Cached?"}
+    C -->|Yes| D["⚡ TorBox [Cached]<br/>(Instant 10Gbps CDN • Byte-Range Seeking)"]
+    C -->|No / Caching| E["🌐 TorBox [Start Caching]<br/>(1-Click Background Cloud Download)"]
+    
+    B -->|Bypass Debrid| F["🌐 Direct Play [Hoster]<br/>(Zero-Delay Streaming via Smart Proxy)"]
+    B -->|Web Streams| G["⚡ Adaptive HLS (.m3u8)<br/>(Dynamic Quality Scaling)"]
+
+    E -.->|"Watch immediately while caching!"| F
+```
+
+1. **Watch Immediately on Direct Play While TorBox Caches (Zero Idle Wait Time):**
+   * When discovering a fresh, rare, or newly scraped 4K/1080p release on HubCloud, DriveSeed, or PixelDrain that isn't yet cached in TorBox's cloud (`[Cachable]`), you don't have to stare at a caching progress bar.
+   * You can dispatch the 1-click cloud caching job to TorBox so it is downloaded and accelerated in the cloud, and **simultaneously click `🌐 Direct Play` to start watching the movie right now** without waiting a single second for the cloud download to complete.
+
+2. **Bulletproof Resilience When TorBox Is Down:**
+   * Cloud debrid services can undergo API maintenance, rate-limiting, edge-node routing hiccups, or billing expirations.
+   * If TorBox is temporarily offline or unreachable, Hostreamio **never goes dark**. Every single file hoster stream always exposes a parallel `🌐 Direct Play` counterpart routed through Hostreamio's built-in header-injection proxy (`/proxy`). Your streaming theater remains 100% functional 24/7.
+
+3. **No Debrid Lock-In (Subscription Freedom):**
+   * A TorBox account is treated as an optional performance enhancement, never a mandatory requirement. Users without a debrid subscription enjoy full, unrestricted access to all 61 non-torrent HTTP scrapers, regional Indian OTT feeds, and Asian anime libraries out of the box.
 
 ---
 

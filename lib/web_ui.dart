@@ -95,17 +95,89 @@ class WebUI {
       margin-bottom: 14px;
     }
     .brand-logo {
-      width: 74px;
-      height: 74px;
-      border-radius: 20px;
-      border: 1.5px solid rgba(255, 12, 130, 0.5);
-      box-shadow: 0 0 24px rgba(255, 12, 130, 0.4), 0 0 10px rgba(25, 95, 235, 0.3);
-      background: #000;
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      width: 78px;
+      height: 78px;
+      border: none;
+      background: transparent;
+      filter: drop-shadow(0 0 16px rgba(255, 12, 130, 0.45)) drop-shadow(0 0 8px rgba(25, 95, 235, 0.35));
+      transition: transform 0.25s ease, filter 0.25s ease;
     }
     .brand-logo:hover {
       transform: scale(1.06);
-      box-shadow: 0 0 32px rgba(255, 12, 130, 0.6), 0 0 14px rgba(25, 95, 235, 0.45);
+      filter: drop-shadow(0 0 24px rgba(255, 12, 130, 0.75)) drop-shadow(0 0 14px rgba(25, 95, 235, 0.55));
+    }
+    /* Main Top Tabs Switcher */
+    .main-tabs-nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding: 6px;
+      background: rgba(17, 20, 28, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .main-tab-btn {
+      flex: 1;
+      max-width: 340px;
+      padding: 12px 20px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: var(--text-muted);
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+    }
+    .main-tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .main-tab-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(25, 95, 235, 0.4) 0%, rgba(255, 12, 130, 0.35) 100%);
+      border-color: rgba(255, 12, 130, 0.5);
+      box-shadow: 0 0 16px rgba(255, 12, 130, 0.3);
+    }
+    .main-tab-btn .tab-badge {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text);
+    }
+    .main-tab-btn.active .tab-badge {
+      background: var(--accent);
+      color: #fff;
+    }
+    /* Breadcrumb Step Pills for Quick Install */
+    .breadcrumb-container {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .breadcrumb-step {
+      display: inline-flex;
+      align-items: center;
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.76rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .breadcrumb-arrow {
+      color: var(--text-muted);
+      font-size: 0.75rem;
     }
     h1 {
       font-size: 2.2rem;
@@ -370,6 +442,22 @@ class WebUI {
       color: var(--text);
       border-color: var(--blue);
     }
+    .catalog-card {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+      overflow: hidden;
+      position: relative;
+    }
+    .catalog-card:hover {
+      transform: translateY(-3px) scale(1.02);
+      border-color: var(--blue);
+      box-shadow: 0 6px 20px rgba(88,166,255,0.18);
+    }
+    .catalog-card:active { transform: scale(0.98); }
+
     .stream-item {
       padding: 12px 10px;
       border-bottom: 1px solid var(--border);
@@ -547,6 +635,212 @@ class WebUI {
       width: 100%;
       height: 100%;
     }
+    /* Open With Modal */
+    .open-with-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      z-index: 99999;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .open-with-content {
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 620px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+    }
+    .player-opt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      padding: 20px;
+    }
+    .player-opt-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--text);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.92rem;
+      transition: all 0.2s ease;
+    }
+    .player-opt-btn:hover {
+      background: #1c2128;
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .player-opt-icon {
+      font-size: 1.6rem;
+      flex-shrink: 0;
+    }
+    .media-card-box {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .media-card-poster {
+      width: 90px;
+      height: 135px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #161b22;
+      flex-shrink: 0;
+    }
+    .search-suggestions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+      margin-bottom: 16px;
+    }
+    .search-suggestion-item {
+      background: #090d13;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .search-suggestion-item:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .search-suggestion-thumb {
+      width: 44px;
+      height: 64px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: #161b22;
+      flex-shrink: 0;
+    }
+    .btn-open-with {
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: #58a6ff;
+    }
+    .btn-open-with:hover {
+      background: #30363d;
+      border-color: #58a6ff;
+    }
+    /* Series Catalog & Episode Browser */
+    .seasons-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 6px 0 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .season-tab {
+      background: #090d13;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .season-tab:hover {
+      border-color: var(--blue);
+      color: #fff;
+    }
+    .season-tab.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+    .episodes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .episode-card {
+      background: #090d13;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .episode-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .episode-card.active {
+      border-color: var(--green-light);
+      background: #111a14;
+    }
+    .episode-thumb {
+      width: 100px;
+      height: 75px;
+      object-fit: cover;
+      background: #161b22;
+      flex-shrink: 0;
+    }
+    .episode-content {
+      padding: 8px 10px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+    .episode-num {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--blue);
+      text-transform: uppercase;
+    }
+    .episode-title {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .episode-desc {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.3;
+    }
   </style>
 </head>
 <body>
@@ -567,78 +861,113 @@ class WebUI {
       <div class="status-chip"><span class="status-dot"></span> <strong>Circuit Breaker:</strong> 56 Providers Monitored</div>
     </div>
 
-    <!-- Quick Install & Manifest Card -->
-    <div class="card" style="background: linear-gradient(180deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.95) 100%);">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
-        <h2>🔌 Quick Install in Nuvio & Stremio</h2>
-        <span class="badge" style="background:rgba(88, 166, 255, 0.15); color:var(--blue); border:1px solid rgba(88, 166, 255, 0.3); font-size:0.8rem; padding:4px 10px;">
-          📡 Wi-Fi IP: $localIp
-        </span>
-      </div>
+    <!-- Main Top Tabs Switcher -->
+    <div class="main-tabs-nav">
+      <button id="tabBtnServer" class="main-tab-btn active" onclick="switchMainTab('server')">
+        <span>🖥️ Server &amp; Addon Hub</span>
+        <span class="tab-badge">Manifest &amp; Config</span>
+      </button>
+      <button id="tabBtnStreaming" class="main-tab-btn" onclick="switchMainTab('streaming')">
+        <span>🎬 Native Streaming Theater</span>
+        <span class="tab-badge">Search &amp; Play</span>
+      </button>
+    </div>
 
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:14px;">
-        <!-- Option 1: This PC -->
-        <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
-          <div>
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-              <span style="font-weight:700; font-size:0.95rem; color:var(--text);">💻 This PC (Local Player)</span>
-              <span style="font-size:0.7rem; color:var(--green-light); background:rgba(35, 134, 54, 0.2); padding:2px 8px; border-radius:12px; font-weight:600;">1-Click</span>
-            </div>
-            <p style="font-size:0.82rem; color:var(--text-muted); line-height:1.4;">
-              If Nuvio or Stremio is installed on this PC, launch and add the addon directly:
-            </p>
-          </div>
-          <div>
-            <a href="stremio://127.0.0.1:$port/manifest.json" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px 14px; font-size:0.92rem; font-weight:700; text-decoration:none;">
-              🚀 1-Click Install to Stremio / Nuvio
-            </a>
-            <div style="display:flex; gap:8px; margin-top:8px;">
-              <input class="url-input" id="localUrl" value="$manifestLocal" readonly style="font-size:0.82rem; padding:6px 10px;">
-              <button type="button" class="btn" onclick="copyText('localUrl')" style="padding:6px 12px; font-size:0.8rem; white-space:nowrap;">📋 Copy</button>
-            </div>
-          </div>
+    <!-- TAB 1: SERVER & ADDON HUB -->
+    <div id="tabContentServer">
+      <!-- Quick Install & Manifest Card -->
+      <div class="card" style="background: linear-gradient(180deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.95) 100%);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+          <h2>🔌 Quick Install in Nuvio &amp; Stremio</h2>
+          <span class="badge" style="background:rgba(88, 166, 255, 0.15); color:var(--blue); border:1px solid rgba(88, 166, 255, 0.3); font-size:0.8rem; padding:4px 10px;">
+            📡 Wi-Fi IP: $localIp
+          </span>
         </div>
 
-        <!-- Option 2: Android TV & Mobile -->
-        <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
-          <div>
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-              <span style="font-weight:700; font-size:0.95rem; color:var(--text);">📺 Android TV & Mobile (Wi-Fi)</span>
-              <span style="font-size:0.7rem; color:var(--blue); background:rgba(88, 166, 255, 0.2); padding:2px 8px; border-radius:12px; font-weight:600;">Same Network</span>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:14px;">
+          <!-- Option 1: This PC -->
+          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+            <div>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                <span style="font-weight:700; font-size:0.95rem; color:var(--text);">💻 This PC (Local Player)</span>
+                <span style="font-size:0.7rem; color:var(--green-light); background:rgba(35, 134, 54, 0.2); padding:2px 8px; border-radius:12px; font-weight:600;">1-Click</span>
+              </div>
+              <p style="font-size:0.82rem; color:var(--text-muted); line-height:1.4;">
+                If Nuvio or Stremio is installed on this PC, launch and add the addon directly:
+              </p>
             </div>
-            <p style="font-size:0.82rem; color:var(--text-muted); line-height:1.4;">
-              For Android TV, FireStick, or Mobile connected to the same Wi-Fi:
-            </p>
+            <div>
+              <a href="stremio://127.0.0.1:$port/manifest.json" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px 14px; font-size:0.92rem; font-weight:700; text-decoration:none;">
+                🚀 1-Click Install to Stremio / Nuvio
+              </a>
+              <div style="display:flex; gap:8px; margin-top:8px;">
+                <input class="url-input" id="localUrl" value="$manifestLocal" readonly style="font-size:0.82rem; padding:6px 10px;">
+                <button type="button" class="btn" onclick="copyText('localUrl')" style="padding:6px 12px; font-size:0.8rem; white-space:nowrap;">📋 Copy</button>
+              </div>
+            </div>
           </div>
-          <div>
-            <div style="display:flex; gap:8px; margin-bottom:8px;">
-              <input class="url-input" id="lanUrl" value="$manifestLan" readonly style="font-size:0.82rem; padding:8px 10px; color:var(--green-light);">
-              <button type="button" class="btn btn-primary" onclick="copyText('lanUrl')" style="padding:8px 14px; font-size:0.85rem; white-space:nowrap; font-weight:600;">📋 Copy LAN URL</button>
-            </div>
-            <div style="font-size:0.76rem; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-              <span>💡</span> Open <strong>Nuvio</strong> ➔ <strong>Settings (⚙️)</strong> ➔ <strong>General</strong> ➔ <strong>Content & Discovery</strong> ➔ <strong>Addons (+)</strong> ➔ Paste URL ➔ <strong>Install</strong>
-            </div>
-          </div>
-        </div>
 
-        <!-- Option 3: Nuvio Fusion Badges (Quality & OTT Logos) -->
-        <div style="background:#090d13; border:1px solid #ff69b4; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px; grid-column: 1 / -1;">
-          <div>
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
-              <span style="font-weight:700; font-size:0.95rem; color:#ff69b4;">🎨 Nuvio Logo Badges (Quality & OTT Logos)</span>
-              <span style="font-size:0.75rem; color:#ff69b4; background:rgba(255, 105, 180, 0.15); border:1px solid rgba(255,105,180,0.4); padding:2px 8px; border-radius:12px; font-weight:600;">Required for Logo Badges</span>
+          <!-- Option 2: Android TV, Fire TV & Mobile -->
+          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+            <div>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                <span style="font-weight:700; font-size:0.95rem; color:var(--text);">📺 Android TV, Fire TV &amp; Mobile</span>
+                <span style="font-size:0.7rem; color:var(--blue); background:rgba(88, 166, 255, 0.2); padding:2px 8px; border-radius:12px; font-weight:600;">Wi-Fi LAN</span>
+              </div>
+              <p style="font-size:0.82rem; color:var(--text-muted); line-height:1.4;">
+                For Android TV, FireStick, or Mobile connected to the same Wi-Fi:
+              </p>
             </div>
-            <p style="font-size:0.84rem; color:var(--text); line-height:1.5; margin:0;">
-              Nuvio renders visual logos & badges (4K, WEB-DL, Hotstar, Netflix, Prime, JioCinema, SonyLIV, Zee5) through <strong>Fusion Badge URLs</strong>. To enable badges in Nuvio, copy this URL:
-            </p>
+            <div>
+              <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input class="url-input" id="lanUrl" value="$manifestLan" readonly style="font-size:0.82rem; padding:8px 10px; color:var(--green-light);">
+                <button type="button" class="btn btn-primary" onclick="copyText('lanUrl')" style="padding:8px 14px; font-size:0.85rem; white-space:nowrap; font-weight:600;">📋 Copy LAN URL</button>
+              </div>
+              <div class="breadcrumb-container">
+                <span class="breadcrumb-step">1. Open Nuvio</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">2. Settings ⚙️</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">3. General</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">4. Content &amp; Discovery</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">5. Addons (+)</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step" style="color:var(--green-light); border-color:var(--green-light); font-weight:700;">6. Paste &amp; Install</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <div style="display:flex; gap:8px; margin-bottom:8px;">
-              <input class="url-input" id="badgesUrl" value="http://$localIp:$port/badges.json" readonly style="font-size:0.84rem; padding:8px 10px; color:#ff69b4; font-weight:600;">
-              <button type="button" class="btn btn-primary" onclick="copyText('badgesUrl')" style="padding:8px 16px; font-size:0.85rem; white-space:nowrap; font-weight:700; background:#ff69b4; border-color:#ff69b4; color:#fff;">📋 Copy Badge URL</button>
+
+          <!-- Option 3: Nuvio Fusion Badges (Quality & OTT Logos) -->
+          <div style="background:#090d13; border:1px solid #ff69b4; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px; grid-column: 1 / -1;">
+            <div>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                <span style="font-weight:700; font-size:0.95rem; color:#ff69b4;">🎨 Nuvio Logo Badges (Quality &amp; OTT Logos)</span>
+                <span style="font-size:0.75rem; color:#ff69b4; background:rgba(255, 105, 180, 0.15); border:1px solid rgba(255,105,180,0.4); padding:2px 8px; border-radius:12px; font-weight:600;">Required for Logo Badges</span>
+              </div>
+              <p style="font-size:0.84rem; color:var(--text); line-height:1.5; margin:0;">
+                Nuvio renders visual logos &amp; badges (4K, WEB-DL, Hotstar, Netflix, Prime, JioCinema, SonyLIV, Zee5) through <strong>Fusion Badge URLs</strong>. To enable badges in Nuvio, copy this URL:
+              </p>
             </div>
-            <div style="font-size:0.8rem; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-              <span>👉</span> In Nuvio app: <strong>Settings (⚙️)</strong> ➔ <strong>General</strong> ➔ <strong>Layout</strong> ➔ <strong>Streams</strong> ➔ <strong>Fusion Badge URLs</strong> ➔ Paste & Add!
+            <div>
+              <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input class="url-input" id="badgesUrl" value="http://$localIp:$port/badges.json" readonly style="font-size:0.84rem; padding:8px 10px; color:#ff69b4; font-weight:600;">
+                <button type="button" class="btn btn-primary" onclick="copyText('badgesUrl')" style="padding:8px 16px; font-size:0.85rem; white-space:nowrap; font-weight:700; background:#ff69b4; border-color:#ff69b4; color:#fff;">📋 Copy Badge URL</button>
+              </div>
+              <div class="breadcrumb-container">
+                <span class="breadcrumb-step">1. Open Nuvio</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">2. Settings ⚙️</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">3. General</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">4. Layout</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">5. Streams</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step" style="color:#ff69b4; border-color:#ff69b4; font-weight:700;">6. Fusion Badge URLs ➔ Paste &amp; Add</span>
+              </div>
             </div>
           </div>
         </div>
@@ -868,28 +1197,14 @@ class WebUI {
       </div>
     </div>
 
-    <!-- Live Stream Tester -->
-    <div class="card">
-      <h2>🔍 Live Stream Tester & Preview Player</h2>
-      <div class="test-box">
-        <select id="testType">
-          <option value="movie">Movie</option>
-          <option value="series">Series</option>
-        </select>
-        <input class="test-input" id="testId" placeholder="IMDb ID or Title (e.g. tt1375666 or Inception)" value="tt1375666">
-        <button class="btn btn-primary" id="btnTest" onclick="runTest()">🚀 Test Scrape</button>
-      </div>
-      <div id="testResults"></div>
-    </div>
-
     <!-- Multi-Source Unified Update Hub -->
     <div class="card" id="updateHubCard">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
         <h2>🔄 Multi-Source Unified Update Hub</h2>
-        <span class="update-pill" style="background:#238636; color:#fff; font-size:0.82rem; padding:4px 10px;">56 Total Active Providers</span>
+        <span class="update-pill" style="background:#238636; color:#fff; font-size:0.82rem; padding:4px 10px;">${providers.length} Total Active Providers</span>
       </div>
       <p style="color:var(--text-muted); margin-bottom:16px;">
-        Manage and synchronize your 56 aggregated providers across PlayTorrio base framework, Cloudstream community plugins & extractors, Indian regional OTTs, Anime scrapers, and official binary releases.
+        Manage and synchronize your ${providers.length} aggregated providers across PlayTorrio base framework, Cloudstream community plugins &amp; extractors, Indian regional OTTs, Anime scrapers, and official binary releases.
       </p>
 
       <div class="update-grid">
@@ -898,7 +1213,7 @@ class WebUI {
           <div class="update-subcard-header">
             <div>
               <div class="update-subcard-title">📦 Hostreamio Releases</div>
-              <div class="update-subcard-desc">Official desktop and Android binaries with all scrapers, extractors & TorBox debrid built-in.</div>
+              <div class="update-subcard-desc">Official desktop and Android binaries with all scrapers, extractors &amp; TorBox debrid built-in.</div>
             </div>
             <span class="update-pill" style="background:#238636; color:#fff;" id="appVersionBadge">v2.0.0 Current</span>
           </div>
@@ -918,9 +1233,9 @@ class WebUI {
           <div class="update-subcard-header">
             <div>
               <div class="update-subcard-title">☁️ Cloudstream Community Addons</div>
-              <div class="update-subcard-desc">Extractors & resolvers for HubCloud, Vega, DriveSeed, Pixeldrain, Mega, 1fichier, Rapidgator, and direct hosters.</div>
+              <div class="update-subcard-desc">Extractors &amp; resolvers for HubCloud, Vega, DriveSeed, Pixeldrain, Mega, 1fichier, Rapidgator, and direct hosters.</div>
             </div>
-            <span class="update-pill" style="background:#1f6feb; color:#fff;">Plugins & Resolvers</span>
+            <span class="update-pill" style="background:#1f6feb; color:#fff;">Plugins &amp; Resolvers</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
             <div style="font-size:0.8rem; color:var(--text-muted);">Module: <code>services/cloudstream</code></div>
@@ -949,10 +1264,10 @@ class WebUI {
         <div class="update-subcard">
           <div class="update-subcard-header">
             <div>
-              <div class="update-subcard-title">🇮🇳 Indian OTT & Anime Scrapers</div>
+              <div class="update-subcard-title">🇮🇳 Indian OTT &amp; Anime Scrapers</div>
               <div class="update-subcard-desc">Bollyflix, Vegamovies, HDHub4u, HindMoviez, Playdesi, Yomovies, 4kHDHub, AnimePahe, GogoAnime, HiAnime, KissKH, Vadapav.</div>
             </div>
-            <span class="update-pill" style="background:#f0883e; color:#000; font-weight:700;">Regional & Anime</span>
+            <span class="update-pill" style="background:#f0883e; color:#000; font-weight:700;">Regional &amp; Anime</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
             <div style="font-size:0.8rem; color:var(--text-muted);">Directory: <code>scraper/sites/</code></div>
@@ -964,7 +1279,7 @@ class WebUI {
         <div class="update-subcard">
           <div class="update-subcard-header">
             <div>
-              <div class="update-subcard-title">🏷️ Nuvio Badges & Regional OTT Logos</div>
+              <div class="update-subcard-title">🏷️ Nuvio Badges &amp; Regional OTT Logos</div>
               <div class="update-subcard-desc">Hot-reloads Netflix, Prime, Hotstar, JioCinema, SonyLIV, Zee5, Aha, SunNXT, Hoichoi, and multi-audio tags.</div>
             </div>
             <span class="update-pill" style="background:#d29922; color:#000;">Hot-Reload</span>
@@ -982,7 +1297,7 @@ class WebUI {
           Syncs git repository, Cloudstream resolvers, PlayTorrio base, regional scrapers, regenerates registry, and refreshes memory caches.
         </div>
         <button class="btn btn-success" id="btnMasterUpdate" onclick="triggerUpdateChannel('all')" style="padding:9px 18px; font-weight:600; font-size:0.92rem;">
-          ⚡ Run Full Update Pipeline (All 56 Providers & Sources)
+          ⚡ Run Full Update Pipeline (All 56 Providers &amp; Sources)
         </button>
       </div>
 
@@ -995,6 +1310,96 @@ class WebUI {
         <pre id="pipelineConsole" style="background:#090d13; border:1px solid var(--border); border-radius:6px; padding:12px; font-family:monospace; font-size:0.82rem; color:#e6edf3; max-height:220px; overflow-y:auto; white-space:pre-wrap; margin:0;"></pre>
       </div>
     </div>
+  </div> <!-- End of tabContentServer -->
+
+  <!-- TAB 2: STREAMING & NATIVE THEATER -->
+  <div id="tabContentStreaming" style="display:none;">
+    <!-- Cloud Debrid & Cache Philosophy Banner -->
+    <div style="background: rgba(25, 95, 235, 0.08); border: 1px solid rgba(88, 166, 255, 0.25); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+      <div style="font-size: 0.86rem; color: var(--text); line-height: 1.5;">
+        <strong style="color: var(--blue);">💡 Dual-Rail Stream Philosophy:</strong>
+        <span style="color: var(--text-muted); margin-left: 6px;">
+          <span style="color:#3fb950; font-weight:600;">⚡ TorBox [Cached]</span>: Stream from high-speed TorBox CDN instantly.
+          • <span style="color:#58a6ff; font-weight:600;">🌐 TorBox [Start Caching]</span>: Caches link in cloud; plays direct immediately without waiting!
+          • <span style="color:#f0883e; font-weight:600;">🌐 Direct Play</span>: Plays direct hoster/HLS link without TorBox requirement.
+        </span>
+      </div>
+      <button class="btn btn-sm" onclick="switchMainTab('server')" style="font-size: 0.8rem; white-space:nowrap;">⚙️ Configure TorBox</button>
+    </div>
+
+    <!-- ═══════════════════ CATALOG BROWSER ═══════════════════ -->
+    <div class="card" id="catalogBrowserCard" style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+        <h2 style="margin:0;">🗂️ Browse Catalogs</h2>
+        <span style="font-size:0.78rem; color:var(--text-muted);">Click any title to instantly load streams ↓</span>
+      </div>
+
+      <!-- Catalog Sub-Tabs -->
+      <div id="catalogTabNav" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+        <button class="stream-filter-chip active" id="ctab-trending-movie" onclick="switchCatalogTab('trending-movie')">🔥 Trending Movies</button>
+        <button class="stream-filter-chip" id="ctab-trending-series" onclick="switchCatalogTab('trending-series')">📺 Trending Series</button>
+        <button class="stream-filter-chip" id="ctab-yt_indian" onclick="switchCatalogTab('yt_indian')">🎬 YouTube Indian</button>
+        <button class="stream-filter-chip" id="ctab-yt_international" onclick="switchCatalogTab('yt_international')">🌍 YouTube Intl</button>
+        <button class="stream-filter-chip" id="ctab-vimeo_picks" onclick="switchCatalogTab('vimeo_picks')">🎥 Vimeo</button>
+        <button class="stream-filter-chip" id="ctab-archive_movies" onclick="switchCatalogTab('archive_movies')">🏛️ Archive</button>
+        <button class="stream-filter-chip" id="ctab-dm_movies" onclick="switchCatalogTab('dm_movies')">📺 Dailymotion</button>
+      </div>
+
+      <!-- Genre Filter Row (visible for applicable tabs) -->
+      <div id="catalogGenreRow" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:12px;"></div>
+
+      <!-- Catalog Grid -->
+      <div id="catalogGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:12px; min-height:180px;">
+        <div style="grid-column:1/-1; color:var(--text-muted); text-align:center; padding:40px 0; font-size:0.9rem;">⏳ Loading catalog…</div>
+      </div>
+
+      <!-- Load More -->
+      <div style="text-align:center; margin-top:14px;">
+        <button class="btn btn-sm" id="btnCatalogLoadMore" onclick="loadMoreCatalog()" style="display:none;">⬇️ Load More</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ SEARCH & STREAM THEATER ═══════════════════ -->
+    <div class="card" id="searchTheaterCard">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <h2>🎬 Search &amp; Stream Theater</h2>
+        <div style="display:flex; gap:6px;">
+          <span class="badge" style="background:rgba(255,12,130,0.15); color:var(--accent); border:1px solid rgba(255,12,130,0.3); font-size:0.78rem;">▶ Web Mode</span>
+          <span class="badge" style="background:rgba(88,166,255,0.15); color:var(--blue); border:1px solid rgba(88,166,255,0.3); font-size:0.78rem;">🚀 Open With (VLC / PotPlayer / MPV)</span>
+        </div>
+      </div>
+      <p style="color:var(--text-muted); font-size:0.86rem; margin-bottom:14px;">
+        Search any movie or TV series across all ${providers.length} scrapers. Select seasons &amp; episodes, play in your browser via Web Mode, or launch directly in VLC, PotPlayer, MPV, or download universal .m3u playlist.
+      </p>
+
+      <div class="test-box" style="flex-wrap:wrap; gap:10px;">
+        <select id="theaterMediaType" onchange="toggleSeasonEpisodeInputs()" style="padding:10px 14px; background:#090d13; border:1px solid var(--border); border-radius:6px; color:var(--text); font-weight:600;">
+          <option value="movie">🎬 Movie</option>
+          <option value="series">📺 Series</option>
+        </select>
+        <input class="test-input" id="theaterSearchQuery" placeholder="Search by title (e.g. Inception, Mirzapur, KGF) or IMDb ID (tt1375666)..." value="tt1375666" style="flex:2; min-width:260px;" onkeydown="if(event.key==='Enter') executeTheaterSearch()">
+        <div id="seriesInputsRow" style="display:none; align-items:center; gap:8px;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">S:</label>
+          <input type="number" id="theaterSeason" value="1" min="1" style="width:55px; padding:10px 8px; background:#090d13; border:1px solid var(--border); border-radius:6px; color:var(--text); text-align:center;">
+          <label style="font-size:0.85rem; color:var(--text-muted);">E:</label>
+          <input type="number" id="theaterEpisode" value="1" min="1" style="width:55px; padding:10px 8px; background:#090d13; border:1px solid var(--border); border-radius:6px; color:var(--text); text-align:center;">
+        </div>
+        <button class="btn btn-primary" id="btnTheaterSearch" onclick="executeTheaterSearch()" style="padding:10px 18px; font-weight:700;">🔍 Search &amp; Scrape</button>
+      </div>
+
+      <!-- Live Search Suggestions Container -->
+      <div id="searchSuggestionsContainer" style="display:none;"></div>
+
+      <!-- Active Media Header Info Card -->
+      <div id="activeMediaContainer" style="display:none;"></div>
+
+      <!-- Native Series Catalog & Episode Browser -->
+      <div id="seriesCatalogContainer" style="display:none;"></div>
+
+      <!-- Scraped Stream Results -->
+      <div id="testResults"></div>
+    </div>
+  </div> <!-- End of tabContentStreaming -->
 
     <!-- Legal & Vibe Coded Disclaimer Footer -->
     <div style="text-align:center; padding:24px 14px 14px; color:var(--text-muted); font-size:0.8rem; border-top:1px solid var(--border); margin-top:24px; line-height:1.6;">
@@ -1009,11 +1414,92 @@ class WebUI {
   <div id="playerModal" class="player-modal" onclick="closePlayerModal(event)">
     <div class="player-modal-content" onclick="event.stopPropagation()">
       <div class="player-header">
-        <div class="player-title" id="playerStreamTitle">Stream Preview</div>
-        <button class="player-close-btn" onclick="closePlayerModal()">✕</button>
+        <div style="display:flex; align-items:center; gap:10px; max-width:65%;">
+          <span style="font-size:1.1rem;">▶️</span>
+          <div class="player-title" id="playerStreamTitle">Stream Preview</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <select onchange="changePlayerSpeed(this.value)" style="background:#090d13; border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:0.75rem;">
+            <option value="1">1x Speed</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+            <option value="0.75">0.75x</option>
+          </select>
+          <button class="btn btn-sm btn-open-with" onclick="openWithFromPlayer()" style="font-size:0.75rem; padding:3px 8px;">🚀 Open With...</button>
+          <button class="player-close-btn" onclick="closePlayerModal()">✕</button>
+        </div>
       </div>
       <div class="video-wrapper">
         <video id="previewVideoPlayer" controls playsinline></video>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open With External Player Modal -->
+  <div id="openWithModal" class="open-with-modal" onclick="closeOpenWithModal(event)">
+    <div class="open-with-content" onclick="event.stopPropagation()">
+      <div class="player-header">
+        <div>
+          <div class="player-title" id="openWithStreamTitle">🚀 Open Stream With...</div>
+          <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;" id="openWithStreamSub">Select your external media player</div>
+        </div>
+        <button class="player-close-btn" onclick="closeOpenWithModal()">✕</button>
+      </div>
+      <div class="player-opt-grid">
+        <a class="player-opt-btn" id="openWithVlc" href="#">
+          <span class="player-opt-icon">🟧</span>
+          <div>
+            <div>VLC Media Player</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">vlc:// scheme &amp; auto-download</div>
+          </div>
+        </a>
+        <a class="player-opt-btn" id="openWithPotPlayer" href="#">
+          <span class="player-opt-icon">🟨</span>
+          <div>
+            <div>PotPlayer</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">potplayer:// direct protocol</div>
+          </div>
+        </a>
+        <a class="player-opt-btn" id="openWithMpv" href="#">
+          <span class="player-opt-icon">⬛</span>
+          <div>
+            <div>MPV Player</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">mpv:// &amp; CLI copy command</div>
+          </div>
+        </a>
+        <a class="player-opt-btn" id="openWithIina" href="#">
+          <span class="player-opt-icon">🟦</span>
+          <div>
+            <div>IINA (macOS)</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">iina://weblink protocol</div>
+          </div>
+        </a>
+        <a class="player-opt-btn" id="openWithMobile" href="#">
+          <span class="player-opt-icon">📱</span>
+          <div>
+            <div>Android / Mobile</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">MX Player, Just Player, VLC Android</div>
+          </div>
+        </a>
+        <div class="player-opt-btn" onclick="downloadM3uCurrentStream()">
+          <span class="player-opt-icon">📥</span>
+          <div>
+            <div>Download .m3u Playlist</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Universal 1-click desktop launch</div>
+          </div>
+        </div>
+        <div class="player-opt-btn" onclick="copyCurrentStreamUrl()">
+          <span class="player-opt-icon">📋</span>
+          <div>
+            <div>Copy Stream Link</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Paste into any network player</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:12px 20px; background:#0d1117; border-top:1px solid var(--border); font-size:0.8rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+        <span id="openWithUrlPreview" style="font-family:monospace; max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+        <button class="btn btn-sm" onclick="closeOpenWithModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -1024,6 +1510,233 @@ class WebUI {
     let currentStreams = [];
     let activeFilter = 'all';
     let currentHls = null;
+
+    function switchMainTab(tab) {
+      const serverTab = document.getElementById('tabContentServer');
+      const streamingTab = document.getElementById('tabContentStreaming');
+      const btnServer = document.getElementById('tabBtnServer');
+      const btnStreaming = document.getElementById('tabBtnStreaming');
+
+      if (tab === 'streaming') {
+        if (serverTab) serverTab.style.display = 'none';
+        if (streamingTab) streamingTab.style.display = 'block';
+        if (btnServer) btnServer.classList.remove('active');
+        if (btnStreaming) btnStreaming.classList.add('active');
+        try { localStorage.setItem('hostreamio_active_tab', 'streaming'); } catch (_) {}
+      } else {
+        if (serverTab) serverTab.style.display = 'block';
+        if (streamingTab) streamingTab.style.display = 'none';
+        if (btnServer) btnServer.classList.add('active');
+        if (btnStreaming) btnStreaming.classList.remove('active');
+        try { localStorage.setItem('hostreamio_active_tab', 'server'); } catch (_) {}
+      }
+    }
+
+    // Auto-restore previous tab or hash, then init catalog
+    window.addEventListener('DOMContentLoaded', () => {
+      const hash = window.location.hash;
+      const savedTab = localStorage.getItem('hostreamio_active_tab');
+      if (hash === '#streaming' || (savedTab === 'streaming' && hash !== '#server')) {
+        switchMainTab('streaming');
+      } else {
+        switchMainTab('server');
+      }
+      // Init catalog browser on first load
+      initCatalogBrowser();
+    });
+
+    // ════════════════════════════════════════════════════════════
+    //  CATALOG BROWSER
+    // ════════════════════════════════════════════════════════════
+    let _activeCatalogTab = 'trending-movie';
+    let _catalogSkip = 0;
+    let _catalogItems = [];
+    let _catalogActiveGenre = 'All';
+
+    const _catalogMeta = {
+      'trending-movie':    { label:'🔥 Trending Movies',    type:'movie',  src:'cinemeta', id:'top' },
+      'trending-series':   { label:'📺 Trending Series',    type:'series', src:'cinemeta', id:'top' },
+      'yt_indian':         { label:'🎬 YouTube Indian',      type:'movie',  src:'local',    id:'yt_indian',
+        genres:['All','Bollywood Full Movies','South Hindi Dubbed','Indian Web Series','Classic Hindi','Comedy Hindi Movies'] },
+      'yt_international':  { label:'🌍 YouTube Intl',        type:'movie',  src:'local',    id:'yt_international',
+        genres:['All','Action Movies','Sci-Fi & Thriller','Documentaries','Indie Cinema'] },
+      'vimeo_picks':       { label:'🎥 Vimeo',               type:'movie',  src:'local',    id:'vimeo_picks',
+        genres:['All','Staff Picks','Short of the Week','Animation','Documentaries'] },
+      'archive_movies':    { label:'🏛️ Archive',             type:'movie',  src:'local',    id:'archive_movies',
+        genres:['All','Indian Classics','Golden Era Hollywood','Film Noir','Sci-Fi & Horror','Silent Era'] },
+      'dm_movies':         { label:'📺 Dailymotion',          type:'movie',  src:'local',    id:'dm_movies',
+        genres:['All','Hindi Movies & Dramas','Pakistani Dramas','International Movies'] },
+    };
+
+    function initCatalogBrowser() {
+      switchCatalogTab('trending-movie');
+    }
+
+    function switchCatalogTab(tabKey) {
+      _activeCatalogTab = tabKey;
+      _catalogSkip = 0;
+      _catalogItems = [];
+      _catalogActiveGenre = 'All';
+
+      // Update tab button styles
+      document.querySelectorAll('#catalogTabNav .stream-filter-chip').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('ctab-' + tabKey);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      // Show genre row if applicable
+      const meta = _catalogMeta[tabKey];
+      const genreRow = document.getElementById('catalogGenreRow');
+      if (meta && meta.genres) {
+        genreRow.style.display = 'flex';
+        genreRow.innerHTML = meta.genres.map(g =>
+          \`<button class="stream-filter-chip\${g === 'All' ? ' active' : ''}" onclick="setCatalogGenre('\${g.replace(/'/g,"\\\\'")}', this)">\${g}</button>\`
+        ).join('');
+      } else {
+        genreRow.style.display = 'none';
+        genreRow.innerHTML = '';
+      }
+
+      loadCatalog(true);
+    }
+
+    function setCatalogGenre(genre, btn) {
+      _catalogActiveGenre = genre;
+      _catalogSkip = 0;
+      _catalogItems = [];
+      document.querySelectorAll('#catalogGenreRow .stream-filter-chip').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      loadCatalog(true);
+    }
+
+    async function loadCatalog(reset = false) {
+      const grid = document.getElementById('catalogGrid');
+      if (!grid) return;
+      const meta = _catalogMeta[_activeCatalogTab];
+      if (!meta) return;
+
+      if (reset) {
+        grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:40px 0;">⏳ Loading…</div>';
+        document.getElementById('btnCatalogLoadMore').style.display = 'none';
+      }
+
+      try {
+        let items = [];
+        if (meta.src === 'cinemeta') {
+          // Fetch from Cinemeta trending
+          const cinemetaType = meta.type === 'series' ? 'series' : 'movie';
+          const skip = _catalogSkip;
+          const url = \`https://v3-cinemeta.strem.io/catalog/\${cinemetaType}/\${meta.id}/skip=\${skip}.json\`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Cinemeta HTTP ' + res.status);
+          const data = await res.json();
+          items = (data.metas || []).map(m => ({
+            id: m.id,
+            type: cinemetaType,
+            name: m.name || m.title || 'Unknown',
+            poster: m.poster || m.background || '',
+            year: m.year || '',
+            genres: m.genres || [],
+            description: m.description || '',
+          }));
+        } else {
+          // Fetch from local /catalog/ endpoint
+          const genre = (_catalogActiveGenre && _catalogActiveGenre !== 'All') ? '&genre=' + encodeURIComponent(_catalogActiveGenre) : '';
+          const url = \`/catalog/\${meta.type}/\${meta.id}/skip=\${_catalogSkip}\${genre}.json\`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Local catalog HTTP ' + res.status);
+          const data = await res.json();
+          items = (data.metas || []).map(m => ({
+            id: m.id,
+            type: meta.type,
+            name: m.name || m.title || 'Unknown',
+            poster: m.poster || m.background || '',
+            year: m.year || '',
+            genres: m.genres || [],
+            description: m.description || '',
+          }));
+        }
+
+        _catalogItems = reset ? items : [..._catalogItems, ...items];
+        _catalogSkip += items.length || 20;
+        renderCatalogGrid(reset);
+        document.getElementById('btnCatalogLoadMore').style.display = items.length >= 10 ? 'inline-block' : 'none';
+      } catch (e) {
+        if (reset) {
+          grid.innerHTML = \`<div style="grid-column:1/-1;color:#f85149;text-align:center;padding:30px 0;">⚠️ Failed to load catalog: \${e.message}. <button class="btn btn-sm" onclick="loadCatalog(true)" style="margin-left:8px;">↺ Retry</button></div>\`;
+        }
+        document.getElementById('btnCatalogLoadMore').style.display = 'none';
+      }
+    }
+
+    function renderCatalogGrid(reset = false) {
+      const grid = document.getElementById('catalogGrid');
+      if (!grid) return;
+
+      if (_catalogItems.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:30px 0;">No results found.</div>';
+        return;
+      }
+
+      const cards = _catalogItems.map(item => {
+        const poster = item.poster
+          ? \`<img src="\${item.poster}" alt="\${item.name}" style="width:100%;height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="this.style.display='none';this.nextSibling.style.display='flex';">\`
+            + \`<div style="display:none;width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>\`
+          : \`<div style="width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>\`;
+        const yearBadge = item.year ? \`<span style="font-size:0.72rem;color:var(--text-muted);">\${item.year}</span>\` : '';
+        const typeIcon = item.type === 'series' ? '📺' : '🎬';
+        return \`<div class="catalog-card" onclick="catalogItemClick('\${item.id.replace(/'/g,"\\\\'")}','\${item.type}','\${(item.name||'').replace(/'/g,"\\\\'")}','\${(item.poster||'').replace(/'/g,"\\\\'")}',\${item.type==='series'?'true':'false'})" title="\${item.name}">
+          \${poster}
+          <div style="padding:8px 8px 10px;">
+            <div style="font-size:0.82rem;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">\${typeIcon} \${item.name}</div>
+            \${yearBadge}
+          </div>
+        </div>\`;
+      }).join('');
+
+      if (reset) {
+        grid.innerHTML = cards;
+      } else {
+        // Remove loader if present
+        const existing = grid.innerHTML;
+        grid.innerHTML = existing + cards;
+      }
+    }
+
+    function loadMoreCatalog() {
+      loadCatalog(false);
+    }
+
+    function catalogItemClick(id, type, name, poster, isSeries) {
+      // Scroll to theater
+      const theater = document.getElementById('searchTheaterCard');
+      if (theater) theater.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Set type selector
+      const typeSelect = document.getElementById('theaterMediaType');
+      if (typeSelect) {
+        typeSelect.value = type === 'series' ? 'series' : 'movie';
+        toggleSeasonEpisodeInputs();
+      }
+
+      // Set search query to the id
+      const searchInput = document.getElementById('theaterSearchQuery');
+      if (searchInput) searchInput.value = id;
+
+      // Small delay for scroll, then kick off scrape
+      setTimeout(() => {
+        if (isSeries) {
+          // For series: show catalog + default to S1E1
+          const seasonEl = document.getElementById('theaterSeason');
+          const episodeEl = document.getElementById('theaterEpisode');
+          if (seasonEl) seasonEl.value = '1';
+          if (episodeEl) episodeEl.value = '1';
+          // Trigger search
+          executeTheaterSearch();
+        } else {
+          executeTheaterSearch();
+        }
+      }, 350);
+    }
 
     function showToast(msg) {
       const toast = document.getElementById('toast');
@@ -1342,18 +2055,232 @@ class WebUI {
       return url;
     }
 
-    async function runTest() {
-      const type = document.getElementById('testType').value;
-      const id = document.getElementById('testId').value.trim();
-      const resultsDiv = document.getElementById('testResults');
-      const btn = document.getElementById('btnTest');
+    function toggleSeasonEpisodeInputs() {
+      const type = document.getElementById('theaterMediaType').value;
+      const row = document.getElementById('seriesInputsRow');
+      if (row) {
+        row.style.display = (type === 'series') ? 'inline-flex' : 'none';
+      }
+    }
 
-      if (!id) return;
+    let currentSeriesMeta = null;
+    let selectedSeasonNum = 1;
+    let activeEpisodeId = null;
+
+    async function executeTheaterSearch() {
+      const type = document.getElementById('theaterMediaType').value;
+      const query = document.getElementById('theaterSearchQuery').value.trim();
+      const suggestionsBox = document.getElementById('searchSuggestionsContainer');
+      const resultsDiv = document.getElementById('testResults');
+      const btn = document.getElementById('btnTheaterSearch');
+
+      if (!query) return;
+
+      // If user entered direct IMDb ID or TMDB ID
+      if (query.startsWith('tt') || query.startsWith('tmdb:')) {
+        suggestionsBox.style.display = 'none';
+        const baseId = query.split(':')[0];
+        if (type === 'series') {
+          loadSeriesCatalog(baseId, query, null);
+        } else {
+          const catalogBox = document.getElementById('seriesCatalogContainer');
+          if (catalogBox) catalogBox.style.display = 'none';
+          scrapeMediaById(query, type, query, null, null, null);
+        }
+        return;
+      }
+
+      // Title Search via /api/search?q=...&type=...
+      btn.disabled = true;
+      btn.innerText = 'Searching...';
+      suggestionsBox.style.display = 'block';
+      suggestionsBox.innerHTML = '<div style="color:var(--text-muted); padding:10px;">Searching catalog for "' + escapeHtml(query) + '"...</div>';
+
+      try {
+        const res = await fetch('/api/search?q=' + encodeURIComponent(query) + '&type=' + type);
+        const data = await res.json();
+        const results = (data && data.results) ? data.results : [];
+
+        if (results.length === 0) {
+          suggestionsBox.innerHTML = '<div style="color:var(--text-muted); padding:10px;">No exact title matches found in Cinemeta/TMDB. Scraping directly for "' + escapeHtml(query) + '"...</div>';
+          scrapeMediaById(query, type, query, null, null, null);
+        } else {
+          let html = '<div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px; font-weight:600;">Found ' + results.length + ' match(es) — click any title to load catalog:</div>';
+          html += '<div class="search-suggestions-grid">';
+          for (const m of results) {
+            const posterUrl = m.poster || ('https://images.metahub.space/poster/medium/' + m.id + '/img');
+            const yearStr = m.year ? ' (' + m.year + ')' : '';
+            html += `
+              <div class="search-suggestion-item" onclick="selectSearchSuggestion('\${escapeHtml(m.id)}', '\${m.type || type}', '\${escapeHtml(m.name)}', '\${escapeHtml(m.year)}', '\${escapeHtml(posterUrl)}', '\${escapeHtml(m.description || '')}')">
+                <img src="\${posterUrl}" class="search-suggestion-thumb" onerror="this.src='/logo.png'">
+                <div style="overflow:hidden;">
+                  <div style="font-weight:600; font-size:0.88rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${escapeHtml(m.name)}</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted);">\${escapeHtml(m.type || type).toUpperCase()}\${yearStr}</div>
+                </div>
+              </div>
+            `;
+          }
+          html += '</div>';
+          suggestionsBox.innerHTML = html;
+
+          // Auto-select the top result
+          const top = results[0];
+          selectSearchSuggestion(top.id, top.type || type, top.name, top.year, top.poster, top.description || '');
+        }
+      } catch (err) {
+        suggestionsBox.innerHTML = '<div style="color:#f85149; padding:10px;">Search request error: ' + err + '</div>';
+        scrapeMediaById(query, type, query, null, null, null);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '🔍 Search & Scrape';
+      }
+    }
+
+    function selectSearchSuggestion(id, type, name, year, poster, desc) {
+      document.getElementById('theaterSearchQuery').value = id;
+      document.getElementById('theaterMediaType').value = type;
+      toggleSeasonEpisodeInputs();
+
+      const baseId = id.split(':')[0];
+
+      if (type === 'series') {
+        loadSeriesCatalog(baseId, name, poster);
+      } else {
+        const catalogBox = document.getElementById('seriesCatalogContainer');
+        if (catalogBox) catalogBox.style.display = 'none';
+        scrapeMediaById(baseId, 'movie', name, poster, desc, year);
+      }
+    }
+
+    async function loadSeriesCatalog(seriesId, initialName, poster) {
+      const catalogBox = document.getElementById('seriesCatalogContainer');
+      catalogBox.style.display = 'block';
+      catalogBox.innerHTML = '<div style="color:var(--text-muted); padding:14px; background:#0d1117; border:1px solid var(--border); border-radius:10px; margin-bottom:14px;">Loading seasons and episodes catalog for ' + escapeHtml(initialName || seriesId) + '...</div>';
+
+      try {
+        const res = await fetch('/api/series/episodes?id=' + encodeURIComponent(seriesId));
+        const data = await res.json();
+        if (data && data.success && data.series) {
+          currentSeriesMeta = data.series;
+          const seasons = data.series.seasons || [1];
+          selectedSeasonNum = seasons.length > 0 ? seasons[0] : 1;
+          renderSeriesCatalog();
+
+          // Auto scrape Episode 1 of first season
+          const firstSeasonEps = (data.series.episodesBySeason && data.series.episodesBySeason[String(selectedSeasonNum)]) || [];
+          if (firstSeasonEps.length > 0) {
+            const ep1 = firstSeasonEps[0];
+            activeEpisodeId = ep1.id;
+            scrapeMediaById(ep1.id, 'series', currentSeriesMeta.name + ' S' + ep1.season + 'E' + ep1.episode + ': ' + ep1.name, ep1.thumbnail || currentSeriesMeta.poster, ep1.overview, currentSeriesMeta.year);
+          }
+        } else {
+          catalogBox.innerHTML = '<div style="color:var(--text-muted); padding:10px; background:#0d1117; border:1px solid var(--border); border-radius:10px; margin-bottom:14px;">Episode catalog not available via Cinemeta. Using manual S/E inputs above.</div>';
+          const s = document.getElementById('theaterSeason').value || '1';
+          const e = document.getElementById('theaterEpisode').value || '1';
+          scrapeMediaById(seriesId + ':' + s + ':' + e, 'series', initialName || seriesId, poster, null, null);
+        }
+      } catch (err) {
+        catalogBox.innerHTML = '<div style="color:#f85149; padding:10px; background:#0d1117; border:1px solid var(--border); border-radius:10px; margin-bottom:14px;">Error loading episode catalog: ' + err + '</div>';
+        const s = document.getElementById('theaterSeason').value || '1';
+        const e = document.getElementById('theaterEpisode').value || '1';
+        scrapeMediaById(seriesId + ':' + s + ':' + e, 'series', initialName || seriesId, poster, null, null);
+      }
+    }
+
+    function renderSeriesCatalog() {
+      const catalogBox = document.getElementById('seriesCatalogContainer');
+      if (!currentSeriesMeta) return;
+
+      const seasons = currentSeriesMeta.seasons || [1];
+      const epsBySeason = currentSeriesMeta.episodesBySeason || {};
+      const currentEps = epsBySeason[String(selectedSeasonNum)] || [];
+
+      let html = '<div style="margin-top:6px; margin-bottom:14px; background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px;">';
+      html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">';
+      html += '<div style="font-weight:700; font-size:0.95rem; color:#fff;">📺 Seasons &amp; Episodes Catalog (' + escapeHtml(currentSeriesMeta.name) + ')</div>';
+      html += '<span style="font-size:0.8rem; color:var(--text-muted);">' + seasons.length + ' Season(s) Available</span>';
+      html += '</div>';
+
+      // Seasons Tab Bar
+      html += '<div class="seasons-bar">';
+      for (const sNum of seasons) {
+        const isActive = (sNum === selectedSeasonNum);
+        html += '<button type="button" class="season-tab ' + (isActive ? 'active' : '') + '" onclick="switchSeason(' + sNum + ')">Season ' + sNum + '</button>';
+      }
+      html += '</div>';
+
+      // Episodes Grid
+      html += '<div class="episodes-grid">';
+      for (const ep of currentEps) {
+        const isActiveEp = (ep.id === activeEpisodeId);
+        const epThumb = ep.thumbnail || currentSeriesMeta.poster || '/logo.png';
+        const epNumStr = 'S' + (ep.season < 10 ? '0' : '') + ep.season + 'E' + (ep.episode < 10 ? '0' : '') + ep.episode;
+        html += `
+          <div class="episode-card \${isActiveEp ? 'active' : ''}" onclick="selectEpisodeCard('\${escapeHtml(ep.id)}', \${ep.season}, \${ep.episode}, '\${escapeHtml(ep.name)}', '\${escapeHtml(epThumb)}', '\${escapeHtml(ep.overview)}')">
+            <img src="\${epThumb}" class="episode-thumb" onerror="this.src='/logo.png'">
+            <div class="episode-content">
+              <div>
+                <div class="episode-num">\${epNumStr} \${ep.released ? '• ' + escapeHtml(ep.released.substring(0, 10)) : ''}</div>
+                <div class="episode-title">\${escapeHtml(ep.name)}</div>
+              </div>
+              <div class="episode-desc">\${escapeHtml(ep.overview || 'Click to scrape and stream this episode')}</div>
+            </div>
+          </div>
+        `;
+      }
+      html += '</div>';
+      html += '</div>';
+
+      catalogBox.innerHTML = html;
+    }
+
+    function switchSeason(sNum) {
+      selectedSeasonNum = sNum;
+      renderSeriesCatalog();
+    }
+
+    function selectEpisodeCard(epId, season, episode, epTitle, thumb, overview) {
+      activeEpisodeId = epId;
+      document.getElementById('theaterSeason').value = season;
+      document.getElementById('theaterEpisode').value = episode;
+      renderSeriesCatalog();
+
+      const fullTitle = currentSeriesMeta ? (currentSeriesMeta.name + ' S' + season + 'E' + episode + ': ' + epTitle) : epTitle;
+      scrapeMediaById(epId, 'series', fullTitle, thumb, overview, currentSeriesMeta ? currentSeriesMeta.year : null);
+    }
+
+    async function scrapeMediaById(id, type, name, poster, desc, year) {
+      const activeCard = document.getElementById('activeMediaContainer');
+      const resultsDiv = document.getElementById('testResults');
+      const btn = document.getElementById('btnTheaterSearch');
+
+      activeCard.style.display = 'block';
+      const posterImg = poster || ('https://images.metahub.space/poster/medium/' + (id.split(':')[0]) + '/img');
+      const displayTitle = name || id;
+      const displayYear = year ? ' • ' + year : '';
+
+      activeCard.innerHTML = `
+        <div class="media-card-box">
+          <img src="\${posterImg}" class="media-card-poster" onerror="this.src='/logo.png'">
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+              <div>
+                <h3 style="font-size:1.15rem; color:#fff; font-weight:700;">\${escapeHtml(displayTitle)}</h3>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
+                  <span class="badge" style="background:#21262d; margin-right:4px;">\${escapeHtml(type).toUpperCase()}</span>
+                  <span>\${escapeHtml(id)}\${displayYear}</span>
+                </div>
+              </div>
+            </div>
+            \${desc ? '<p style="font-size:0.82rem; color:var(--text-muted); margin-top:8px; line-height:1.4; max-height:48px; overflow:hidden;">' + escapeHtml(desc) + '</p>' : ''}
+          </div>
+        </div>
+      `;
 
       btn.disabled = true;
       btn.innerText = 'Scraping...';
       resultsDiv.style.display = 'block';
-      resultsDiv.innerHTML = '<div style="color:var(--text-muted); padding:10px;">Scraping 56 providers for "' + escapeHtml(id) + '"...</div>';
+      resultsDiv.innerHTML = '<div style="color:var(--text-muted); padding:10px;">Scraping all enabled providers for "<strong>' + escapeHtml(displayTitle) + '</strong>" (' + escapeHtml(id) + ')...</div>';
 
       try {
         const res = await fetch('/stream/' + type + '/' + encodeURIComponent(id) + '.json');
@@ -1364,29 +2291,62 @@ class WebUI {
           const finalUrl = normalizeStreamUrl(s.url);
           const rawName = (s.name || '').replace(/\\n/g, ' ');
           const rawTitle = (s.title || '').replace(/\\n/g, '\\n');
+
+          // Extract underlying target URL if wrapped in /torbox/play?url=... or /proxy?url=...
+          let underlyingUrl = finalUrl;
+          try {
+            if (finalUrl.includes('?url=')) {
+              const u = new URL(finalUrl);
+              underlyingUrl = decodeURIComponent(u.searchParams.get('url') || finalUrl);
+            }
+          } catch (_) {}
+
+          const lowerUrl = underlyingUrl.toLowerCase();
+          const isHlsOrDash = lowerUrl.includes('.m3u8') || lowerUrl.includes('.mpd');
+
+          const isTorboxCached = rawName.includes('[Cached]') || rawTitle.includes('Cached on TorBox');
+          const isTorboxCachable = rawName.toLowerCase().includes('cachable') || rawName.includes('Start Caching') || rawName.includes('[Cache]') || rawTitle.toLowerCase().includes('cachable') || rawTitle.toLowerCase().includes('start caching');
+
+          // A stream is cachable to TorBox only if it is not HLS/DASH, not already cached, and is either tagged cachable or hosted on a supported hoster
+          const isSupportedHoster = !isHlsOrDash && !isTorboxCached && (
+            isTorboxCachable ||
+            lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mkv') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.webm') || lowerUrl.endsWith('.ts') ||
+            lowerUrl.includes('hubcloud') || lowerUrl.includes('hubdrive') || lowerUrl.includes('driveseed') ||
+            lowerUrl.includes('pixeldrain') || lowerUrl.includes('1fichier') || lowerUrl.includes('rapidgator') ||
+            lowerUrl.includes('mega.nz') || lowerUrl.includes('mediafire') || lowerUrl.includes('ddownload') ||
+            lowerUrl.includes('drive.google.com') || lowerUrl.includes('workers.dev') || lowerUrl.includes('vcloud') || lowerUrl.includes('fastdl')
+          );
+
           return {
             index: idx,
             name: rawName,
             title: rawTitle,
             url: finalUrl,
-            isCached: rawName.includes('[Cached]') || rawTitle.includes('Cached on TorBox'),
-            isCache: rawName.toLowerCase().includes('cachable') || rawName.includes('Start Caching') || rawName.includes('[Cache]') || rawTitle.toLowerCase().includes('cachable') || rawTitle.toLowerCase().includes('start caching'),
+            underlyingUrl: underlyingUrl,
+            mediaTitle: displayTitle,
+            isCached: isTorboxCached,
+            isCache: isTorboxCachable,
+            isCachableToTorbox: isSupportedHoster,
             is4K: rawName.includes('4K') || rawTitle.includes('[4K]'),
             is1080p: rawName.includes('1080p') || rawTitle.includes('[FHD]') || rawTitle.includes('1080p'),
           };
         });
 
         if (currentStreams.length === 0) {
-          resultsDiv.innerHTML = '<div style="color:#f85149; padding:10px;">No streams found. Try another title or check your enabled providers.</div>';
+          resultsDiv.innerHTML = '<div style="color:#f85149; padding:10px;">No streams found for ' + escapeHtml(displayTitle) + '. Check that your scrapers are enabled above.</div>';
         } else {
           renderFilteredStreams('all');
         }
       } catch (err) {
-        resultsDiv.innerHTML = '<div style="color:#f85149; padding:10px;">Error testing scrape: ' + err + '</div>';
+        resultsDiv.innerHTML = '<div style="color:#f85149; padding:10px;">Error scraping streams: ' + err + '</div>';
       } finally {
         btn.disabled = false;
-        btn.innerText = '🚀 Test Scrape';
+        btn.innerText = '🔍 Search & Scrape';
       }
+    }
+
+    function runTest() {
+      executeTheaterSearch();
     }
 
     function renderFilteredStreams(filter) {
@@ -1422,17 +2382,19 @@ class WebUI {
 
       for (let i = 0; i < filtered.length; i++) {
         const s = filtered[i];
-        const isTorbox = s.url.includes('/torbox/play') || s.title.includes('Torbox') || s.title.includes('Cached');
         html += '<div class="stream-item">';
         html += '  <div class="stream-info">';
         html += '    <div class="stream-title">' + escapeHtml(s.name) + '</div>';
         html += '    <div class="stream-sub">' + escapeHtml(s.title) + '</div>';
         html += '  </div>';
         html += '  <div class="stream-actions">';
-        html += '    <button class="btn btn-play" onclick="openPlayerModal(' + s.index + ')">▶️ Play Stream</button>';
-        html += '    <a class="btn" href="' + escapeHtml(s.url) + '" target="_blank" rel="noreferrer">🔗 Open URL</a>';
-        if (!isTorbox) {
-          html += '    <button class="btn btn-success" onclick="uploadStreamToTorbox(' + s.index + ', this)">🌐 Cache to TorBox</button>';
+        html += '    <button class="btn btn-play" onclick="openPlayerModal(' + s.index + ')">▶️ Web Mode</button>';
+        html += '    <button class="btn btn-open-with" onclick="showOpenWithModal(' + s.index + ')">🚀 Open With...</button>';
+        html += '    <button class="btn" onclick="downloadM3uCurrent(' + s.index + ')">📥 .m3u</button>';
+        html += '    <button class="btn" onclick="copyStreamUrl(' + s.index + ')">📋 URL</button>';
+        if (s.isCachableToTorbox) {
+          const btnLabel = s.isCache ? '⚡ Start TorBox Cache' : '🌐 Cache to TorBox';
+          html += '    <button class="btn btn-success" onclick="uploadStreamToTorbox(' + s.index + ', this)">' + btnLabel + '</button>';
         }
         html += '  </div>';
         html += '</div>';
@@ -1443,20 +2405,22 @@ class WebUI {
 
     function uploadStreamToTorbox(idx, btn) {
       const s = currentStreams[idx];
-      if (s && s.url) {
-        uploadLinkToTorbox(s.url, btn);
+      if (s) {
+        const target = s.underlyingUrl || s.url;
+        uploadLinkToTorbox(target, btn);
       }
     }
 
     function openPlayerModal(idx) {
       const s = currentStreams[idx];
       if (!s || !s.url) return;
+      currentPlayingIndex = idx;
 
       const modal = document.getElementById('playerModal');
       const title = document.getElementById('playerStreamTitle');
       const video = document.getElementById('previewVideoPlayer');
 
-      title.innerText = s.name + ' - ' + s.title.split('\\n')[0];
+      title.innerText = (s.mediaTitle ? s.mediaTitle + ' • ' : '') + s.name;
       modal.style.display = 'flex';
 
       if (currentHls) {
@@ -1486,6 +2450,122 @@ class WebUI {
       } else {
         video.src = streamUrl;
         video.play().catch(() => {});
+      }
+    }
+
+    function openWithFromPlayer() {
+      if (currentPlayingIndex !== null) {
+        showOpenWithModal(currentPlayingIndex);
+      }
+    }
+
+    function changePlayerSpeed(speed) {
+      const video = document.getElementById('previewVideoPlayer');
+      if (video) {
+        video.playbackRate = parseFloat(speed) || 1.0;
+        showToast('Playback speed: ' + speed + 'x');
+      }
+    }
+
+    function showOpenWithModal(idx) {
+      const s = currentStreams[idx];
+      if (!s || !s.url) return;
+      selectedStreamForOpenWith = s;
+
+      const modal = document.getElementById('openWithModal');
+      const title = document.getElementById('openWithStreamTitle');
+      const sub = document.getElementById('openWithStreamSub');
+      const urlPreview = document.getElementById('openWithUrlPreview');
+
+      title.innerText = '🚀 Open With: ' + s.name;
+      sub.innerText = (s.mediaTitle ? s.mediaTitle + ' • ' : '') + s.title.replace(/\\n/g, ' • ');
+      urlPreview.innerText = s.url;
+
+      const streamUrl = s.url;
+      const cleanName = (s.mediaTitle || 'Hostreamio') + ' - ' + s.name;
+
+      // VLC
+      const vlcBtn = document.getElementById('openWithVlc');
+      vlcBtn.onclick = (e) => {
+        e.preventDefault();
+        window.location.href = 'vlc://' + streamUrl;
+        showToast('🚀 Launching VLC...');
+        setTimeout(() => {
+          downloadM3u(cleanName, streamUrl);
+        }, 1200);
+      };
+
+      // PotPlayer
+      const potBtn = document.getElementById('openWithPotPlayer');
+      potBtn.onclick = (e) => {
+        e.preventDefault();
+        window.location.href = 'potplayer://' + streamUrl;
+        showToast('🚀 Launching PotPlayer...');
+      };
+
+      // MPV
+      const mpvBtn = document.getElementById('openWithMpv');
+      mpvBtn.onclick = (e) => {
+        e.preventDefault();
+        navigator.clipboard.writeText('mpv "' + streamUrl + '"');
+        showToast('📋 MPV command copied! Also launching mpv://...');
+        window.location.href = 'mpv://' + streamUrl;
+      };
+
+      // IINA
+      const iinaBtn = document.getElementById('openWithIina');
+      iinaBtn.onclick = (e) => {
+        e.preventDefault();
+        window.location.href = 'iina://weblink?url=' + encodeURIComponent(streamUrl);
+        showToast('🚀 Launching IINA...');
+      };
+
+      // Mobile
+      const mobileBtn = document.getElementById('openWithMobile');
+      mobileBtn.onclick = (e) => {
+        e.preventDefault();
+        window.location.href = 'intent:' + streamUrl + '#Intent;type=video/*;scheme=https;end';
+        showToast('🚀 Launching Android Video Player...');
+      };
+
+      modal.style.display = 'flex';
+    }
+
+    function closeOpenWithModal(e) {
+      const modal = document.getElementById('openWithModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function downloadM3u(title, streamUrl) {
+      const cleanTitle = (title || 'Hostreamio_Stream').replace(/[\r\n]/g, ' ');
+      const m3uContent = '#EXTM3U\\n#EXTINF:-1,' + cleanTitle + '\\n' + streamUrl + '\\n';
+      const blob = new Blob([m3uContent], { type: 'application/x-mpegurl' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (cleanTitle.replace(/[^a-zA-Z0-9_\\-]/g, '_')) + '.m3u';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('📥 Downloaded .m3u playlist! Double-click to play');
+    }
+
+    function downloadM3uCurrent(idx) {
+      const s = currentStreams[idx];
+      if (s && s.url) {
+        downloadM3u((s.mediaTitle || 'Hostreamio') + ' - ' + s.name, s.url);
+      }
+    }
+
+    function downloadM3uCurrentStream() {
+      if (selectedStreamForOpenWith && selectedStreamForOpenWith.url) {
+        downloadM3u((selectedStreamForOpenWith.mediaTitle || 'Hostreamio') + ' - ' + selectedStreamForOpenWith.name, selectedStreamForOpenWith.url);
+      }
+    }
+
+    function copyCurrentStreamUrl() {
+      if (selectedStreamForOpenWith && selectedStreamForOpenWith.url) {
+        navigator.clipboard.writeText(selectedStreamForOpenWith.url);
+        showToast('📋 Stream URL copied to clipboard!');
       }
     }
 
@@ -1645,6 +2725,16 @@ class WebUI {
       // 🇮🇳 Indian Regional Special
       case 'vegamovies':
         return {'scope': '🇮🇳 Regional', 'quality': '4K UHD', 'tech': '☁️ Cloud Extractors', 'desc': 'High-bitrate V-Cloud, HubCloud 4K/1080p HEVC Multi-Audio'};
+      case 'moviesdrive':
+        return {'scope': '🇮🇳 Regional', 'quality': '4K UHD', 'tech': '☁️ Cloud Extractors', 'desc': 'Typesense JSON indexer, HubCloud 10Gbps & PixelDrain 4K/1080p multi-audio'};
+      case 'moviesmod':
+        return {'scope': '🇮🇳 Regional', 'quality': '1080p FHD', 'tech': '☁️ Cloud Extractors', 'desc': 'Extensive Netflix, Prime, Hotstar, SonyLIV, Zee5 OTT web series & dual audio'};
+      case 'uhdmovies':
+        return {'scope': '🇮🇳 Regional', 'quality': '4K UHD', 'tech': '☁️ Cloud Extractors', 'desc': 'Pure 4K UHD, HDR, Dolby Vision, 10-Bit HEVC, and REMUX cloud streams'};
+      case 'multimovies':
+        return {'scope': '🇮🇳 Regional', 'quality': '1080p FHD', 'tech': '⚡ Fast HLS', 'desc': 'Multi-Audio streaming server (Hindi, Tamil, Telugu, English)'};
+      case 'toonstream':
+        return {'scope': '🇮🇳 Regional', 'quality': '1080p FHD', 'tech': '⚡ Fast HLS', 'desc': 'Dedicated Hindi Dubbed Anime, Cartoons, and Animated Series'};
       case 'bollyflix':
         return {'scope': '🇮🇳 Regional', 'quality': '4K UHD', 'tech': '☁️ Cloud Extractors', 'desc': 'Bollywood, South Hindi Dubbed, 4K/1080p multi-audio releases'};
       case 'hdhub4u':

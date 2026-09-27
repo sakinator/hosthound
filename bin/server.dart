@@ -327,6 +327,44 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       return;
     }
 
+    // ── 4c. In-App Media Search: GET /api/search?q=...&type=movie|series ──────
+    if (path == '/api/search') {
+      final q = request.uri.queryParameters['q'] ?? '';
+      final type = request.uri.queryParameters['type'] ?? 'movie';
+      final results = await MetadataService.search(query: q, type: type);
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({'success': true, 'results': results}));
+      await request.response.close();
+      return;
+    }
+
+    // ── 4c2. In-App Series Catalog & Episodes: GET /api/series/episodes?id=... ─
+    if (path == '/api/series/episodes') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final details = await MetadataService.getSeriesDetails(id);
+      request.response.headers.contentType = ContentType.json;
+      if (details != null) {
+        request.response.write(jsonEncode({'success': true, 'series': details}));
+      } else {
+        request.response.write(jsonEncode({'success': false, 'message': 'Series details not found'}));
+      }
+      await request.response.close();
+      return;
+    }
+
+    // ── 4d. M3U Playlist Generator: GET /stream/playlist.m3u?url=...&title=... ─
+    if (path == '/stream/playlist.m3u') {
+      final url = request.uri.queryParameters['url'] ?? '';
+      final title = request.uri.queryParameters['title'] ?? 'Hostreamio Stream';
+      final cleanTitle = title.replaceAll(RegExp(r'[\r\n]'), ' ');
+      final content = '#EXTM3U\n#EXTINF:-1,$cleanTitle\n$url\n';
+      request.response.headers.contentType = ContentType('application', 'x-mpegurl');
+      request.response.headers.set('Content-Disposition', 'attachment; filename="stream.m3u"');
+      request.response.write(content);
+      await request.response.close();
+      return;
+    }
+
     // ── 5. API: Toggle provider: POST /api/provider/:id ───────────────────
     if (path.startsWith('/api/provider/') && method == 'POST') {
       final providerId = path.replaceFirst('/api/provider/', '');
@@ -394,7 +432,16 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
     if (path == '/api/torbox/upload' && method == 'POST') {
       final bodyStr = await utf8.decodeStream(request);
       final bodyJson = _safeParseJsonMap(bodyStr) ?? {};
-      final url = bodyJson['url']?.toString().trim() ?? '';
+      var url = bodyJson['url']?.toString().trim() ?? '';
+      if (url.contains('?url=')) {
+        try {
+          final uri = Uri.parse(url);
+          final inner = uri.queryParameters['url'];
+          if (inner != null && inner.isNotEmpty) {
+            url = inner;
+          }
+        } catch (_) {}
+      }
       final apiKey = AddonConfig.instance.torboxApiKey.trim();
       final uploadRes = await TorboxService.instance.uploadToTorbox(url, apiKey);
       request.response.headers.contentType = ContentType.json;

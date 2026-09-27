@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
+import 'metadata_service.dart';
 import 'scraper_engine.dart';
 import 'server_service.dart';
 import 'torbox_service.dart';
@@ -46,6 +49,11 @@ class MainDashboardScreen extends StatefulWidget {
 }
 
 class _MainDashboardScreenState extends State<MainDashboardScreen> {
+  // Tab Navigation State
+  int _selectedTabIndex = 0; // 0 = Server, 1 = Streaming
+  final FocusNode _serverTabFocus = FocusNode();
+  final FocusNode _streamingTabFocus = FocusNode();
+
   final FocusNode _startStopFocus = FocusNode();
   final FocusNode _oneClickInstallFocus = FocusNode();
   final FocusNode _copyManifestFocus = FocusNode();
@@ -60,6 +68,25 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   bool _isValidatingTorbox = false;
   String? _torboxStatusMessage;
   bool _isTorboxValid = false;
+
+  // Streaming View State
+  String _selectedMediaType = 'movie'; // 'movie' or 'series'
+  final TextEditingController _searchQueryController = TextEditingController(text: 'tt1375666');
+  final TextEditingController _seasonController = TextEditingController(text: '1');
+  final TextEditingController _episodeController = TextEditingController(text: '1');
+  final FocusNode _searchInputFocus = FocusNode();
+  final FocusNode _searchButtonFocus = FocusNode();
+
+  bool _isSearching = false;
+  List<Map<String, dynamic>> _catalogSuggestions = [];
+  Map<String, dynamic>? _selectedMediaMeta;
+  Map<String, dynamic>? _seriesDetails;
+  int _selectedSeason = 1;
+  String? _selectedEpisodeId;
+
+  bool _isScrapingStreams = false;
+  List<Map<String, dynamic>> _scrapedStreams = [];
+  String _activeStreamFilter = 'all';
 
   @override
   void initState() {
@@ -78,6 +105,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   @override
   void dispose() {
+    _serverTabFocus.dispose();
+    _streamingTabFocus.dispose();
     _startStopFocus.dispose();
     _oneClickInstallFocus.dispose();
     _copyManifestFocus.dispose();
@@ -87,6 +116,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     _torboxInputFocus.dispose();
     _torboxSaveFocus.dispose();
     _torboxKeyLinkFocus.dispose();
+    _searchQueryController.dispose();
+    _seasonController.dispose();
+    _episodeController.dispose();
+    _searchInputFocus.dispose();
+    _searchButtonFocus.dispose();
     super.dispose();
   }
 
@@ -187,8 +221,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                             _buildHeader(running, isWide: isWide),
                             const SizedBox(height: 18),
 
-                            if (isWide) ...[
-                              // Two-column layout for Android TV, Tablet, or Wide Landscape screens
+                            // Main Tabs Switcher: Server vs Streaming
+                            _buildTabSelector(isWide: isWide),
+                            const SizedBox(height: 18),
+
+                            if (_selectedTabIndex == 1) ...[
+                              // TAB 2: Native Streaming Theater
+                              _buildStreamingView(isWide: isWide),
+                            ] else if (isWide) ...[
+                              // TAB 1: Server (Two-column layout for Android TV, Tablet, or Wide Landscape)
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -224,7 +265,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                                 ],
                               ),
                             ] else ...[
-                              // Single-column layout for Mobile Portrait
+                              // TAB 1: Server (Single-column layout for Mobile Portrait)
                               _buildStatusCard(running, ip, port, manifestUrl),
                               const SizedBox(height: 16),
                               _buildActionButtons(running, manifestUrl, dashboardUrl),
@@ -251,6 +292,88 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
+  Widget _buildTabSelector({bool isWide = false}) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF11141C),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1F2432)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _TvFocusableButton(
+              focusNode: _serverTabFocus,
+              onPressed: () {
+                setState(() => _selectedTabIndex = 0);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: _selectedTabIndex == 0
+                      ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.dns_rounded, size: 18, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      '🖥️ Server & Addon',
+                      style: TextStyle(
+                        fontSize: isWide ? 15 : 13,
+                        fontWeight: FontWeight.bold,
+                        color: _selectedTabIndex == 0 ? Colors.white : Colors.grey.shade400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _TvFocusableButton(
+              focusNode: _streamingTabFocus,
+              onPressed: () {
+                setState(() => _selectedTabIndex = 1);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: _selectedTabIndex == 1
+                      ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.movie_filter_rounded, size: 18, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      '🎬 Streaming Theater',
+                      style: TextStyle(
+                        fontSize: isWide ? 15 : 13,
+                        fontWeight: FontWeight.bold,
+                        color: _selectedTabIndex == 1 ? Colors.white : Colors.grey.shade400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeader(bool running, {bool isWide = false}) {
     return Row(
       children: [
@@ -258,21 +381,24 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           width: isWide ? 58 : 50,
           height: isWide ? 58 : 50,
           decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFFF0C82).withOpacity(0.55), width: 1.5),
+            borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFFF0C82).withOpacity(0.3),
-                blurRadius: 14,
+                color: const Color(0xFFFF0C82).withOpacity(0.45),
+                blurRadius: 18,
                 spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: const Color(0xFF195FEB).withOpacity(0.3),
+                blurRadius: 10,
+                spreadRadius: 0,
               ),
             ],
           ),
           clipBehavior: Clip.antiAlias,
           child: Image.asset(
             'assets/images/hostreamio_logo_256.png',
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Center(
               child: Icon(Icons.play_arrow_rounded, color: const Color(0xFFFF0C82), size: isWide ? 34 : 28),
             ),
@@ -341,6 +467,25 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
+  Widget _buildStepPill(String text, {bool isHighlight = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B22),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: isHighlight ? const Color(0xFF3FB950) : const Color(0xFF30363D)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
+          color: isHighlight ? const Color(0xFF3FB950) : Colors.white,
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusCard(bool running, String ip, int port, String manifestUrl) {
     return Container(
       padding: const EdgeInsets.all(22),
@@ -404,9 +549,21 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            'Paste this URL into Nuvio: Settings (⚙️) -> General -> Content & Discovery -> Addons (+)',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _buildStepPill('1. Open Nuvio'),
+              const Text('➔', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              _buildStepPill('2. Settings ⚙️'),
+              const Text('➔', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              _buildStepPill('3. General'),
+              const Text('➔', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              _buildStepPill('4. Addons (+)'),
+              const Text('➔', style: TextStyle(color: Colors.grey, fontSize: 11)),
+              _buildStepPill('5. Paste & Install', isHighlight: true),
+            ],
           ),
         ],
       ),
@@ -1054,6 +1211,831 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         ],
       ),
     );
+  }
+
+  // ── Native Streaming Theater Implementation ──────────────────────────
+
+  Widget _buildStreamingView({bool isWide = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. Dual-Rail Architecture Philosophy Banner
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF195FEB).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF195FEB).withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.lightbulb_rounded, color: Color(0xFF58A6FF), size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Dual-Rail Streaming Philosophy',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF58A6FF)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '• ⚡ TorBox [Cached]: Plays from high-speed TorBox CDN instantly.\n'
+                '• 🌐 TorBox [Start Caching]: Queues link in TorBox cloud; stream immediately on direct link without waiting!\n'
+                '• 🌐 Direct Play: Direct hoster or HLS stream without requiring a debrid subscription.',
+                style: TextStyle(fontSize: 13, height: 1.4, color: Colors.grey.shade300),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 2. Search & Scrape Control Card
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF11141C),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF1F2432), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.search_rounded, color: Color(0xFFFF0C82), size: 22),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Native Search & Stream Theater',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  const Spacer(),
+                  // Media Type Toggle
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF08090C),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF30363D)),
+                    ),
+                    padding: const EdgeInsets.all(3),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedMediaType = 'movie';
+                              _seriesDetails = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _selectedMediaType == 'movie' ? const Color(0xFF195FEB) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('🎬 Movie', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() => _selectedMediaType = 'series');
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _selectedMediaType == 'series' ? const Color(0xFF195FEB) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('📺 Series', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              // Search Input Row
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchQueryController,
+                      focusNode: _searchInputFocus,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0xFF08090C),
+                        hintText: 'Search title or IMDb ID...',
+                        hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2432))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2432))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFFF0C82))),
+                      ),
+                      onSubmitted: (_) => _performSearch(),
+                    ),
+                  ),
+                  if (_selectedMediaType == 'series') ...[
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 50,
+                      child: TextField(
+                        controller: _seasonController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: InputDecoration(
+                          labelText: 'S',
+                          labelStyle: const TextStyle(color: Colors.grey, fontSize: 11),
+                          filled: true,
+                          fillColor: const Color(0xFF08090C),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2432))),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 50,
+                      child: TextField(
+                        controller: _episodeController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: InputDecoration(
+                          labelText: 'E',
+                          labelStyle: const TextStyle(color: Colors.grey, fontSize: 11),
+                          filled: true,
+                          fillColor: const Color(0xFF08090C),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2432))),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 10),
+                  _TvFocusableButton(
+                    focusNode: _searchButtonFocus,
+                    isPrimary: true,
+                    primaryColor: const Color(0xFFFF0C82),
+                    onPressed: _performSearch,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isSearching)
+                            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          else
+                            const Icon(Icons.search_rounded, size: 16, color: Colors.white),
+                          const SizedBox(width: 6),
+                          const Text('Search', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // 3. Search Suggestions Row
+        if (_catalogSuggestions.isNotEmpty) ...[
+          SizedBox(
+            height: 100,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _catalogSuggestions.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final m = _catalogSuggestions[index];
+                final poster = m['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/${m['id']}/img';
+                return GestureDetector(
+                  onTap: () => _onSelectSuggestion(m),
+                  child: Container(
+                    width: 220,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF11141C),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF1F2432)),
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.network(
+                            poster,
+                            width: 50,
+                            height: 75,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(width: 50, height: 75, color: Colors.black26, child: const Icon(Icons.movie, size: 20)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                m['name']?.toString() ?? 'Title',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${(m['type']?.toString() ?? '').toUpperCase()} • ${m['year'] ?? ''}',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // 4. Series Catalog & Episodes Browser (if Series)
+        if (_selectedMediaType == 'series' && _seriesDetails != null) ...[
+          _buildSeriesCatalogBrowser(),
+          const SizedBox(height: 14),
+        ],
+
+        // 5. Scraped Streams List
+        _buildStreamsSection(),
+      ],
+    );
+  }
+
+  Widget _buildSeriesCatalogBrowser() {
+    final seasons = (_seriesDetails!['seasons'] as List?)?.map((e) => int.tryParse(e.toString()) ?? 1).toList() ?? [1];
+    final epsBySeason = (_seriesDetails!['episodesBySeason'] as Map<String, dynamic>?) ?? {};
+    final currentEps = (epsBySeason['$_selectedSeason'] as List?) ?? [];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF11141C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1F2432)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '📺 Seasons & Episodes (${_seriesDetails!['name'] ?? ''})',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+              ),
+              Text(
+                '${seasons.length} Season(s)',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Seasons Horizontal Bar
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: seasons.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final sNum = seasons[index];
+                final isActive = (sNum == _selectedSeason);
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedSeason = sNum);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isActive ? const Color(0xFF195FEB) : const Color(0xFF090D13),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: isActive ? const Color(0xFF195FEB) : const Color(0xFF1F2432)),
+                    ),
+                    child: Text(
+                      'Season $sNum',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isActive ? Colors.white : Colors.grey.shade400,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Episodes List
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 260),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: currentEps.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final ep = currentEps[index] as Map<String, dynamic>;
+                final epId = ep['id']?.toString() ?? '';
+                final isSelected = (epId == _selectedEpisodeId);
+                final thumb = ep['thumbnail']?.toString() ?? _seriesDetails!['poster']?.toString() ?? '';
+                final epNum = 'S${ep['season'] < 10 ? '0' : ''}${ep['season']}E${ep['episode'] < 10 ? '0' : ''}${ep['episode']}';
+
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedEpisodeId = epId;
+                      _seasonController.text = ep['season'].toString();
+                      _episodeController.text = ep['episode'].toString();
+                    });
+                    final title = '${_seriesDetails!['name']} $epNum: ${ep['name']}';
+                    _scrapeStreams(epId, 'series', title);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF195FEB).withOpacity(0.15) : const Color(0xFF090D13),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF195FEB) : const Color(0xFF1F2432),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        if (thumb.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.network(
+                              thumb,
+                              width: 65,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(width: 65, height: 48, color: Colors.black26),
+                            ),
+                          ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$epNum: ${ep['name'] ?? ''}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                              ),
+                              if (ep['overview'] != null && ep['overview'].toString().isNotEmpty)
+                                Text(
+                                  ep['overview'].toString(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.play_circle_outline_rounded, color: Color(0xFFFF0C82), size: 24),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreamsSection() {
+    if (_isScrapingStreams) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        alignment: Alignment.center,
+        child: const Column(
+          children: [
+            CircularProgressIndicator(color: Color(0xFFFF0C82)),
+            SizedBox(height: 12),
+            Text('Scraping 56 providers for streams...', style: TextStyle(color: Colors.grey, fontSize: 14)),
+          ],
+        ),
+      );
+    }
+
+    if (_scrapedStreams.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final count4K = _scrapedStreams.where((s) => s['is4K'] == true).length;
+    final count1080p = _scrapedStreams.where((s) => s['is1080p'] == true).length;
+    final countCached = _scrapedStreams.where((s) => s['isCached'] == true).length;
+    final countCachable = _scrapedStreams.where((s) => s['isCache'] == true).length;
+
+    var filtered = _scrapedStreams;
+    if (_activeStreamFilter == '4k') filtered = _scrapedStreams.where((s) => s['is4K'] == true).toList();
+    else if (_activeStreamFilter == '1080p') filtered = _scrapedStreams.where((s) => s['is1080p'] == true).toList();
+    else if (_activeStreamFilter == 'cached') filtered = _scrapedStreams.where((s) => s['isCached'] == true).toList();
+    else if (_activeStreamFilter == 'cachable') filtered = _scrapedStreams.where((s) => s['isCache'] == true).toList();
+    else if (_activeStreamFilter == 'direct') filtered = _scrapedStreams.where((s) => s['isCached'] != true && s['isCache'] != true).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Filter Chips Bar
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _buildStreamFilterChip('all', 'All (${_scrapedStreams.length})'),
+            if (count4K > 0) _buildStreamFilterChip('4k', '4K ($count4K)'),
+            if (count1080p > 0) _buildStreamFilterChip('1080p', '1080p ($count1080p)'),
+            if (countCached > 0) _buildStreamFilterChip('cached', '⚡ Cached ($countCached)'),
+            if (countCachable > 0) _buildStreamFilterChip('cachable', '🌐 TorBox Cachable ($countCachable)'),
+            _buildStreamFilterChip('direct', 'Direct Play'),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Streams ListView
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: filtered.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final s = filtered[index];
+            final name = s['cleanName']?.toString() ?? '';
+            final title = s['cleanTitle']?.toString() ?? '';
+            final url = s['finalUrl']?.toString() ?? '';
+            final underlying = s['underlyingUrl']?.toString() ?? url;
+            final isCachable = s['isCachableToTorbox'] == true;
+            final isCached = s['isCached'] == true;
+            final isCacheTag = s['isCache'] == true;
+
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF11141C),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isCached
+                      ? const Color(0xFF238636)
+                      : (isCacheTag ? const Color(0xFF195FEB) : const Color(0xFF1F2432)),
+                  width: 1.2,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isCached
+                              ? const Color(0xFF238636).withOpacity(0.2)
+                              : (isCacheTag ? const Color(0xFF195FEB).withOpacity(0.2) : const Color(0xFF21262D)),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isCached ? const Color(0xFF3FB950) : (isCacheTag ? const Color(0xFF58A6FF) : Colors.grey.shade700),
+                          ),
+                        ),
+                        child: Text(
+                          isCached ? '⚡ TorBox Cached' : (isCacheTag ? '🌐 TorBox Cachable' : '🌐 Direct Play'),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isCached ? const Color(0xFF3FB950) : (isCacheTag ? const Color(0xFF58A6FF) : Colors.white),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 10),
+                  // Action buttons
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF195FEB),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded, size: 16, color: Colors.white),
+                        label: const Text('Play', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        onPressed: () => _playStream(url),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          side: const BorderSide(color: Color(0xFF30363D)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.copy_rounded, size: 14, color: Colors.grey),
+                        label: const Text('Copy', style: TextStyle(fontSize: 12, color: Colors.white)),
+                        onPressed: () => _copyToClipboard(url, 'Stream URL'),
+                      ),
+                      if (isCachable) ...[
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF238636),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.cloud_upload_rounded, size: 14, color: Colors.white),
+                          label: Text(
+                            isCacheTag ? '⚡ Start Cache' : 'Cache to TorBox',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          onPressed: () => _startTorboxCache(underlying),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStreamFilterChip(String filterKey, String label) {
+    final isActive = (_activeStreamFilter == filterKey);
+    return GestureDetector(
+      onTap: () {
+        setState(() => _activeStreamFilter = filterKey);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF195FEB) : const Color(0xFF161B22),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isActive ? const Color(0xFF195FEB) : const Color(0xFF30363D)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: isActive ? Colors.white : Colors.grey.shade400,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _performSearch() async {
+    final query = _searchQueryController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() {
+      _isSearching = true;
+      _catalogSuggestions = [];
+      _scrapedStreams = [];
+    });
+
+    try {
+      if (query.startsWith('tt') || query.startsWith('tmdb:')) {
+        if (_selectedMediaType == 'series') {
+          await _loadSeriesCatalog(query, query, null);
+        } else {
+          await _scrapeStreams(query, 'movie', query);
+        }
+        return;
+      }
+
+      final results = await MetadataService.search(query: query, type: _selectedMediaType);
+      if (mounted) {
+        setState(() {
+          _catalogSuggestions = results;
+        });
+        if (results.isNotEmpty) {
+          final top = results.first;
+          _onSelectSuggestion(top);
+        } else {
+          _scrapeStreams(query, _selectedMediaType, query);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Search error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
+  void _onSelectSuggestion(Map<String, dynamic> m) {
+    final id = m['id']?.toString() ?? '';
+    final name = m['name']?.toString() ?? '';
+    final type = m['type']?.toString() ?? _selectedMediaType;
+    final poster = m['poster']?.toString();
+
+    _searchQueryController.text = id;
+    setState(() {
+      _selectedMediaType = type;
+      _selectedMediaMeta = m;
+    });
+
+    if (type == 'series') {
+      _loadSeriesCatalog(id, name, poster);
+    } else {
+      _scrapeStreams(id, 'movie', name);
+    }
+  }
+
+  Future<void> _loadSeriesCatalog(String id, String name, String? poster) async {
+    setState(() {
+      _selectedMediaMeta = {'id': id, 'name': name, 'poster': poster};
+      _seriesDetails = null;
+    });
+
+    try {
+      final details = await MetadataService.getSeriesDetails(id);
+      if (mounted && details != null) {
+        setState(() {
+          _seriesDetails = details;
+          final seasons = (details['seasons'] as List?)?.map((e) => int.tryParse(e.toString()) ?? 1).toList() ?? [1];
+          _selectedSeason = seasons.isNotEmpty ? seasons.first : 1;
+        });
+
+        // Auto scrape episode 1
+        final epsBySeason = details['episodesBySeason'] as Map<String, dynamic>? ?? {};
+        final firstSeasonEps = (epsBySeason['$_selectedSeason'] as List?) ?? [];
+        if (firstSeasonEps.isNotEmpty) {
+          final ep1 = firstSeasonEps.first as Map<String, dynamic>;
+          _selectedEpisodeId = ep1['id']?.toString();
+          final epTitle = '$name S${ep1['season']}E${ep1['episode']}: ${ep1['name']}';
+          await _scrapeStreams(ep1['id'].toString(), 'series', epTitle);
+        }
+      } else {
+        final s = int.tryParse(_seasonController.text) ?? 1;
+        final e = int.tryParse(_episodeController.text) ?? 1;
+        await _scrapeStreams('$id:$s:$e', 'series', name);
+      }
+    } catch (_) {
+      final s = int.tryParse(_seasonController.text) ?? 1;
+      final e = int.tryParse(_episodeController.text) ?? 1;
+      await _scrapeStreams('$id:$s:$e', 'series', name);
+    }
+  }
+
+  Future<void> _scrapeStreams(String id, String type, String title) async {
+    setState(() {
+      _isScrapingStreams = true;
+      _scrapedStreams = [];
+    });
+
+    try {
+      final port = AddonConfig.instance.port;
+      final url = Uri.parse('http://127.0.0.1:$port/stream/$type/${Uri.encodeComponent(id)}.json');
+      final res = await http.get(url).timeout(const Duration(seconds: 25));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final rawList = (data is Map && data['streams'] is List) ? data['streams'] as List : [];
+
+        final parsed = rawList.map((s) {
+          final m = Map<String, dynamic>.from(s as Map);
+          final rawName = (m['name']?.toString() ?? '').replaceAll('\n', ' ');
+          final rawTitle = (m['title']?.toString() ?? '').replaceAll('\n', ' • ');
+          final rawUrl = m['url']?.toString() ?? '';
+
+          String underlying = rawUrl;
+          if (rawUrl.contains('?url=')) {
+            try {
+              final parsedUri = Uri.parse(rawUrl);
+              final inner = parsedUri.queryParameters['url'];
+              if (inner != null && inner.isNotEmpty) underlying = inner;
+            } catch (_) {}
+          }
+
+          final lower = underlying.toLowerCase();
+          final isHls = lower.contains('.m3u8') || lower.contains('.mpd');
+          final isCached = rawName.contains('[Cached]') || rawTitle.contains('Cached on TorBox');
+          final isCachableTag = rawName.toLowerCase().contains('cachable') || rawName.contains('Start Caching') || rawTitle.toLowerCase().contains('cachable');
+
+          final isHosterSupported = !isHls && !isCached && (
+            isCachableTag ||
+            lower.endsWith('.mp4') || lower.endsWith('.mkv') || lower.endsWith('.avi') || lower.endsWith('.webm') || lower.endsWith('.ts') ||
+            lower.contains('hubcloud') || lower.contains('hubdrive') || lower.contains('driveseed') ||
+            lower.contains('pixeldrain') || lower.contains('1fichier') || lower.contains('rapidgator') ||
+            lower.contains('mega.nz') || lower.contains('mediafire') || lower.contains('ddownload') ||
+            lower.contains('drive.google.com') || lower.contains('workers.dev') || lower.contains('vcloud')
+          );
+
+          m['cleanName'] = rawName;
+          m['cleanTitle'] = rawTitle;
+          m['finalUrl'] = rawUrl;
+          m['underlyingUrl'] = underlying;
+          m['isCached'] = isCached;
+          m['isCache'] = isCachableTag;
+          m['isCachableToTorbox'] = isHosterSupported;
+          m['is4K'] = rawName.contains('4K') || rawTitle.contains('[4K]');
+          m['is1080p'] = rawName.contains('1080p') || rawTitle.contains('[FHD]') || rawTitle.contains('1080p');
+          return m;
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            _scrapedStreams = parsed;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Scrape error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isScrapingStreams = false);
+    }
+  }
+
+  Future<void> _startTorboxCache(String url) async {
+    final apiKey = AddonConfig.instance.torboxApiKey.trim();
+    if (apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please configure your TorBox API Key in the Server tab first!'),
+          backgroundColor: Color(0xFFF85149),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Submitting link to TorBox cloud cache...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    final res = await TorboxService.instance.uploadToTorbox(url, apiKey);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']?.toString() ?? 'Queued to TorBox Cache!'),
+          backgroundColor: res['success'] == true ? const Color(0xFF238636) : const Color(0xFFF85149),
+        ),
+      );
+    }
+  }
+
+  Future<void> _playStream(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final canLaunch = await canLaunchUrl(uri);
+      if (canLaunch) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      if (mounted) {
+        _copyToClipboard(url, 'Stream Link');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open external player. Link copied: $e')),
+        );
+      }
+    }
   }
 }
 

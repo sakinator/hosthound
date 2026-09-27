@@ -339,4 +339,159 @@ class MetadataService {
     _cache[cacheKey] = result;
     return result;
   }
+
+  /// Searches movies or series by text query using Cinemeta (and TMDB fallback).
+  static Future<List<Map<String, dynamic>>> search({
+    required String query,
+    String type = 'movie',
+  }) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return [];
+
+    final cinemetaType = (type == 'series' || type == 'tv') ? 'series' : 'movie';
+    final results = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    // 1. Cinemeta Catalog Search (zero-key, instant)
+    try {
+      final uri = Uri.parse('$_cinemeta/$cinemetaType/top/search=${Uri.encodeComponent(cleanQuery)}.json');
+      final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final metas = data['metas'] as List?;
+        if (metas != null) {
+          for (final m in metas) {
+            final id = m['id']?.toString() ?? '';
+            if (id.isNotEmpty && seenIds.add(id)) {
+              results.add({
+                'id': id,
+                'name': m['name']?.toString() ?? '',
+                'type': m['type']?.toString() ?? type,
+                'year': m['releaseInfo']?.toString() ?? m['year']?.toString() ?? '',
+                'poster': m['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$id/img',
+                'description': m['description']?.toString() ?? '',
+              });
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 2. TMDB Search (if results are low or user provided custom key)
+    if (results.length < 5) {
+      final tmdbType = (type == 'series' || type == 'tv') ? 'tv' : 'movie';
+      try {
+        final uri = Uri.parse('$_tmdbDirect/search/$tmdbType?api_key=$_apiKey&query=${Uri.encodeComponent(cleanQuery)}');
+        final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 3));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final list = data['results'] as List?;
+          if (list != null) {
+            for (final item in list) {
+              final tmdbId = item['id'];
+              final id = 'tmdb:$tmdbId';
+              if (tmdbId != null && seenIds.add(id)) {
+                final title = (item['title'] ?? item['name'])?.toString() ?? '';
+                final date = (item['release_date'] ?? item['first_air_date'])?.toString() ?? '';
+                final year = date.length >= 4 ? date.substring(0, 4) : '';
+                final posterPath = item['poster_path']?.toString();
+                final poster = posterPath != null ? 'https://image.tmdb.org/t/p/w300$posterPath' : null;
+                results.add({
+                  'id': id,
+                  'name': title,
+                  'type': type,
+                  'year': year,
+                  'poster': poster,
+                  'description': item['overview']?.toString() ?? '',
+                });
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    return results;
+  }
+
+  /// Fetches complete series catalog details including seasons and episodes.
+  static Future<Map<String, dynamic>?> getSeriesDetails(String rawId) async {
+    String baseId = rawId;
+    if (baseId.contains(':')) {
+      baseId = baseId.split(':')[0];
+    }
+
+    String? imdbId;
+    if (baseId.startsWith('tt')) {
+      imdbId = baseId;
+    } else if (baseId.startsWith('tmdb:')) {
+      final numericStr = baseId.replaceFirst('tmdb:', '');
+      final tmdbId = int.tryParse(numericStr);
+      if (tmdbId != null) {
+        try {
+          final uri = Uri.parse('$_tmdbDirect/tv/$tmdbId?api_key=$_apiKey');
+          final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 4));
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body);
+            imdbId = data['external_ids']?['imdb_id'] ?? data['imdb_id'];
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (imdbId == null || !imdbId.startsWith('tt')) {
+      return null;
+    }
+
+    try {
+      final uri = Uri.parse('$_cinemeta/series/$imdbId.json');
+      final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final meta = data['meta'];
+        if (meta != null) {
+          final videos = (meta['videos'] as List?) ?? [];
+          final seasonsSet = <int>{};
+          final episodesBySeason = <String, List<Map<String, dynamic>>>{};
+
+          for (final v in videos) {
+            if (v is Map) {
+              final sNum = v['season'] as int? ?? 1;
+              final eNum = (v['number'] ?? v['episode']) as int? ?? 1;
+              seasonsSet.add(sNum);
+              final sKey = sNum.toString();
+              episodesBySeason.putIfAbsent(sKey, () => []);
+              episodesBySeason[sKey]!.add({
+                'id': v['id']?.toString() ?? '$imdbId:$sNum:$eNum',
+                'season': sNum,
+                'episode': eNum,
+                'name': v['name']?.toString() ?? 'Episode $eNum',
+                'thumbnail': v['thumbnail']?.toString() ?? 'https://episodes.metahub.space/$imdbId/$sNum/$eNum/w780.jpg',
+                'overview': v['overview']?.toString() ?? v['description']?.toString() ?? '',
+                'released': v['released']?.toString() ?? v['firstAired']?.toString() ?? '',
+              });
+            }
+          }
+
+          final sortedSeasons = seasonsSet.toList()..sort();
+
+          return {
+            'id': imdbId,
+            'name': meta['name']?.toString() ?? '',
+            'year': meta['year']?.toString() ?? meta['releaseInfo']?.toString() ?? '',
+            'poster': meta['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$imdbId/img',
+            'background': meta['background']?.toString() ?? 'https://images.metahub.space/background/medium/$imdbId/img',
+            'description': meta['description']?.toString() ?? '',
+            'imdbRating': meta['imdbRating']?.toString() ?? '',
+            'genres': meta['genres'] ?? [],
+            'seasons': sortedSeasons,
+            'episodesBySeason': episodesBySeason,
+          };
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
 }
+
