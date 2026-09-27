@@ -171,16 +171,70 @@ The included CI workflow (`.github/workflows/build-apk.yml`) compiles the releas
 
 ---
 
-## 📺 Quick Install in Nuvio & Stremio
+## 📺 Step-by-Step Installation in Nuvio & Stremio
 
-### Option 1: 1-Click Install (PC or Android with Stremio Installed)
-- Click **[🚀 Install to Stremio / Nuvio](stremio://127.0.0.1:7002/manifest.json)** (or click the green 1-Click button in the Web Dashboard at `http://localhost:7002/configure`).
+### Scenario A: Running on PC & Streaming on Android TV / Fire TV / Phone (Same Wi-Fi)
+1. **Launch Hostreamio on your PC:**
+   - Run `hostreamio.exe` or `.\start.bat`.
+   - Note your PC's local Wi-Fi IP address printed in the console (e.g., `http://192.168.0.127:7002`).
+   *(Ensure Windows Firewall allows inbound TCP traffic on port 7002 on your local home network).*
+2. **Install Addon Manifest in Nuvio:**
+   - Open **Nuvio** on your Android TV, Fire TV, or mobile device.
+   - In the navigation menu, select **Addons** (🧩 icon).
+   - Click the **`+`** button (or **Install from URL / Custom Addon**).
+   - Type or paste your LAN URL:
+     ```text
+     http://<YOUR_PC_LAN_IP>:7002/manifest.json
+     ```
+     *(Example: `http://192.168.0.127:7002/manifest.json`)*
+   - Click **Install**. Hostreamio will appear under Installed Addons with version `2.0.0`.
+3. **Enable OTT & Quality Badges (Fusion Badges in Nuvio):**
+   - In Nuvio, go to **Settings (⚙️)** ➔ **Layout** ➔ **Streams**.
+   - Under **Fusion Badge URLs** (or **Badges URL**), enter:
+     ```text
+     http://<YOUR_PC_LAN_IP>:7002/badges.json
+     ```
+   - Click **Add / Save**. All stream cards will now render visual quality pills (`[4K]`, `[1080p]`, `[Remux]`) and regional OTT logos (JioHotstar, SonyLIV, Zee5, JioCinema, SunNXT, Netflix, Prime).
 
-### Option 2: Install from URL (Android TV, FireStick & Phone on Same Wi-Fi)
-1. Open **Nuvio** or **Stremio** on your TV or phone.
-2. Go to **Settings** ➔ **Add-ons** ➔ **Install from URL** (or click the **+** button).
-3. Paste the LAN URL: `http://<YOUR_PC_LAN_IP>:7002/manifest.json` (e.g. `http://192.168.0.127:7002/manifest.json`).
-4. Click **Install**. All 56 providers and rich catalogs will immediately populate your search and stream results!
+---
+
+### Scenario B: Running Standalone on Android TV / Fire TV / Phone (via `hostreamio.apk`)
+1. **Install the APK:**
+   - Sideload [`hostreamio.apk`](https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio.apk) onto your Android TV or phone (via *Send Files to TV*, *Downloader*, or *ADB*).
+   - Open **Hostreamio**. The engine starts automatically in the background on port `7002` with wake-lock support.
+   - *(Optional)* Enter your TorBox API key and click **Save & Validate**.
+2. **Install into Nuvio (on the Same Device):**
+   - Switch to **Nuvio** on your TV or phone.
+   - Go to **Addons** ➔ Click **`+`** (Install from URL).
+   - Enter the localhost address:
+     ```text
+     http://127.0.0.1:7002/manifest.json
+     ```
+     *(Or click the `1-Click Install (Stremio / Nuvio)` button directly inside the Hostreamio Android app).*
+   - Click **Install**.
+3. **Enable Badges in Nuvio:**
+   - In Nuvio: **Settings (⚙️)** ➔ **Layout** ➔ **Streams** ➔ **Fusion Badge URLs**.
+   - Paste: `http://127.0.0.1:7002/badges.json` and save.
+
+---
+
+### Scenario C: Running Nuvio / Stremio on the Same Windows PC
+1. **Launch Hostreamio:** Double-click `hostreamio.exe`.
+2. **1-Click Install:**
+   - Open your browser to `http://localhost:7002/configure`.
+   - Click **`🚀 1-Click Install to Stremio / Nuvio`** (or open `stremio://127.0.0.1:7002/manifest.json`).
+   - Or in Nuvio Desktop: **Addons** ➔ **`+`** ➔ `http://localhost:7002/manifest.json`.
+3. **Badges:** Set Fusion Badges URL in Nuvio to `http://localhost:7002/badges.json`.
+
+---
+
+### 🛠️ Troubleshooting & Verification
+* **Test Manifest in Browser:** Open `http://localhost:7002/manifest.json` (or `http://<LAN_IP>:7002/manifest.json`). It should return valid JSON with `"id": "org.sakinator.hostreamio"`.
+* **Windows Firewall Rule (if TV cannot connect):** Run in PowerShell as Administrator:
+  ```powershell
+  New-NetFirewallRule -DisplayName "Hostreamio Addon Server" -Direction Inbound -LocalPort 7002 -Protocol TCP -Action Allow
+  ```
+* **Recommended Player in Nuvio:** For the best buffering and seeking experience with TorBox and HLS streams, go to Nuvio **Settings** ➔ **Player** and ensure **ExoPlayer** (default) or **MPV** is selected.
 
 ---
 
