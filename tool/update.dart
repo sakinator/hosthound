@@ -9,7 +9,7 @@ import 'dart:io';
 ///   dart run tool/update.dart --no-compile
 void main(List<String> args) async {
   print('\x1B[36m==========================================================\x1B[0m');
-  print('\x1B[35m ⚡ Hostreamio Cross-Platform Update Pipeline\x1B[0m');
+  print('\x1B[35m ▶️ Hostreamio Cross-Platform Update Pipeline\x1B[0m');
   print('\x1B[36m==========================================================\x1B[0m');
 
   int port = 7002;

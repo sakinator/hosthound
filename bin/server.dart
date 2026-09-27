@@ -51,7 +51,7 @@ void main(List<String> args) async {
   final server = await HttpServer.bind(InternetAddress.anyIPv4, cfg.port);
 
   print('===============================================================');
-  print('              ⚡ Hostreamio Addon for Nuvio ⚡             ');
+  print('              ▶️ Hostreamio Addon for Nuvio ▶️             ');
   print('===============================================================');
   print(' Status: RUNNING');
   print(' Port:   ${cfg.port}');

@@ -3,7 +3,7 @@ title Hostreamio Addon
 cd /d "%~dp0"
 
 echo ===============================================================
-echo        ⚡ Hostreamio Addon (Direct Hosters + Streaming Links + Badges)
+echo        ▶️ Hostreamio Addon (Direct Hosters + Streaming Links + Badges)
 echo ===============================================================
 echo.
 

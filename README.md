@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="hostreamio_logo.png" alt="Hostreamio Logo" width="160" style="border-radius: 24px; box-shadow: 0 0 32px rgba(255, 12, 130, 0.4);" />
-  <h1 align="center" style="font-size: 2.4rem; font-weight: 900; letter-spacing: -0.5px; margin-top: 12px; margin-bottom: 4px;">⚡ Hostreamio Addon</h1>
+  <img src="hostreamio_logo.png" alt="Hostreamio Logo" width="180" />
+  <h1 align="center" style="font-size: 2.4rem; font-weight: 900; letter-spacing: -0.5px; margin-top: 12px; margin-bottom: 4px;">▶️ Hostreamio Addon</h1>
   <p align="center"><b>Direct Hosters • Streaming Links • TorBox Cloud Debrid • Smart Proxy • Instant Badges</b></p>
   <p align="center"><i>High-Performance Stream Engine for Nuvio & Stremio (Android TV, Mobile & Desktop)</i></p>
 
@@ -131,7 +131,7 @@ Run `hostreamio.exe` (or `start.bat`) inside this directory:
 Console output:
 ```text
 ===============================================================
-              ⚡ Hostreamio Addon for Nuvio ⚡         
+              ▶️ Hostreamio Addon for Nuvio ▶️         
 ===============================================================
  Status: RUNNING
  Port:   7002

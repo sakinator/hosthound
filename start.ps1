@@ -2,7 +2,7 @@
 Set-Location -Path $PSScriptRoot
 
 Write-Host "===============================================================" -ForegroundColor Cyan
-Write-Host "              ⚡ Hostreamio Addon for Nuvio ⚡" -ForegroundColor Magenta
+Write-Host "              ▶️ Hostreamio Addon for Nuvio ▶️" -ForegroundColor Magenta
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host ""
 
