@@ -368,11 +368,56 @@ class ServerService {
 
           _addLog('Stream request: $type/$idWithExt');
 
-          // Custom video streams (YouTube, Archive.org, Dailymotion)
-          if (idWithExt.startsWith('yt:') || idWithExt.startsWith('archive:') || idWithExt.startsWith('dm:')) {
-            final customStreams = await CatalogService.instance.resolveCustomStreams(type, idWithExt);
+          // Check custom video streams (YouTube, Vimeo, Archive.org, Dailymotion)
+          // Also scrape all other hoster/torrent sources for this title & year, sorting own links FIRST!
+          if (idWithExt.startsWith('yt:') || idWithExt.startsWith('vimeo:') || idWithExt.startsWith('archive:') || idWithExt.startsWith('dm:')) {
+            final customStreamsFuture = CatalogService.instance.resolveCustomStreams(
+              type, 
+              idWithExt,
+              localBaseUrl: localBaseUrl,
+            );
+            final metaDetailFuture = CatalogService.instance.getMetaDetail(type, idWithExt);
+
+            final results = await Future.wait([customStreamsFuture, metaDetailFuture]);
+            final customStreams = results[0] as List<Map<String, dynamic>>;
+            final meta = results[1] as Map<String, dynamic>?;
+
+            List<Map<String, dynamic>> otherStreams = [];
+            if (meta != null && meta['name'] != null && meta['name'].toString().isNotEmpty) {
+              try {
+                final cleanTitle = meta['name'].toString();
+                int? year;
+                if (meta['year'] != null) {
+                  year = int.tryParse(meta['year'].toString());
+                }
+                if (year == null && meta['releaseInfo'] != null) {
+                  final match = RegExp(r'\b(19\d\d|20\d\d)\b').firstMatch(meta['releaseInfo'].toString());
+                  if (match != null) year = int.tryParse(match.group(1)!);
+                }
+                final imdbId = meta['imdbId']?.toString();
+
+                final mediaMeta = MediaMetadata(
+                  id: (imdbId != null && imdbId.isNotEmpty) ? imdbId : idWithExt,
+                  type: type,
+                  title: cleanTitle,
+                  year: year,
+                  imdbId: imdbId,
+                );
+
+                final scraped = await ScraperEngine.instance.scrapeAll(
+                  meta: mediaMeta,
+                  localBaseUrl: localBaseUrl,
+                );
+                otherStreams = scraped.map((s) => s.toJson()).toList();
+              } catch (e) {
+                _addLog('Error scraping other providers for $idWithExt: $e');
+              }
+            }
+
+            // Combined: Their OWN direct links appear FIRST, followed by all other sources!
+            final allStreams = [...customStreams, ...otherStreams];
             request.response.headers.contentType = ContentType.json;
-            request.response.write(jsonEncode({'streams': customStreams}));
+            request.response.write(jsonEncode({'streams': allStreams}));
             await request.response.close();
             return;
           }
@@ -384,14 +429,28 @@ class ServerService {
             title: idWithExt.replaceAll(RegExp(r'\+|_'), ' '),
           );
 
-          final streams = await ScraperEngine.instance.scrapeAll(
+          // Concurrently run hoster/torrent scrapers + public cloud streams (YouTube, Archive, Dailymotion)!
+          final scrapeFuture = ScraperEngine.instance.scrapeAll(
             meta: meta,
             localBaseUrl: localBaseUrl,
           );
+          final publicFuture = CatalogService.instance.searchPublicStreams(
+            title: meta.title,
+            year: meta.year,
+            type: meta.type,
+            localBaseUrl: localBaseUrl,
+          );
+
+          final results = await Future.wait([scrapeFuture, publicFuture]);
+          final hosterStreams = (results[0] as List<ScrapedStream>).map((s) => s.toJson()).toList();
+          final publicStreams = results[1] as List<Map<String, dynamic>>;
+
+          // Combine: public direct cloud streams alongside hoster and debrid streams
+          final allStreams = [...publicStreams, ...hosterStreams];
 
           request.response.headers.contentType = ContentType.json;
           request.response.write(jsonEncode({
-            'streams': streams.map((s) => s.toJson()).toList(),
+            'streams': allStreams,
           }));
           await request.response.close();
           return;
