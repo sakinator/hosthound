@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:playtorrio_nuvio_addon/config.dart';
@@ -11,64 +12,70 @@ import 'package:playtorrio_nuvio_addon/doh_resolver.dart';
 import 'package:playtorrio_nuvio_addon/key_validator.dart';
 
 void main(List<String> args) async {
-  // ── Global DNS-over-HTTPS (DoH) & Pre-Warming ─────────────────────────────
-  HttpOverrides.global = HostreamioHttpOverrides();
-  DohResolver.instance.prewarm([
-    'api.torbox.app',
-    'cinematv.click',
-    'vidsrc.to',
-    'vidlink.pro',
-    'autoembed.cc',
-    'embed.su',
-    'rabbitstream.net',
-    'megacloud.tv',
-    '1337x.to',
-    'torrentgalaxy.to',
-    'vegamovies.im',
-    'hdhub4u.tv',
-  ]);
+  runZonedGuarded(() async {
+    // ── Global DNS-over-HTTPS (DoH) & Pre-Warming ─────────────────────────────
+    HttpOverrides.global = HostreamioHttpOverrides();
+    DohResolver.instance.prewarm([
+      'api.torbox.app',
+      'cinematv.click',
+      'vidsrc.to',
+      'vidlink.pro',
+      'autoembed.cc',
+      'embed.su',
+      'rabbitstream.net',
+      'megacloud.tv',
+      '1337x.to',
+      'torrentgalaxy.to',
+      'vegamovies.im',
+      'hdhub4u.tv',
+    ]);
 
-  // ── CWD fix ──────────────────────────────────────────────────────────────
-  // All file paths in the app (data/config.json, upstream/..., etc.) are
-  // relative. Lock the CWD to the project root now so they resolve correctly
-  // regardless of how the user launched the binary (double-click, Task
-  // Scheduler, Windows Service, etc.).
-  _ensureProjectRoot();
+    // ── CWD fix ──────────────────────────────────────────────────────────────
+    // All file paths in the app (data/config.json, upstream/..., etc.) are
+    // relative. Lock the CWD to the project root now so they resolve correctly
+    // regardless of how the user launched the binary (double-click, Task
+    // Scheduler, Windows Service, etc.).
+    _ensureProjectRoot();
 
-  final cfg = AddonConfig.instance;
-  await cfg.load();
+    final cfg = AddonConfig.instance;
+    await cfg.load();
 
-  // Allow port override from CLI (saved to config so it persists)
-  if (args.isNotEmpty) {
-    final parsedPort = int.tryParse(args[0]);
-    if (parsedPort != null) {
-      cfg.port = parsedPort;
-      await cfg.save();
+    // Allow port override from CLI (saved to config so it persists)
+    if (args.isNotEmpty) {
+      final parsedPort = int.tryParse(args[0]);
+      if (parsedPort != null) {
+        cfg.port = parsedPort;
+        await cfg.save();
+      }
     }
-  }
 
-  final lanIp = await _getLocalIp();
-  final server = await HttpServer.bind(InternetAddress.anyIPv4, cfg.port);
+    final lanIp = await _getLocalIp();
+    final server = await HttpServer.bind(InternetAddress.anyIPv4, cfg.port);
 
-  print('===============================================================');
-  print('              ▶️ Hostreamio Addon for Nuvio ▶️             ');
-  print('===============================================================');
-  print(' Status: RUNNING');
-  print(' Port:   ${cfg.port}');
-  print(' Local:  http://localhost:${cfg.port}');
-  print(' LAN IP: http://$lanIp:${cfg.port}');
-  print('---------------------------------------------------------------');
-  print(' 🔌 Nuvio Addon Manifest URLs:');
-  print('    Localhost: http://localhost:${cfg.port}/manifest.json');
-  print('    LAN (TV):  http://$lanIp:${cfg.port}/manifest.json');
-  print('---------------------------------------------------------------');
-  print(' 🌐 Web Dashboard: http://localhost:${cfg.port}/configure');
-  print('===============================================================\n');
+    print('===============================================================');
+    print('              ▶️ Hostreamio Addon for Nuvio ▶️             ');
+    print('===============================================================');
+    print(' Status: RUNNING');
+    print(' Port:   ${cfg.port}');
+    print(' Local:  http://localhost:${cfg.port}');
+    print(' LAN IP: http://$lanIp:${cfg.port}');
+    print('---------------------------------------------------------------');
+    print(' 🔌 Nuvio Addon Manifest URLs:');
+    print('    Localhost: http://localhost:${cfg.port}/manifest.json');
+    print('    LAN (TV):  http://$lanIp:${cfg.port}/manifest.json');
+    print('---------------------------------------------------------------');
+    print(' 🌐 Web Dashboard: http://localhost:${cfg.port}/configure');
+    print('===============================================================\n');
 
-  await for (final request in server) {
-    // Don't await – each request runs independently so the server stays responsive.
-    _handleRequest(request, lanIp, cfg.port);
-  }
+    await for (final request in server) {
+      // Don't await – each request runs independently so the server stays responsive.
+      _handleRequest(request, lanIp, cfg.port).catchError((e, st) {
+        print('[Server] Handled request error on ${request.uri.path}: $e');
+      });
+    }
+  }, (error, stack) {
+    print('[Server Guard] Caught unhandled async error (prevented crash): $error');
+  });
 }
 
 Map<String, dynamic>? _safeParseJsonMap(String bodyStr) {

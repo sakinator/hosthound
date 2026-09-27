@@ -145,6 +145,16 @@ class WebUI {
       border-color: rgba(255, 12, 130, 0.5);
       box-shadow: 0 0 16px rgba(255, 12, 130, 0.3);
     }
+    .quick-install-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 768px) {
+      .quick-install-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
     /* Breadcrumb Step Pills for Quick Install */
     .breadcrumb-container {
       display: flex;
@@ -226,6 +236,7 @@ class WebUI {
       gap: 12px;
       align-items: center;
       margin-bottom: 12px;
+      flex-wrap: wrap;
     }
     .url-input {
       flex: 1;
@@ -830,6 +841,137 @@ class WebUI {
       overflow: hidden;
       line-height: 1.3;
     }
+
+    /* Mobile & Small Screen Responsive Enhancements */
+    @media (max-width: 768px) {
+      body {
+        padding: 14px 10px;
+      }
+      .container {
+        width: 100%;
+      }
+      .card {
+        padding: 16px 12px;
+        margin-bottom: 16px;
+      }
+      h1 {
+        font-size: 1.75rem;
+      }
+      p.subtitle {
+        font-size: 0.86rem;
+        word-break: break-word;
+      }
+      .main-tabs-nav {
+        max-width: 100%;
+        gap: 6px;
+        padding: 4px;
+      }
+      .main-tab-btn {
+        padding: 10px 10px;
+        font-size: 0.85rem;
+        text-align: center;
+        white-space: normal;
+        gap: 6px;
+      }
+      .url-box {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .url-box label {
+        min-width: 0 !important;
+        width: 100%;
+      }
+      .url-box .url-input {
+        width: 100%;
+        min-width: 0;
+      }
+      .url-box .password-wrapper {
+        width: 100%;
+      }
+      .url-box .btn, .url-box a.btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .test-box {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .test-box select, .test-box input, .test-box button {
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      #seriesInputsRow {
+        width: 100%;
+        justify-content: flex-start;
+      }
+      .stream-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .stream-actions {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 6px;
+      }
+      .stream-actions .btn {
+        flex: 1 1 auto;
+        justify-content: center;
+        min-width: 90px;
+      }
+      .player-opt-grid {
+        grid-template-columns: 1fr !important;
+        padding: 14px;
+      }
+      .player-header {
+        padding: 10px 14px;
+      }
+      .player-title {
+        max-width: 180px;
+      }
+      .media-card-box {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .media-card-poster {
+        width: 110px;
+        height: 165px;
+      }
+      .search-suggestions-grid {
+        grid-template-columns: 1fr;
+      }
+      .catalog-card {
+        min-width: 0;
+      }
+      .update-subcard-header {
+        flex-wrap: wrap;
+      }
+      .breadcrumb-container {
+        justify-content: center;
+      }
+      .breadcrumb-step {
+        font-size: 0.72rem;
+        padding: 3px 6px;
+      }
+      .status-chip {
+        font-size: 0.74rem;
+        padding: 5px 10px;
+      }
+    }
+    @media (max-width: 480px) {
+      .main-tabs-nav {
+        flex-direction: column;
+      }
+      .main-tab-btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .stream-actions .btn {
+        flex: 1 1 100%;
+      }
+    }
   </style>
 </head>
 <body>
@@ -871,31 +1013,38 @@ class WebUI {
           </span>
         </div>
 
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+        <div class="quick-install-grid">
           <!-- Option 1: This PC -->
-          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
+          <div style="background:#090d13; border:1px solid rgba(88, 166, 255, 0.3); border-radius:10px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
             <div>
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                 <span style="font-weight:700; font-size:1rem; color:var(--text);">💻 This PC (Local Player)</span>
                 <span style="font-size:0.75rem; color:var(--green-light); background:rgba(35, 134, 54, 0.2); border:1px solid rgba(35, 134, 54, 0.4); padding:3px 8px; border-radius:12px; font-weight:600;">1-Click</span>
               </div>
               <p style="font-size:0.84rem; color:var(--text-muted); line-height:1.5; margin:0;">
-                If Nuvio or Stremio is installed on this PC, click to install the addon manifest directly:
+                If Nuvio or Stremio is installed on this PC, install addon manifest directly:
               </p>
             </div>
             <div>
-              <a href="stremio://127.0.0.1:$port/manifest.json" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px 14px; font-size:0.92rem; font-weight:700; text-decoration:none; margin-bottom:8px;">
+              <a href="stremio://127.0.0.1:$port/manifest.json" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px 14px; font-size:0.92rem; font-weight:700; text-decoration:none; margin-bottom:10px;">
                 🚀 1-Click Install to Stremio / Nuvio
               </a>
-              <div style="display:flex; gap:8px;">
+              <div style="display:flex; gap:8px; margin-bottom:10px;">
                 <input class="url-input" id="localUrl" value="$manifestLocal" readonly style="font-size:0.82rem; padding:8px 10px;">
                 <button type="button" class="btn" onclick="copyText('localUrl')" style="padding:8px 14px; font-size:0.82rem; white-space:nowrap;">📋 Copy</button>
+              </div>
+              <div class="breadcrumb-container" style="justify-content:center;">
+                <span class="breadcrumb-step">1. Click Install</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step">2. App Launches</span>
+                <span class="breadcrumb-arrow">➔</span>
+                <span class="breadcrumb-step" style="color:var(--green-light); border-color:var(--green-light); font-weight:700;">3. Confirm Addon</span>
               </div>
             </div>
           </div>
 
           <!-- Option 2: Android TV, Fire TV & Mobile -->
-          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
+          <div style="background:#090d13; border:1px solid rgba(88, 166, 255, 0.3); border-radius:10px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
             <div>
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                 <span style="font-weight:700; font-size:1rem; color:var(--text);">📺 Android TV, Fire TV &amp; Mobile</span>
@@ -906,18 +1055,19 @@ class WebUI {
               </p>
             </div>
             <div>
+              <button type="button" class="btn btn-primary" onclick="copyText('lanUrl')" style="width:100%; justify-content:center; padding:10px 14px; font-size:0.92rem; font-weight:700; margin-bottom:10px;">
+                📋 Copy LAN Manifest URL for TV
+              </button>
               <div style="display:flex; gap:8px; margin-bottom:10px;">
                 <input class="url-input" id="lanUrl" value="$manifestLan" readonly style="font-size:0.82rem; padding:8px 10px; color:var(--green-light);">
-                <button type="button" class="btn btn-primary" onclick="copyText('lanUrl')" style="padding:8px 14px; font-size:0.82rem; white-space:nowrap; font-weight:600;">📋 Copy LAN URL</button>
+                <button type="button" class="btn" onclick="copyText('lanUrl')" style="padding:8px 14px; font-size:0.82rem; white-space:nowrap;">📋 Copy</button>
               </div>
-              <div class="breadcrumb-container">
+              <div class="breadcrumb-container" style="justify-content:center;">
                 <span class="breadcrumb-step">1. Nuvio Settings</span>
                 <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">2. Content &amp; Discovery</span>
+                <span class="breadcrumb-step">2. Addons (+)</span>
                 <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">3. Addons (+)</span>
-                <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step" style="color:var(--green-light); border-color:var(--green-light); font-weight:700;">4. Paste &amp; Install</span>
+                <span class="breadcrumb-step" style="color:var(--green-light); border-color:var(--green-light); font-weight:700;">3. Paste &amp; Install</span>
               </div>
             </div>
           </div>
@@ -938,7 +1088,7 @@ class WebUI {
                 <input class="url-input" id="badgesUrl" value="http://$localIp:$port/badges.json" readonly style="font-size:0.84rem; padding:8px 10px; color:#ff69b4; font-weight:600;">
                 <button type="button" class="btn btn-primary" onclick="copyText('badgesUrl')" style="padding:8px 16px; font-size:0.85rem; white-space:nowrap; font-weight:700; background:#ff69b4; border-color:#ff69b4; color:#fff;">📋 Copy Badge URL</button>
               </div>
-              <div class="breadcrumb-container">
+              <div class="breadcrumb-container" style="justify-content:center;">
                 <span class="breadcrumb-step">1. Nuvio Settings</span>
                 <span class="breadcrumb-arrow">➔</span>
                 <span class="breadcrumb-step">2. Layout &amp; Streams</span>
@@ -1280,12 +1430,12 @@ class WebUI {
       </div>
 
       <!-- Live Terminal Output Console -->
-      <div id="pipelineConsoleBox" style="display:none; margin-top:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Update Pipeline Console</span>
-          <span id="pipelineConsoleBadge" class="update-pill" style="font-size:0.75rem; background:#d29922; color:#000;">Running...</span>
+      <div id="pipelineConsoleBox" style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:0.82rem; color:var(--text); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">📡 Update Pipeline Console &amp; Status</span>
+          <span id="pipelineConsoleBadge" class="update-pill" style="font-size:0.75rem; background:#238636; color:#fff;">Idle (Ready)</span>
         </div>
-        <pre id="pipelineConsole" style="background:#090d13; border:1px solid var(--border); border-radius:6px; padding:12px; font-family:monospace; font-size:0.82rem; color:#e6edf3; max-height:220px; overflow-y:auto; white-space:pre-wrap; margin:0;"></pre>
+        <pre id="pipelineConsole" style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-family:monospace; font-size:0.82rem; color:#8b949e; max-height:220px; overflow-y:auto; white-space:pre-wrap; margin:0;">[Ready] Multi-Source Unified Update Hub online. Select any channel above or click "Run Full Update Pipeline" to sync providers and binaries.</pre>
       </div>
     </div>
   </div> <!-- End of tabContentServer -->
@@ -1501,6 +1651,9 @@ class WebUI {
         if (btnServer) btnServer.classList.remove('active');
         if (btnStreaming) btnStreaming.classList.add('active');
         try { localStorage.setItem('hostreamio_active_tab', 'streaming'); } catch (_) {}
+        if (typeof _catalogItems !== 'undefined' && _catalogItems.length === 0) {
+          initCatalogBrowser();
+        }
       } else {
         if (serverTab) serverTab.style.display = 'block';
         if (streamingTab) streamingTab.style.display = 'none';
@@ -1568,8 +1721,7 @@ class WebUI {
         genreRow.style.display = 'flex';
         genreRow.innerHTML = meta.genres.map(g => {
           const activeCls = g === 'All' ? ' active' : '';
-          const safeG = g.replace(/'/g, "\\'");
-          return '<button class="stream-filter-chip' + activeCls + '" onclick="setCatalogGenre(\'' + safeG + '\', this)">' + g + '</button>';
+          return '<button class="stream-filter-chip' + activeCls + '" data-genre="' + encodeURIComponent(g) + '" onclick="onGenreChipClick(this)">' + g + '</button>';
         }).join('');
       } else {
         genreRow.style.display = 'none';
@@ -1577,6 +1729,11 @@ class WebUI {
       }
 
       loadCatalog(true);
+    }
+
+    function onGenreChipClick(btn) {
+      const genre = decodeURIComponent(btn.getAttribute('data-genre') || 'All');
+      setCatalogGenre(genre, btn);
     }
 
     function setCatalogGenre(genre, btn) {
@@ -1649,6 +1806,11 @@ class WebUI {
       }
     }
 
+    function onPosterError(img) {
+      img.style.display = 'none';
+      if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
+    }
+
     function renderCatalogGrid(reset = false) {
       const grid = document.getElementById('catalogGrid');
       if (!grid) return;
@@ -1659,18 +1821,16 @@ class WebUI {
       }
 
       const cards = _catalogItems.map(item => {
-        const safeName = (item.name || 'Unknown').replace(/"/g, '&quot;').replace(/'/g, "\\'");
-        const safePoster = (item.poster || '').replace(/'/g, "\\'");
-        const safeId = (item.id || '').replace(/'/g, "\\'");
+        const safeName = (item.name || 'Unknown').replace(/"/g, '&quot;');
         const isSeries = item.type === 'series';
         const typeIcon = isSeries ? '📺' : '🎬';
         const yearBadge = item.year ? '<span style="font-size:0.72rem;color:var(--text-muted);">' + item.year + '</span>' : '';
         const posterHtml = item.poster
-          ? '<img src="' + item.poster + '" alt="' + safeName + '" style="width:100%;height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+          ? '<img src="' + item.poster + '" alt="' + safeName + '" style="width:100%;height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="onPosterError(this)">'
             + '<div style="display:none;width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>'
           : '<div style="width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>';
 
-        return '<div class="catalog-card" onclick="catalogItemClick(\'' + safeId + '\',\'' + item.type + '\',\'' + safeName + '\',\'' + safePoster + '\',' + isSeries + ')" title="' + safeName + '">'
+        return '<div class="catalog-card" data-id="' + encodeURIComponent(item.id || '') + '" data-type="' + encodeURIComponent(item.type || 'movie') + '" data-name="' + encodeURIComponent(item.name || '') + '" data-poster="' + encodeURIComponent(item.poster || '') + '" data-series="' + (isSeries ? '1' : '0') + '" onclick="onCatalogCardClick(this)" title="' + safeName + '">'
           + posterHtml
           + '<div style="padding:8px 8px 10px;">'
           + '<div style="font-size:0.82rem;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + typeIcon + ' ' + (item.name || 'Unknown') + '</div>'
@@ -1684,6 +1844,15 @@ class WebUI {
       } else {
         grid.innerHTML = grid.innerHTML + cards;
       }
+    }
+
+    function onCatalogCardClick(el) {
+      const id = decodeURIComponent(el.getAttribute('data-id') || '');
+      const type = decodeURIComponent(el.getAttribute('data-type') || 'movie');
+      const name = decodeURIComponent(el.getAttribute('data-name') || '');
+      const poster = decodeURIComponent(el.getAttribute('data-poster') || '');
+      const isSeries = el.getAttribute('data-series') === '1';
+      catalogItemClick(id, type, name, poster, isSeries);
     }
 
     function loadMoreCatalog() {
@@ -1994,6 +2163,7 @@ class WebUI {
 
     function renderHosters(hosters) {
       const grid = document.getElementById('hostersGrid');
+      if (!grid) return;
       if (!hosters || !Array.isArray(hosters) || hosters.length === 0) {
         grid.innerHTML = '<div style="color:var(--text-muted); padding:10px;">No hosters found.</div>';
         return;
@@ -2007,16 +2177,16 @@ class WebUI {
         } else if (typeof h.domains === 'string') {
           domainList = h.domains.split(/[\s,]+/);
         }
-        const domains = domainList.filter(Boolean).slice(0, 3).join(', ');
-        return `
-          <div class="hoster-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="hoster-name">\${hosterName}</span>
-              <span class="hoster-status \${isUp ? 'status-up' : 'status-down'}">\${isUp ? 'ONLINE' : 'DOWN'}</span>
-            </div>
-            <div class="hoster-domains">\${escapeHtml(domains)}</div>
-          </div>
-        `;
+        const domains = escapeHtml(domainList.filter(Boolean).slice(0, 3).join(', '));
+        const statusClass = isUp ? 'status-up' : 'status-down';
+        const statusText = isUp ? 'ONLINE' : 'DOWN';
+        return '<div class="hoster-card">'
+          + '<div style="display:flex; justify-content:space-between; align-items:center;">'
+          + '<span class="hoster-name">' + hosterName + '</span>'
+          + '<span class="hoster-status ' + statusClass + '">' + statusText + '</span>'
+          + '</div>'
+          + '<div class="hoster-domains">' + domains + '</div>'
+          + '</div>';
       }).join('');
     }
 
@@ -2521,12 +2691,12 @@ class WebUI {
     }
 
     function downloadM3u(title, streamUrl) {
-      const cleanTitle = (title || 'Hostreamio_Stream').replace(/[\r\n]/g, ' ');
+      const cleanTitle = (title || 'Hostreamio_Stream').split(String.fromCharCode(10)).join(' ').split(String.fromCharCode(13)).join('');
       const m3uContent = '#EXTM3U\\n#EXTINF:-1,' + cleanTitle + '\\n' + streamUrl + '\\n';
       const blob = new Blob([m3uContent], { type: 'application/x-mpegurl' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = (cleanTitle.replace(/[^a-zA-Z0-9_\\-]/g, '_')) + '.m3u';
+      a.download = (cleanTitle.replace(/[^a-zA-Z0-9_-]/g, '_')) + '.m3u';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

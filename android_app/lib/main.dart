@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
+import 'key_validator.dart';
 import 'metadata_service.dart';
 import 'scraper_engine.dart';
 import 'server_service.dart';
@@ -69,6 +70,22 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   String? _torboxStatusMessage;
   bool _isTorboxValid = false;
 
+  // Metadata & External API Keys State
+  final TextEditingController _tmdbKeyController = TextEditingController();
+  final TextEditingController _omdbKeyController = TextEditingController();
+  final TextEditingController _fanartKeyController = TextEditingController();
+  final TextEditingController _tvdbKeyController = TextEditingController();
+  final Map<String, String?> _apiStatusMessages = {};
+  final Map<String, bool> _apiValidating = {};
+  final Map<String, bool> _apiValid = {};
+
+  // Stream Filtering Profiles & Optimization State
+  String _selectedAudioLang = 'any';
+  String _selectedMaxRes = 'all';
+  bool _excludeCams = true;
+  bool _enableDeduplication = true;
+  bool _enableDeadLinkFilter = true;
+
   // Streaming View State
   String _selectedMediaType = 'movie'; // 'movie' or 'series'
   final TextEditingController _searchQueryController = TextEditingController(text: 'tt1375666');
@@ -96,11 +113,22 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       _startStopFocus.requestFocus();
     });
 
-    final currentKey = AddonConfig.instance.torboxApiKey;
+    final cfg = AddonConfig.instance;
+    final currentKey = cfg.torboxApiKey;
     _torboxKeyController.text = currentKey;
     if (currentKey.isNotEmpty) {
       _validateTorboxKeySilent(currentKey);
     }
+
+    _tmdbKeyController.text = cfg.tmdbApiKey;
+    _omdbKeyController.text = cfg.omdbApiKey;
+    _fanartKeyController.text = cfg.fanartApiKey;
+    _tvdbKeyController.text = cfg.tvdbApiKey;
+    _selectedAudioLang = cfg.preferredLanguage;
+    _selectedMaxRes = cfg.maxResolution;
+    _excludeCams = cfg.excludeCams;
+    _enableDeduplication = cfg.enableDeduplication;
+    _enableDeadLinkFilter = cfg.enableDeadLinkFilter;
   }
 
   @override
@@ -116,6 +144,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     _torboxInputFocus.dispose();
     _torboxSaveFocus.dispose();
     _torboxKeyLinkFocus.dispose();
+    _tmdbKeyController.dispose();
+    _omdbKeyController.dispose();
+    _fanartKeyController.dispose();
+    _tvdbKeyController.dispose();
     _searchQueryController.dispose();
     _seasonController.dispose();
     _episodeController.dispose();
@@ -256,6 +288,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                                       children: [
                                         _buildTorboxCard(),
                                         const SizedBox(height: 18),
+                                        _buildOtherApisCard(),
+                                        const SizedBox(height: 18),
+                                        _buildStreamFilteringCard(),
+                                        const SizedBox(height: 18),
                                         _buildInfoRow(isWide: true),
                                         const SizedBox(height: 18),
                                         _buildEngineFeaturesCard(),
@@ -271,6 +307,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                               _buildActionButtons(running, manifestUrl, dashboardUrl),
                               const SizedBox(height: 16),
                               _buildTorboxCard(),
+                              const SizedBox(height: 16),
+                              _buildOtherApisCard(),
+                              const SizedBox(height: 16),
+                              _buildStreamFilteringCard(),
                               const SizedBox(height: 16),
                               _buildInfoRow(isWide: false),
                               const SizedBox(height: 16),
@@ -800,6 +840,403 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _testApiKey(String service, String key) async {
+    setState(() {
+      _apiValidating[service] = true;
+      _apiStatusMessages[service] = 'Validating key...';
+    });
+    try {
+      final res = await KeyValidator.validate(service, key);
+      if (mounted) {
+        setState(() {
+          _apiValidating[service] = false;
+          _apiValid[service] = res.valid;
+          _apiStatusMessages[service] = res.message;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _apiValidating[service] = false;
+          _apiValid[service] = false;
+          _apiStatusMessages[service] = 'Validation error: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _saveOtherApiKeys() async {
+    final cfg = AddonConfig.instance;
+    cfg.tmdbApiKey = _tmdbKeyController.text.trim();
+    cfg.omdbApiKey = _omdbKeyController.text.trim();
+    cfg.fanartApiKey = _fanartKeyController.text.trim();
+    cfg.tvdbApiKey = _tvdbKeyController.text.trim();
+    await cfg.save();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Metadata & External API keys saved successfully!'),
+          backgroundColor: Color(0xFF238636),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveStreamFiltering() async {
+    final cfg = AddonConfig.instance;
+    cfg.preferredLanguage = _selectedAudioLang;
+    cfg.maxResolution = _selectedMaxRes;
+    cfg.excludeCams = _excludeCams;
+    cfg.enableDeduplication = _enableDeduplication;
+    cfg.enableDeadLinkFilter = _enableDeadLinkFilter;
+    await cfg.save();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Stream filtering profiles saved!'),
+          backgroundColor: Color(0xFF238636),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Widget _buildApiRow({
+    required String title,
+    required String subtitle,
+    required String service,
+    required TextEditingController controller,
+    required String hintText,
+    required String helpUrl,
+    required String helpLabel,
+  }) {
+    final isValidating = _apiValidating[service] == true;
+    final statusMsg = _apiStatusMessages[service];
+    final isValid = _apiValid[service];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF21262D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+              InkWell(
+                onTap: () async {
+                  final uri = Uri.parse(helpUrl);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: Text(
+                  helpLabel,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF38BDF8), decoration: TextDecoration.underline),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161B22),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF30363D)),
+                  ),
+                  child: TextFormField(
+                    controller: controller,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      hintStyle: const TextStyle(color: Color(0xFF484F58), fontSize: 12),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: isValidating ? null : () => _testApiKey(service, controller.text.trim()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF21262D),
+                  foregroundColor: const Color(0xFF58A6FF),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  side: const BorderSide(color: Color(0xFF30363D)),
+                ),
+                child: isValidating
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF58A6FF)))
+                    : const Text('🔍 Test Key', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          if (statusMsg != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  isValid == true ? Icons.check_circle_rounded : (isValid == false ? Icons.error_rounded : Icons.info_rounded),
+                  size: 14,
+                  color: isValid == true ? const Color(0xFF3FB950) : (isValid == false ? const Color(0xFFF85149) : const Color(0xFF8B949E)),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    statusMsg,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isValid == true ? const Color(0xFF7EE787) : (isValid == false ? const Color(0xFFFFA198) : const Color(0xFF8B949E)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOtherApisCard() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B22),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF30363D), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFF69B4), size: 22),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Metadata & Artwork API Integrations',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _saveOtherApiKeys,
+                icon: const Icon(Icons.save_rounded, size: 16),
+                label: const Text('Save Keys', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF195FEB),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Enrich Nuvio & Stremio with crystal-clear ClearLogos, 4K artwork, Rotten Tomatoes / IMDb ratings, and anime absolute episode mappings. All keys 100% optional (zero-key public fallbacks active).',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+          ),
+          const SizedBox(height: 16),
+          _buildApiRow(
+            title: '1. OMDb API Key (IMDb & Rotten Tomatoes Ratings)',
+            subtitle: 'Live rating badges directly inside Stremio & Nuvio streams.',
+            service: 'omdb',
+            controller: _omdbKeyController,
+            hintText: 'Pre-configured fallback key active',
+            helpUrl: 'https://www.omdbapi.com/apikey.aspx',
+            helpLabel: 'Get OMDb Key (Free) ↗',
+          ),
+          _buildApiRow(
+            title: '2. Fanart.tv API Key (ClearLogos & HD Artwork)',
+            subtitle: 'HD transparent PNG logos and custom title banners.',
+            service: 'fanart',
+            controller: _fanartKeyController,
+            hintText: 'Leave empty for Metahub ClearLogos fallback',
+            helpUrl: 'https://fanart.tv/get-an-api-key/',
+            helpLabel: 'Get Fanart.tv Key ↗',
+          ),
+          _buildApiRow(
+            title: '3. TheTVDB API Key (Episode Mappings & Seasons)',
+            subtitle: 'Precise anime episode mappings, specials & alternate season orders.',
+            service: 'tvdb',
+            controller: _tvdbKeyController,
+            hintText: 'Leave empty for Cinemeta & TVMaze fallback',
+            helpUrl: 'https://thetvdb.com/api-information',
+            helpLabel: 'Get TVDB Key ↗',
+          ),
+          _buildApiRow(
+            title: '4. TMDB API Key (The Movie Database)',
+            subtitle: 'Rich cast, posters, plot descriptions, and recommendations.',
+            service: 'tmdb',
+            controller: _tmdbKeyController,
+            hintText: 'Pre-configured fallback key active',
+            helpUrl: 'https://www.themoviedb.org/settings/api',
+            helpLabel: 'Get TMDB Key ↗',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreamFilteringCard() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B22),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF30363D), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.tune_rounded, color: Color(0xFFF55014), size: 22),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Stream Filtering Profiles & Optimization',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _saveStreamFiltering,
+                icon: const Icon(Icons.save_rounded, size: 16),
+                label: const Text('Save Settings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF238636),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Fine-tune how streams are filtered, deduplicated, and ranked in your Nuvio drawer.',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+          ),
+          const SizedBox(height: 16),
+          // Preferred Audio Language
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Preferred Audio Language:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1117),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF30363D)),
+                ),
+                child: DropdownButton<String>(
+                  value: _selectedAudioLang,
+                  dropdownColor: const Color(0xFF161B22),
+                  underline: const SizedBox(),
+                  style: const TextStyle(fontSize: 13, color: Colors.white),
+                  items: const [
+                    DropdownMenuItem(value: 'any', child: Text('Any / Default Order')),
+                    DropdownMenuItem(value: 'hindi', child: Text('🇮🇳 Hindi')),
+                    DropdownMenuItem(value: 'english', child: Text('🇬🇧 English')),
+                    DropdownMenuItem(value: 'dual', child: Text('🌐 Dual / Multi Audio')),
+                    DropdownMenuItem(value: 'tamil', child: Text('🇮🇳 Tamil')),
+                    DropdownMenuItem(value: 'telugu', child: Text('🇮🇳 Telugu')),
+                    DropdownMenuItem(value: 'malayalam', child: Text('🇮🇳 Malayalam')),
+                    DropdownMenuItem(value: 'kannada', child: Text('🇮🇳 Kannada')),
+                    DropdownMenuItem(value: 'bengali', child: Text('🇮🇳 Bengali')),
+                    DropdownMenuItem(value: 'punjabi', child: Text('🇮🇳 Punjabi')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedAudioLang = val);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Max Resolution Cap
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Max Resolution Cap:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1117),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF30363D)),
+                ),
+                child: DropdownButton<String>(
+                  value: _selectedMaxRes,
+                  dropdownColor: const Color(0xFF161B22),
+                  underline: const SizedBox(),
+                  style: const TextStyle(fontSize: 13, color: Colors.white),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('Unlimited (4K / 2160p)')),
+                    DropdownMenuItem(value: '1080p', child: Text('1080p Max')),
+                    DropdownMenuItem(value: '720p', child: Text('720p Max')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedMaxRes = val);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Checkboxes
+          CheckboxListTile(
+            title: const Text('Clean Drawer Mode (Exclude CAMs & TeleSync)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+            subtitle: Text('Automatically strips CAM, TS, PreDVD, and Telesync copies when WEB-DL exists.', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+            value: _excludeCams,
+            activeColor: const Color(0xFF238636),
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => setState(() => _excludeCams = v ?? true),
+          ),
+          CheckboxListTile(
+            title: const Text('Smart Stream Deduplication', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+            subtitle: Text('Merges duplicate CDN streams from multiple providers into a single stream card.', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+            value: _enableDeduplication,
+            activeColor: const Color(0xFF238636),
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => setState(() => _enableDeduplication = v ?? true),
+          ),
+          CheckboxListTile(
+            title: const Text('Ultra-Fast Dead-Link Filter', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+            subtitle: Text('Runs rapid parallel HEAD probes on stream links to eliminate broken file hosters.', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+            value: _enableDeadLinkFilter,
+            activeColor: const Color(0xFF238636),
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => setState(() => _enableDeadLinkFilter = v ?? true),
+          ),
         ],
       ),
     );
