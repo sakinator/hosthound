@@ -7,7 +7,7 @@
   <p align="center"><i>High-Performance Stream Engine for Nuvio & Stremio (Windows & Android TV / Mobile)</i></p>
 
   [![Vibe Coded](https://img.shields.io/badge/Vibe%20Coded-100%25%20with%20AI-ff0c82?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://github.com/sakinator/hostreamio)
-  [![Scrapers](https://img.shields.io/badge/Scrapers-58%20Cloud%20Extractors-195feb?style=for-the-badge)](https://github.com/sakinator/hostreamio)
+  [![Scrapers](https://img.shields.io/badge/Scrapers-61%20Cloud%20Extractors-195feb?style=for-the-badge)](https://github.com/sakinator/hostreamio)
   [![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20TV%20%26%20Mobile-f55014?style=for-the-badge)](https://github.com/sakinator/hostreamio)
   [![Debrid](https://img.shields.io/badge/TorBox-Cloud%20WebDL%20Caching-0070f3?style=for-the-badge)](https://torbox.app)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
@@ -16,14 +16,14 @@
 > [!NOTE]
 > **✨ 100% Vibe Coded with AI:** This entire project is vibe-coded through continuous human-AI agentic collaboration, real-time feedback loops, automated regression test suites, and live self-healing pipelines. High velocity, zero bloat, pure vibes.
 
-A high-performance local Stremio & Nuvio-compatible addon server featuring **56 Direct HTTP/HLS Cloud Scrapers**, **TorBox Debrid Integration**, **Live Hoster Cloud Caching**, and rich public catalogs (**YouTube, Vimeo, Internet Archive & Dailymotion**) with automatic badge tagging, native 16:9 widescreen video posters, and embedded streaming proxy.
+A high-performance local Stremio & Nuvio-compatible addon server featuring **61 Direct HTTP/HLS Cloud Scrapers**, **TorBox Debrid Integration**, **Live Hoster Cloud Caching**, and rich public catalogs (**YouTube, Vimeo, Internet Archive & Dailymotion**) with automatic badge tagging, native 16:9 widescreen video posters, and embedded streaming proxy.
 
 ---
 
 ## 🌟 Features
 
 - **100% Non-Torrent (Zero P2P):** No seeders, no torrent clients, and no IP seeding exposure. Streams directly from fast cloud storage and HTTP/HLS CDNs.
-- **56 Cloud Scraper Providers:** Extracts streams across 56 scrapers including *4KHDHub, Vadapav, HindMoviez, RiveStream, LookMovie, VidLink, Movy, Videasy, Cinejoy, FlyStream, X-Downloader, Vuflix, FSOnline, KissKH, Megasource, Nova, Purstream*, and more.
+- **61 Cloud Scraper Providers:** Extracts streams across 61 scrapers including *MoviesDrive, UHDMovies, MoviesMod, MultiMovies, ToonStream, 4KHDHub, Bollyflix, HDHub4u, Vegamovies, Vadapav, HindMoviez, PlayDesi, YoMovies, RiveStream, LookMovie, VidLink, Movy, Videasy, Cinejoy, FlyStream, X-Downloader, Vuflix, FSOnline, KissKH, Megasource, Nova, Purstream*, and more.
 - **TorBox Debrid Integration:**
   - **Batch Cache Checking:** Instantly checks up to 100 links in a single API query (`/webdl/checkcached`), cutting scraper turnaround by 2-3 seconds.
   - **1-Click Cloud Caching:** Direct "⚡ Cache to TorBox" links in Nuvio and the Web Dashboard. Submits uncached links to TorBox's WebDL downloader in 1 click.
@@ -347,6 +347,11 @@ The unified scraper engine integrates 56 non-torrent cloud providers across Indi
 | **Mapple** | `mapple` | 📺 1080p FHD | ⚡ Fast HLS Streams | Fresh global box office & TV episodes |
 | **MeowTV** | `meowtv` | 📺 1080p FHD | ⚡ Fast HLS Streams | Curated television shows & movies |
 | **PeeStream** | `peestream` | 📺 1080p FHD | 🎬 Direct MP4 Streams | Direct streaming hoster scraper |
+| **MoviesDrive** | `moviesdrive` | 💎 4K UHD / 1080p | ⚡ HubCloud / 10Gbps CDN | Instant Typesense JSON search for Bollywood & Hollywood dual audio |
+| **UHDMovies** | `uhdmovies` | 💎 4K UHD HDR / DV | ⚡ Direct Cloud Streams | Dedicated 4K HDR, Dolby Vision, 10-Bit HEVC & REMUX cloud streams |
+| **MoviesMod** | `moviesmod` | 📺 4K UHD / 1080p | ⚡ Direct Cloud Seeds | Massive Netflix, Prime, Hotstar, SonyLIV & Zee5 OTT dual audio library |
+| **MultiMovies** | `multimovies` | 🌐 Multi-Audio | ⚡ Direct Embed Streams | Multi-Audio server (Hindi, Tamil, Telugu, English) streaming |
+| **ToonStream** | `toonstream` | 🍙 1080p / 720p | ⚡ Direct Anime Streams | Dedicated Hindi Dubbed Anime, Cartoons & Animated Series |
 | **VidApi** | `vidapi` | 📺 1080p FHD | ⚡ Fast HLS Streams | API-driven media scraper endpoint |
 | **VidCore** | `vidcore` | 📺 1080p FHD | ⚡ Fast HLS Streams | Core video streaming cluster for global releases |
 | **XPass** | `xpass` | 📺 1080p FHD | ⚡ Fast HLS Streams | Bypass scraper for premium media mirrors |
@@ -357,17 +362,30 @@ The unified scraper engine integrates 56 non-torrent cloud providers across Indi
 
 ---
 
-## 🔄 Upstream & Cloudstream Extension Sync
+## 🔄 Automated Update Pipeline & Reliable Pull Sources (No-AI Pulls)
 
-### 1. PlayTorrioV3 Native Scrapers
-`Hostreamio` is integrated directly with upstream [ayman708-UX/PlayTorrioV3](https://github.com/ayman708-UX/PlayTorrioV3).
-- To sync latest providers and fixes:
-  - Click **🔄 Check Upstream Updates** in the Web Dashboard (`/configure`), or trigger `POST /api/pipeline/update`.
-  - The server clones upstream, scans `lib/upstream/services/scraper/sites/`, regenerates `scraper_registry.dart`, and hot-reloads all active scrapers without restarting.
+Hostreamio operates an autonomous, platform-neutral update pipeline designed to keep providers, scrapers, and binaries up to date **without requiring manual AI intervention**.
 
-### 2. Cloudstream Scrapers & Plugins
-- Native Dart ports of top Cloudstream extractors (*HubCloud, Vega, DriveSeed, Pixeldrain, Mega, 1fichier*) are maintained directly inside `lib/upstream/services/cloudstream/`.
-- In-memory plugin repos can be browsed and refreshed via the embedded `CloudStreamMarketplaceService`.
+### Reliable Upstream Pull Sources:
+1. **Authoritative Git Repository (`origin/main`):**
+   - **Source:** `https://github.com/sakinator/hostreamio.git`
+   - **Pull Mechanism:** `git pull --rebase --autostash origin main`
+   - **Purpose:** Automatically pulls newly added scrapers, bug fixes, badge rules, and server enhancements without merge conflicts.
+2. **GitHub Releases API (Pre-Compiled Binaries & APK):**
+   - **Source:** `https://api.github.com/repos/sakinator/hostreamio/releases/latest`
+   - **Purpose:** Provides direct release downloads for `hostreamio-windows-x64.zip` and `hostreamio.apk` for standalone installations without Git.
+3. **Real-Time Dynamic Domain Mapping (`urls.json`):**
+   - **Source:** [`SaurabhKaperwan/Utils/urls.json`](https://raw.githubusercontent.com/SaurabhKaperwan/Utils/refs/heads/main/urls.json)
+   - **Purpose:** Tracks real-time active domain rotations for rotating Indian & Asian streaming providers (*VegaMovies, HDHub4u, MoviesDrive, UHDMovies, Bollyflix, HubCloud, VCloud*). Prevents scrapers from breaking when mirror domains rotate.
+4. **Upstream PlayTorrio Providers:**
+   - **Source:** `https://github.com/ayman708-UX/PlayTorrioV3.git`
+   - **Pull Mechanism:** Auto-stashed submodule check inside `upstream/PlayTorrioV3`.
+
+### 1-Click Update Command:
+```powershell
+dart run tool/update.dart
+```
+This single command automatically pulls updates, checks upstream providers, regenerates the registry across both the server and Android app, compiles the standalone binary, embeds the 8% rounded brand icon via `rcedit`, and triggers an instant zero-downtime hot-reload on the running addon server.
 
 ---
 

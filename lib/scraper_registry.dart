@@ -1,5 +1,5 @@
 // AUTO-GENERATED SCRAPER REGISTRY - DO NOT EDIT MANUALLY
-// Generated at: 2026-09-27T13:37:33.070912
+// Generated at: 2026-09-27T13:56:53.532402
 // Run "dart run tool/generate_registry.dart" or "pipeline/update.ps1" to regenerate.
 
 import 'upstream/services/scraper/stream_scraper.dart';
@@ -34,13 +34,16 @@ import 'upstream/services/scraper/sites/megasource.dart';
 import 'upstream/services/scraper/sites/meowtv.dart';
 import 'upstream/services/scraper/sites/movienight.dart';
 import 'upstream/services/scraper/sites/moviesdrive.dart';
+import 'upstream/services/scraper/sites/moviesmod.dart';
 import 'upstream/services/scraper/sites/movy.dart';
 import 'upstream/services/scraper/sites/multiembed.dart';
+import 'upstream/services/scraper/sites/multimovies.dart';
 import 'upstream/services/scraper/sites/nova.dart';
 import 'upstream/services/scraper/sites/peestream.dart';
 import 'upstream/services/scraper/sites/playdesi.dart';
 import 'upstream/services/scraper/sites/purstream.dart';
 import 'upstream/services/scraper/sites/rivestream.dart';
+import 'upstream/services/scraper/sites/toonstream.dart';
 import 'upstream/services/scraper/sites/uhdmovies.dart';
 import 'upstream/services/scraper/sites/vadapav.dart';
 import 'upstream/services/scraper/sites/vegamovies.dart';
@@ -95,13 +98,16 @@ class ScraperRegistry {
     MeowTvScraper(),
     MovieNightScraper(),
     MoviesDriveScraper(),
+    MoviesModScraper(),
     MovyScraper(),
     MultiEmbedScraper(),
+    MultiMoviesScraper(),
     NovaScraper(),
     PeeStreamScraper(),
     PlayDesiScraper(),
     PurstreamScraper(),
     RiveStreamScraper(),
+    ToonStreamScraper(),
     UHDMoviesScraper(),
     VadapavScraper(),
     VegamoviesScraper(),
