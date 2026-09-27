@@ -1824,11 +1824,11 @@ class WebUI {
       const grid = document.getElementById('catalogGrid');
       if (!grid) return;
 
-      const isLandscape = _catalogActiveTab === 'yt_indian' || 
-                          _catalogActiveTab === 'yt_international' || 
-                          _catalogActiveTab === 'vimeo_picks' || 
-                          _catalogActiveTab === 'archive_movies' || 
-                          _catalogActiveTab === 'dm_movies';
+      const isLandscape = _activeCatalogTab === 'yt_indian' || 
+                          _activeCatalogTab === 'yt_international' || 
+                          _activeCatalogTab === 'vimeo_picks' || 
+                          _activeCatalogTab === 'archive_movies' || 
+                          _activeCatalogTab === 'dm_movies';
 
       grid.style.gridTemplateColumns = isLandscape 
         ? 'repeat(auto-fill, minmax(210px, 1fr))' 
