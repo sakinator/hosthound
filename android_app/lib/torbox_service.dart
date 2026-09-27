@@ -15,7 +15,7 @@ class TorboxService {
   // In-memory cache for hosters list & checkcached results
   static List<Map<String, dynamic>>? _cachedHosters;
   static DateTime? _hostersExpiry;
-  static final Map<String, bool> _cacheLookup = {};
+  static final Map<String, ({bool isCached, DateTime expiry})> _cacheLookup = {};
 
   static const _defaultUserAgent =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -130,12 +130,14 @@ class TorboxService {
     final results = <String, bool>{};
     final uncached = <String, String>{}; // md5 -> url
 
+    final now = DateTime.now();
     for (final url in urls) {
       final clean = url.trim();
       if (clean.isEmpty) continue;
       final hash = md5.convert(utf8.encode(clean)).toString();
-      if (_cacheLookup.containsKey(hash)) {
-        results[clean] = _cacheLookup[hash]!;
+      final entry = _cacheLookup[hash];
+      if (entry != null && now.isBefore(entry.expiry)) {
+        results[clean] = entry.isCached;
       } else {
         uncached[hash] = clean;
       }
@@ -160,7 +162,10 @@ class TorboxService {
               for (final h in chunk) {
                 final val = dataMap[h];
                 final isCached = val != null && (val is Map || val == true);
-                _cacheLookup[h] = isCached;
+                _cacheLookup[h] = (
+                  isCached: isCached,
+                  expiry: now.add(Duration(minutes: isCached ? 15 : 2)),
+                );
                 final orig = uncached[h];
                 if (orig != null) results[orig] = isCached;
               }
