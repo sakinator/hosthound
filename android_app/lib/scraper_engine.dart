@@ -252,10 +252,10 @@ class ScraperEngine {
       if (rawUrl == null || rawUrl.isEmpty || !rawUrl.startsWith('http')) continue;
       if (deadUrls.contains(rawUrl)) continue; // Filtered broken link
 
-      String providerName = src.providerName ?? src.name ?? 'HostHound';
-      if (providerName.toLowerCase().contains('playtorrio') || providerName.toLowerCase().contains('megascraper') || providerName.toLowerCase().contains('unbound')) {
-        providerName = providerName.replaceAll(RegExp(r'PlayTorrio(HTTP)?|MegaScraper|Unbound', caseSensitive: false), 'HostHound').trim();
-        if (providerName.isEmpty) providerName = 'HostHound';
+      String providerName = src.providerName ?? src.name ?? 'Hostreamio';
+      if (providerName.toLowerCase().contains('playtorrio') || providerName.toLowerCase().contains('megascraper') || providerName.toLowerCase().contains('unbound') || providerName.toLowerCase().contains('hosthound')) {
+        providerName = providerName.replaceAll(RegExp(r'PlayTorrio(HTTP)?|MegaScraper|Unbound|HostHound', caseSensitive: false), 'Hostreamio').trim();
+        if (providerName.isEmpty) providerName = 'Hostreamio';
       }
 
       final detectedHoster = _detectHoster(rawUrl);
@@ -311,7 +311,7 @@ class ScraperEngine {
 
       String rawTitle = src.title ?? src.name ?? meta.title;
       rawTitle = rawTitle
-          .replaceAll(RegExp(r'PlayTorrio(HTTP)?|MegaScraper|Unbound', caseSensitive: false), 'HostHound')
+          .replaceAll(RegExp(r'PlayTorrio(HTTP)?|MegaScraper|Unbound|HostHound', caseSensitive: false), 'Hostreamio')
           .replaceAll(RegExp(r'\b(saket|sakinator)\b', caseSensitive: false), '')
           .trim();
 

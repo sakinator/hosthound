@@ -53,7 +53,7 @@ class WebUI {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HostHound Addon</title>
+  <title>Hostreamio Addon</title>
   <!-- HLS.js for embedded web stream player preview -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
   <style>
@@ -527,8 +527,8 @@ class WebUI {
 <body>
   <div class="container">
     <header>
-      <h1>🐕 HostHound</h1>
-      <p class="subtitle">Direct Hosters • Regional OTT • TorBox Cloud Debrid • Smart Proxy • Instant Badges</p>
+      <h1>⚡ Hostreamio</h1>
+      <p class="subtitle">Direct Hosters • Streaming Links • TorBox Cloud Debrid • Smart Proxy • Instant Badges</p>
     </header>
 
     <!-- Architecture & Engine Status Pills -->
@@ -869,15 +869,15 @@ class WebUI {
         <div class="update-subcard">
           <div class="update-subcard-header">
             <div>
-              <div class="update-subcard-title">📦 HostHound Releases</div>
+              <div class="update-subcard-title">📦 Hostreamio Releases</div>
               <div class="update-subcard-desc">Official desktop and Android binaries with all scrapers, extractors & TorBox debrid built-in.</div>
             </div>
             <span class="update-pill" style="background:#238636; color:#fff;" id="appVersionBadge">v2.0.0 Current</span>
           </div>
           <div class="update-downloads-bar">
-            <a href="https://github.com/sakinator/hosthound/releases/latest/download/hosthound-windows-x64.zip" class="btn btn-sm btn-outline" id="dlWinZip" target="_blank">🪟 Windows (.zip)</a>
-            <a href="https://github.com/sakinator/hosthound/releases/latest/download/hosthound.apk" class="btn btn-sm btn-outline" id="dlAndroidApk" target="_blank">📱 Android (.apk)</a>
-            <a href="https://github.com/sakinator/hosthound/releases" class="btn btn-sm btn-outline" target="_blank">📜 All Releases</a>
+            <a href="https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio-windows-x64.zip" class="btn btn-sm btn-outline" id="dlWinZip" target="_blank">🪟 Windows (.zip)</a>
+            <a href="https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio.apk" class="btn btn-sm btn-outline" id="dlAndroidApk" target="_blank">📱 Android (.apk)</a>
+            <a href="https://github.com/sakinator/hostreamio/releases" class="btn btn-sm btn-outline" target="_blank">📜 All Releases</a>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
             <span id="releaseCheckInfo" style="font-size:0.8rem; color:var(--text-muted);">Release sync ready</span>
@@ -973,7 +973,7 @@ class WebUI {
       <div style="margin-bottom:8px;">
         <span style="display:inline-block; background:rgba(255,105,180,0.15); color:#ff69b4; border:1px solid rgba(255,105,180,0.3); border-radius:12px; padding:2px 10px; font-weight:600; font-size:0.75rem; letter-spacing:0.5px;">✨ 100% VIBE CODED WITH AI</span>
       </div>
-      <strong>⚖️ GitHub & Legal Disclaimer:</strong> The author does not own, host, upload, or broadcast any media or streams. HostHound acts solely as a local search indexer aggregating publicly available hyperlinks from third-party websites on the internet. All media is hosted by independent third-party services. Not affiliated with Stremio, Nuvio, TorBox, or any scraped source.
+      <strong>⚖️ GitHub & Legal Disclaimer:</strong> The author does not own, host, upload, or broadcast any media or streams. Hostreamio acts solely as a local search indexer aggregating publicly available hyperlinks from third-party websites on the internet. All media is hosted by independent third-party services. Not affiliated with Stremio, Nuvio, TorBox, or any scraped source.
     </div>
   </div>
 

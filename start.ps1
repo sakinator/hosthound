@@ -1,8 +1,8 @@
-# PowerShell launcher for HostHound Addon (Windows)
+# PowerShell launcher for Hostreamio Addon (Windows)
 Set-Location -Path $PSScriptRoot
 
 Write-Host "===============================================================" -ForegroundColor Cyan
-Write-Host "              🐕 HostHound Addon for Nuvio 🐕" -ForegroundColor Magenta
+Write-Host "              ⚡ Hostreamio Addon for Nuvio ⚡" -ForegroundColor Magenta
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -23,7 +23,11 @@ if (-not (Test-Path "lib\upstream") -and $dartExe) {
 }
 
 # ── Start server ──────────────────────────────────────────────────────────────
-if (Test-Path "hosthound.exe") {
+if (Test-Path "hostreamio.exe") {
+    Write-Host " Using compiled binary (hostreamio.exe)..." -ForegroundColor Green
+    & ".\hostreamio.exe" @args
+}
+elseif (Test-Path "hosthound.exe") {
     Write-Host " Using compiled binary (hosthound.exe)..." -ForegroundColor Green
     & ".\hosthound.exe" @args
 }

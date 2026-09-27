@@ -24,6 +24,7 @@ class CatalogService {
         'type': 'movie',
         'id': 'yt_indian',
         'name': 'YouTube Indian Cinema',
+        'posterShape': 'landscape',
         'extra': [
           {'name': 'search', 'isRequired': false},
           {
@@ -45,6 +46,7 @@ class CatalogService {
         'type': 'movie',
         'id': 'yt_international',
         'name': 'YouTube International',
+        'posterShape': 'landscape',
         'extra': [
           {'name': 'search', 'isRequired': false},
           {
@@ -63,8 +65,30 @@ class CatalogService {
       },
       {
         'type': 'movie',
+        'id': 'vimeo_picks',
+        'name': 'Vimeo Staff Picks & Shorts',
+        'posterShape': 'landscape',
+        'extra': [
+          {'name': 'search', 'isRequired': false},
+          {
+            'name': 'genre',
+            'options': [
+              'All',
+              'Staff Picks',
+              'Short of the Week',
+              'Animation',
+              'Documentaries',
+            ],
+            'isRequired': false,
+          },
+          {'name': 'skip', 'isRequired': false},
+        ],
+      },
+      {
+        'type': 'movie',
         'id': 'archive_movies',
         'name': 'Internet Archive Movies',
+        'posterShape': 'landscape',
         'extra': [
           {'name': 'search', 'isRequired': false},
           {
@@ -86,6 +110,7 @@ class CatalogService {
         'type': 'movie',
         'id': 'dm_movies',
         'name': 'Dailymotion Indian & Global',
+        'posterShape': 'landscape',
         'extra': [
           {'name': 'search', 'isRequired': false},
           {
@@ -124,6 +149,8 @@ class CatalogService {
         items = await _fetchYouTubeIndian(search: search, genre: genre, skip: skip);
       } else if (id == 'yt_international') {
         items = await _fetchYouTubeInternational(search: search, genre: genre, skip: skip);
+      } else if (id == 'vimeo_picks') {
+        items = await _fetchVimeo(search: search, genre: genre, skip: skip);
       } else if (id == 'archive_movies') {
         items = await _fetchArchiveOrg(search: search, genre: genre, skip: skip);
       } else if (id == 'dm_movies') {
@@ -214,7 +241,7 @@ class CatalogService {
             if (vId.isEmpty || title.isEmpty) continue;
 
             final thumbs = item['videoThumbnails'] as List?;
-            String poster = 'https://i.ytimg.com/vi/$vId/hqdefault.jpg';
+            String poster = 'https://i.ytimg.com/vi/$vId/mqdefault.jpg';
             if (thumbs != null && thumbs.isNotEmpty) {
               final raw = thumbs.last['url']?.toString() ?? '';
               if (raw.startsWith('http')) {
@@ -222,6 +249,8 @@ class CatalogService {
               } else if (raw.isNotEmpty) {
                 poster = 'https://i.ytimg.com$raw';
               }
+            } else {
+              poster = 'https://i.ytimg.com/vi/$vId/hq720.jpg';
             }
 
             metas.add({
@@ -229,7 +258,7 @@ class CatalogService {
               'type': 'movie',
               'name': title,
               'poster': poster,
-              'background': poster,
+              'background': 'https://i.ytimg.com/vi/$vId/maxresdefault.jpg',
               'description': item['description']?.toString() ?? 'YouTube Media ($genre)',
               'releaseInfo': item['publishedText']?.toString() ?? '',
               'genres': ['YouTube', genre],
@@ -302,6 +331,55 @@ class CatalogService {
       }
     } catch (e) {
       print('[CatalogService] Archive.org error: $e');
+    }
+    return [];
+  }
+
+  // ── Vimeo Fetcher ───────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> _fetchVimeo({
+    String? search,
+    String? genre,
+    int skip = 0,
+  }) async {
+    String channel = 'staffpicks';
+    if (genre == 'Short of the Week') {
+      channel = 'shortsoftheweek';
+    } else if (genre == 'Animation') {
+      channel = 'animation';
+    } else if (genre == 'Documentaries') {
+      channel = 'documentary';
+    }
+    final page = (skip / 20).floor() + 1;
+    final url = Uri.parse('https://vimeo.com/api/v2/channel/$channel/videos.json?page=$page');
+    try {
+      final res = await http.get(url, headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final list = jsonDecode(res.body) as List;
+        return list.map<Map<String, dynamic>>((item) {
+          final id = item['id'].toString();
+          final title = item['title']?.toString() ?? 'Vimeo Video';
+          final desc = (item['description']?.toString() ?? '')
+              .replaceAll(RegExp(r'<[^>]*>'), '')
+              .trim();
+          final poster = item['thumbnail_large']?.toString() ?? item['thumbnail_medium']?.toString() ?? '';
+          final durationSec = item['duration'] is int ? item['duration'] as int : 0;
+          final durationMin = (durationSec / 60).round();
+          return {
+            'id': 'vimeo:$id',
+            'type': 'movie',
+            'name': title,
+            'poster': poster,
+            'background': poster,
+            'description': desc.isNotEmpty ? desc : 'Vimeo Staff Pick',
+            'releaseInfo': durationMin > 0 ? '$durationMin min' : '',
+            'genres': ['Vimeo', genre ?? 'Staff Picks'],
+          };
+        }).toList();
+      }
+    } catch (e) {
+      print('[CatalogService] Vimeo error: $e');
     }
     return [];
   }
@@ -431,6 +509,34 @@ class CatalogService {
       };
     }
 
+    if (id.startsWith('vimeo:')) {
+      final vId = id.replaceFirst('vimeo:', '');
+      try {
+        final res = await http.get(Uri.parse('https://vimeo.com/api/oembed.json?url=https://vimeo.com/$vId')).timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200) {
+          final json = jsonDecode(res.body);
+          final title = json['title']?.toString() ?? 'Vimeo Video';
+          final poster = json['thumbnail_url']?.toString() ?? '';
+          final author = json['author_name']?.toString() ?? '';
+          final desc = json['description']?.toString() ?? (author.isNotEmpty ? 'By $author on Vimeo' : 'Vimeo Staff Pick');
+          return {
+            'id': id,
+            'type': type,
+            'name': title,
+            'poster': poster,
+            'background': poster,
+            'description': desc,
+          };
+        }
+      } catch (_) {}
+      return {
+        'id': id,
+        'type': type,
+        'name': 'Vimeo Video',
+        'description': 'Vimeo Stream',
+      };
+    }
+
     return null;
   }
 
@@ -442,13 +548,19 @@ class CatalogService {
       return _resolveYouTubeStreams(vId);
     }
 
-    // 2. Internet Archive Stream Resolver
+    // 2. Vimeo Stream Resolver
+    if (id.startsWith('vimeo:')) {
+      final vId = id.replaceFirst('vimeo:', '');
+      return _resolveVimeoStreams(vId);
+    }
+
+    // 3. Internet Archive Stream Resolver
     if (id.startsWith('archive:')) {
       final ident = id.replaceFirst('archive:', '');
       return _resolveArchiveStreams(ident);
     }
 
-    // 3. Dailymotion Stream Resolver
+    // 4. Dailymotion Stream Resolver
     if (id.startsWith('dm:')) {
       final vId = id.replaceFirst('dm:', '');
       return _resolveDailymotionStreams(vId);
@@ -500,6 +612,73 @@ class CatalogService {
       'title': 'Direct Stream Link',
       'url': 'https://www.youtube.com/watch?v=$vId',
     });
+    return streams;
+  }
+
+  Future<List<Map<String, dynamic>>> _resolveVimeoStreams(String vId) async {
+    final streams = <Map<String, dynamic>>[];
+    try {
+      final url = Uri.parse('https://player.vimeo.com/video/$vId');
+      final res = await http.get(url, headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://vimeo.com/$vId',
+      }).timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        final html = res.body;
+        final m = RegExp(r'(\{"cdn_url":.+?\})\s*</script>').firstMatch(html);
+        if (m != null) {
+          final data = jsonDecode(m.group(1)!);
+          final files = data['request']?['files'] as Map?;
+          if (files != null) {
+            final hls = files['hls'] as Map?;
+            if (hls != null) {
+              final cdns = hls['cdns'] as Map?;
+              if (cdns != null && cdns.isNotEmpty) {
+                final defaultCdn = hls['default_cdn']?.toString() ?? cdns.keys.first;
+                final cdnObj = cdns[defaultCdn] ?? cdns.values.first;
+                final m3u8Url = cdnObj?['url']?.toString();
+                if (m3u8Url != null && m3u8Url.isNotEmpty) {
+                  streams.add({
+                    'name': '⚡ Vimeo Master HLS',
+                    'title': '⚡ Adaptive Quality Master Stream (Direct CDN)',
+                    'url': m3u8Url,
+                    'behaviorHints': {'notWebReady': false},
+                  });
+                }
+              }
+            }
+            final progressive = files['progressive'] as List?;
+            if (progressive != null) {
+              for (final p in progressive) {
+                if (p is Map) {
+                  final q = p['quality']?.toString() ?? 'HD';
+                  final pUrl = p['url']?.toString();
+                  if (pUrl != null && pUrl.isNotEmpty) {
+                    streams.add({
+                      'name': '🌐 Vimeo Direct ($q)',
+                      'title': '🌐 Direct MP4 Video • $q',
+                      'url': pUrl,
+                      'behaviorHints': {'notWebReady': false},
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('[CatalogService] Vimeo resolve error: $e');
+    }
+
+    if (streams.isEmpty) {
+      streams.add({
+        'name': 'Vimeo Web Player',
+        'title': '⚡ Direct Web Stream',
+        'url': 'https://vimeo.com/$vId',
+      });
+    }
     return streams;
   }
 

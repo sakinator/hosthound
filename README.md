@@ -1,15 +1,15 @@
-# 🐕 HostHound Addon for Nuvio & Stremio
+# ⚡ Hostreamio Addon for Nuvio & Stremio
 
-[![Vibe Coded](https://img.shields.io/badge/Vibe%20Coded-100%25%20with%20AI-ff69b4?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://github.com/sakinator/hosthound)
-[![Scrapers](https://img.shields.io/badge/Scrapers-56%20Cloud%20Extractors-blueviolet?style=for-the-badge)](https://github.com/sakinator/hosthound)
-[![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20TV%20%7C%20Linux%20%7C%20macOS-2ea44f?style=for-the-badge)](https://github.com/sakinator/hosthound)
+[![Vibe Coded](https://img.shields.io/badge/Vibe%20Coded-100%25%20with%20AI-ff69b4?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://github.com/sakinator/hostreamio)
+[![Scrapers](https://img.shields.io/badge/Scrapers-56%20Cloud%20Extractors-blueviolet?style=for-the-badge)](https://github.com/sakinator/hostreamio)
+[![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20TV%20%7C%20Linux%20%7C%20macOS-2ea44f?style=for-the-badge)](https://github.com/sakinator/hostreamio)
 [![Debrid](https://img.shields.io/badge/TorBox-Cloud%20WebDL%20Caching-0070f3?style=for-the-badge)](https://torbox.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 > [!NOTE]
 > **✨ 100% Vibe Coded with AI:** This entire project is vibe-coded through continuous human-AI agentic collaboration, real-time feedback loops, automated regression test suites, and live self-healing pipelines. High velocity, zero bloat, pure vibes.
 
-A high-performance local Stremio & Nuvio-compatible addon server featuring **56 Direct HTTP/HLS Cloud Scrapers**, **TorBox Debrid Integration**, **Live Hoster Cloud Caching**, and rich public catalogs (**YouTube, Internet Archive & Dailymotion**) with automatic badge tagging and streaming proxy.
+A high-performance local Stremio & Nuvio-compatible addon server featuring **56 Direct HTTP/HLS Cloud Scrapers**, **TorBox Debrid Integration**, **Live Hoster Cloud Caching**, and rich public catalogs (**YouTube, Vimeo, Internet Archive & Dailymotion**) with automatic badge tagging, native 16:9 widescreen video posters, and embedded streaming proxy.
 
 ---
 
@@ -21,7 +21,7 @@ A high-performance local Stremio & Nuvio-compatible addon server featuring **56 
   - **Batch Cache Checking:** Instantly checks up to 100 links in a single API query (`/webdl/checkcached`), cutting scraper turnaround by 2-3 seconds.
   - **1-Click Cloud Caching:** Direct "⚡ Cache to TorBox" links in Nuvio and the Web Dashboard. Submits uncached links to TorBox's WebDL downloader in 1 click.
   - **High-Speed CDN Playback:** Streams cached hoster files through TorBox's ultra-fast Indian and global CDN nodes with full byte-range HTTP 206 seeking in Nuvio (MPV player).
-  - **Strict Privacy Guarantee:** Your TorBox API key is strictly manual-input only. It is saved in gitignored `data/config.json` and is **never** auto-scanned from personal directories or leaked in stream titles or GitHub commits.
+- **Strict Multi-Key Privacy Guarantee:** All API credentials (**TorBox, OMDb, Fanart.tv, TheTVDB, TMDB**) are strictly saved in your local gitignored `data/config.json`. They are **never** shared, never uploaded to third parties, never tracked, and never committed to GitHub.
 - **Short-Term Scrape Cache (12m TTL):** In-memory LRU ring buffer that caches scraped streams for 12 minutes. Repeated playback, switching streams, or backing out in Nuvio is instantaneous (0ms).
 - **Fast Dead-Link Filter:** Rapid 1200ms parallel HEAD probe on direct stream links to purge 404/broken file hoster links before they hit Nuvio.
 - **Live Ratings & Tomatometer (OMDb API):** Live IMDb ratings (`⭐ 8.8 IMDb`), Rotten Tomatoes tomatometer (`🍅 86% RT`), and Metacritic scores (`Ⓜ️ 74 Metascore`) stamped directly onto stream cards and `/meta` detail responses.
@@ -33,9 +33,10 @@ A high-performance local Stremio & Nuvio-compatible addon server featuring **56 
   - **Audio Language Prioritization:** Select your preferred audio language (`Hindi`, `English`, `Tamil`, `Telugu`, `Malayalam`, `Kannada`, `Bengali`, `Punjabi`, `Dual Audio`) to boost matching releases to the very top.
 - **Smart Stream Deduplication:** Merges identical CDN streams from multiple providers into a single card with combined tags (e.g. `HubCloud [Direct] (MoviesDrive + Vega)`).
 - **Inbuilt Native Badges & Indian Regional OTT Logos:** Native bracketed headers (`[4K] [Remux] [HDR] [Hindi]`) rendered directly as colored badge pills in Nuvio, with logos for **JioHotstar, SonyLIV, Zee5, JioCinema, SunNXT, Aha, Hoichoi, ManoramaMAX, Chaupal, Planet Marathi, MX Player, Lionsgate, Shemaroo, and Voot**.
-- **4 Rich Media Catalogs:**
+- **5 Rich Media Catalogs with 16:9 Landscape Posters:**
   - 🎬 **YouTube Indian Cinema:** Bollywood classics, South Indian Hindi dubbed movies, comedy, and web series.
   - 🌍 **YouTube International:** Curated action, sci-fi, thriller, documentaries, and indie films.
+  - 🎥 **Vimeo Staff Picks & Shorts:** Award-winning short films, Staff Picks, animations, and documentaries in native master HLS.
   - 🏛️ **Internet Archive Classics:** Golden Era Hollywood, film noir, silent cinema, classic horror, and vintage Indian cinema.
   - 📺 **Dailymotion Indian & Global:** Hindi movies, dramas, Pakistani serials, and international titles.
 - **Embedded Streaming Proxy (`/proxy`):** Transparently forwards protected HLS (`.m3u8`) playlists and injects required `Referer`, `Origin`, and `User-Agent` headers so that Nuvio's internal player plays restricted streams without HTTP 403 errors.
@@ -46,7 +47,7 @@ A high-performance local Stremio & Nuvio-compatible addon server featuring **56 
 
 ## 🔑 Optional API Keys & Built-In Public Fallbacks (Zero-Key Operation)
 
-**HostHound works 100% out of the box with zero required API keys.** All external keys are strictly optional personal enhancements:
+**Hostreamio works 100% out of the box with zero required API keys.** All external keys are strictly optional personal enhancements:
 
 | Integration | Key Requirement | 1-Click Signup Link | Zero-Key Public Fallback | What You Get |
 |---|---|---|---|---|
@@ -57,23 +58,75 @@ A high-performance local Stremio & Nuvio-compatible addon server featuring **56 
 | **TorBox Debrid** | 🟢 **Optional** (`torboxApiKey`) | [Get TorBox Key ↗](https://torbox.app/settings) | **Direct Cloud Stream Playback** | If blank, direct cloud links play immediately with zero warnings. |
 | **TMDB Metadata** | 🟢 **Optional** (`tmdbApiKey`) | [Get TMDB Key ↗](https://www.themoviedb.org/settings/api) | **TMDB Proxy & Cinemeta** | Speedracelight proxy & Cinemeta ensure queries succeed worldwide. |
 
-### 🔍 Live Instant Key Validation (`/api/keys/validate`)
-The Web Dashboard (`http://localhost:7002/configure`) features inline **🔍 Test Key** buttons for every service. It verifies your API credentials in real time against upstream APIs before saving, returning instant status feedback (`✅ Valid`, `❌ Invalid`, or `⚪ Fallback Active`).
+### 🔒 Universal Multi-Key Privacy & Security Guarantee
+> [!IMPORTANT]
+> **Zero Telemetry & 100% Local Storage:**
+> - **All your API credentials** (`torboxApiKey`, `omdbApiKey`, `fanartApiKey`, `tvdbApiKey`, `tmdbApiKey`) are stored **strictly and exclusively inside your local `data/config.json`**.
+> - The `data/config.json` file is permanently gitignored. Keys are **never** committed to Git, **never** transmitted to telemetry or tracking servers, and **never** exposed in stream titles or public addon manifests.
+> - When you test a key in the Web Dashboard, requests are sent directly from your local machine to the official upstream API (TorBox, OMDb, TMDB, TVDB) — no intermediary servers ever see your keys.
+
+---
+
+## 🔗 Stream & Link Tiers Explained
+
+Hostreamio unifies direct file hosters, adaptive HLS web streams, and cloud debrid caching into a clear, prioritized stream hierarchy in Nuvio and Stremio:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           HOSTREAMIO STREAM TIERS                           │
+├───────────────────────┬─────────────────────────────────────────────────────┤
+│ ⚡ TorBox [Cached]     │ • Pre-cached on TorBox global cloud CDN             │
+│                       │ • Instant 0-second playback, no buffering           │
+│                       │ • Full byte-range HTTP 206 seeking in MPV / Nuvio   │
+├───────────────────────┼─────────────────────────────────────────────────────┤
+│ 🌐 TorBox [Cachable]  │ • Link from supported hoster (HubCloud, Pixeldrain) │
+│                       │ • Not cached in TorBox cloud yet                    │
+│                       │ • Click to send 1-click WebDL cache request & stream│
+├───────────────────────┼─────────────────────────────────────────────────────┤
+│ 🌐 Direct Play        │ • Original file hoster or cloud storage link        │
+│                       │ • Proxied through Hostreamio smart header engine    │
+│                       │ • Plays directly without needing a debrid account   │
+├───────────────────────┼─────────────────────────────────────────────────────┤
+│ ⚡ Adaptive HLS Stream │ • Multi-bitrate master .m3u8 playlists              │
+│                       │ • On-the-fly header injection (Referer / Origin)    │
+│                       │ • Zero 403 Forbidden player playback errors         │
+├───────────────────────┼─────────────────────────────────────────────────────┤
+│ 🔄 Smart Deduplication│ • Merges duplicate CDN links across scrapers        │
+│                       │ • Example: "HubCloud [Direct] (MoviesDrive + Vega)" │
+└───────────────────────┴─────────────────────────────────────────────────────┘
+```
+
+### 1. ⚡ `TorBox [Cached]`
+* **What it means:** The file hoster link has already been downloaded and cached on TorBox's high-speed cloud servers.
+* **Experience:** Instant playback (0ms start delay) streaming directly from TorBox's global and Indian CDN edge nodes with full byte-range seeking (`HTTP 206`).
+* **Audio & Badges:** Features complete audio, codec, and resolution badges (e.g. `[4K] [Remux] [HDR] [Hindi]`).
+
+### 2. 🌐 `TorBox [Start Caching]` / `[Cachable]`
+* **What it means:** The link is on a hoster supported by TorBox's WebDL engine (HubCloud, PixelDrain, DriveSeed, GDrive, 1fichier, Rapidgator, etc.), but nobody has cached it yet.
+* **Experience:** Selecting this link immediately submits the URL to your TorBox account's WebDL downloader in 1 click and begins streaming as soon as caching completes.
+
+### 3. 🌐 `Direct Play [Hoster / Provider]`
+* **What it means:** The original hoster download URL or direct cloud stream.
+* **Experience:** Completely independent of debrid. Plays directly using Hostreamio's embedded smart proxy (`/proxy`) to inject required browser headers (`Referer`, `Origin`, `User-Agent`) so that Nuvio's internal MPV player plays without CORS or 403 blocks.
+
+### 4. ⚡ `Adaptive HLS (.m3u8)`
+* **What it means:** Adaptive bitrate web streams from providers like VidLink, LookMovie, Movy, Vimeo, and Dailymotion.
+* **Experience:** Smooth playback that automatically scales resolution based on your internet connection speed.
 
 ---
 
 ## 🚀 Quick Start (Windows PC)
 
 ### Method 1: Double-Click the Executable
-Run `hosthound.exe` (or `start.bat`) inside this directory:
+Run `hostreamio.exe` (or `start.bat`) inside this directory:
 ```powershell
-.\hosthound.exe 7002
+.\hostreamio.exe 7002
 ```
 
 Console output:
 ```text
 ===============================================================
-               🐕 HostHound Addon for Nuvio 🐕         
+              ⚡ Hostreamio Addon for Nuvio ⚡         
 ===============================================================
  Status: RUNNING
  Port:   7002
@@ -108,7 +161,7 @@ The `android_app` directory contains the complete cross-platform Flutter applica
 The included CI workflow (`.github/workflows/build-apk.yml`) compiles the release APK on every push to `main`:
 1. Go to the **Actions** tab on GitHub.
 2. Select **Build Android APK (TV & Mobile)** ➔ Click the latest workflow run.
-3. Download the artifact `hosthound-apk`.
+3. Download the artifact `hostreamio-apk`.
 4. Sideload the APK onto your Android TV or phone.
 
 ---
@@ -126,31 +179,33 @@ The included CI workflow (`.github/workflows/build-apk.yml`) compiles the releas
 
 ---
 
-## 🔑 TorBox Debrid Configuration
+## 🔑 TorBox & Metadata Configuration
 
-TorBox integration is optional but unlocks high-speed cloud caching for hoster links:
+All external API integrations are 100% optional:
 1. Open the Web Dashboard at `http://localhost:7002/configure` (or the Android APK settings screen).
-2. Enter your API Key from [torbox.app/settings](https://torbox.app/settings).
+2. Enter any optional keys (TorBox, OMDb, Fanart, TheTVDB, TMDB).
 3. Click **Save & Validate**.
-4. The dashboard will verify your account status and fetch live supported hosters.
+4. The dashboard will verify your credentials in real time against upstream APIs.
 
 > [!IMPORTANT]
-> Your TorBox API key is never shared, never committed to git, and never uploaded to third parties. It is stored exclusively in your local `data/config.json`.
+> **Strict Privacy Guarantee:** None of your API keys are ever shared, committed to Git, or uploaded to third parties. They are stored exclusively in your local `data/config.json`.
 
 ---
 
 ## 📂 Project Structure
 
 ```text
-hosthound/
-├── hosthound.exe             # Compiled standalone Windows binary
+hostreamio/
+├── hostreamio.exe            # Compiled standalone Windows binary
+├── hostreamio_icon.svg       # Flat vector app icon
 ├── start.bat                 # Windows one-click starter
 ├── start.ps1                 # PowerShell launcher
+├── start.sh                  # Linux / Android (Termux) launcher
 ├── bin/
 │   └── server.dart           # Standalone HTTP Addon Server
 ├── lib/
 │   ├── badge_service.dart    # NardBadges stream badge matching engine
-│   ├── catalog_service.dart  # YouTube, Archive.org & Dailymotion catalogs
+│   ├── catalog_service.dart  # YouTube, Vimeo, Archive.org & Dailymotion catalogs
 │   ├── config.dart           # Port, timeouts, provider toggles & settings
 │   ├── metadata_service.dart # IMDB/TMDB/Cinemeta metadata resolver
 │   ├── proxy.dart            # HLS .m3u8 proxy & header injection engine
@@ -244,7 +299,7 @@ The unified scraper engine integrates 56 non-torrent cloud providers across Indi
 ## 🔄 Upstream & Cloudstream Extension Sync
 
 ### 1. PlayTorrioV3 Native Scrapers
-`HostHound` is integrated directly with upstream [ayman708-UX/PlayTorrioV3](https://github.com/ayman708-UX/PlayTorrioV3).
+`Hostreamio` is integrated directly with upstream [ayman708-UX/PlayTorrioV3](https://github.com/ayman708-UX/PlayTorrioV3).
 - To sync latest providers and fixes:
   - Click **🔄 Check Upstream Updates** in the Web Dashboard (`/configure`), or trigger `POST /api/pipeline/update`.
   - The server clones upstream, scans `lib/upstream/services/scraper/sites/`, regenerates `scraper_registry.dart`, and hot-reloads all active scrapers without restarting.
@@ -257,7 +312,7 @@ The unified scraper engine integrates 56 non-torrent cloud providers across Indi
 
 ## 🏆 Credits & Acknowledgements
 
-`HostHound` builds upon incredible open-source innovations across the streaming community:
+`Hostreamio` builds upon incredible open-source innovations across the streaming community:
 
 - **[ayman708-UX / PlayTorrioV3](https://github.com/ayman708-UX/PlayTorrioV3)**: Core Dart scraper models, site extractors, and multi-source scraping architecture.
 - **[Cloudstream 3 Community](https://github.com/recloudstream/cloudstream)** & Extension Authors (*Hexated, Stormunblessed, Hindi Providers*): Pioneering hoster extraction patterns and cloud link bypass techniques.

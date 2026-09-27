@@ -1,9 +1,9 @@
 @echo off
-title HostHound Addon
+title Hostreamio Addon
 cd /d "%~dp0"
 
 echo ===============================================================
-echo        🐕 HostHound Addon (Direct Hosters + TorBox + Badges)
+echo        ⚡ Hostreamio Addon (Direct Hosters + Streaming Links + Badges)
 echo ===============================================================
 echo.
 
@@ -30,6 +30,12 @@ if not exist "lib\upstream" (
 )
 
 :: ── Start server ─────────────────────────────────────────────────────────────
+if exist "hostreamio.exe" (
+    echo Using compiled binary (hostreamio.exe^)...
+    "hostreamio.exe" %*
+    goto end
+)
+
 if exist "hosthound.exe" (
     echo Using compiled binary (hosthound.exe^)...
     "hosthound.exe" %*

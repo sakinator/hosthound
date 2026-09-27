@@ -12,7 +12,7 @@ import 'package:playtorrio_nuvio_addon/key_validator.dart';
 
 void main(List<String> args) async {
   // ── Global DNS-over-HTTPS (DoH) & Pre-Warming ─────────────────────────────
-  HttpOverrides.global = HosthoundHttpOverrides();
+  HttpOverrides.global = HostreamioHttpOverrides();
   DohResolver.instance.prewarm([
     'api.torbox.app',
     'cinematv.click',
@@ -51,7 +51,7 @@ void main(List<String> args) async {
   final server = await HttpServer.bind(InternetAddress.anyIPv4, cfg.port);
 
   print('===============================================================');
-  print('              🐕 HostHound Addon for Nuvio 🐕             ');
+  print('              ⚡ Hostreamio Addon for Nuvio ⚡             ');
   print('===============================================================');
   print(' Status: RUNNING');
   print(' Port:   ${cfg.port}');
@@ -113,13 +113,13 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
     // ── 2. Stremio/Nuvio Addon Manifest ───────────────────────────────────
     if (path == '/manifest.json') {
       final manifest = {
-        'id': 'org.sakinator.hosthound',
+        'id': 'org.sakinator.hostreamio',
         'version': '2.0.0',
-        'name': 'HostHound',
-        'description': 'HostHound — Direct Hosters, Regional OTT & TorBox Cloud Debrid Stream Engine with Smart Proxy & Instant Badges',
+        'name': 'Hostreamio',
+        'description': 'Hostreamio — Direct Hosters, Streaming Links & TorBox Cloud Debrid Stream Engine with Smart Proxy & Instant Badges',
         'resources': ['catalog', 'meta', 'stream'],
         'types': ['movie', 'series'],
-        'idPrefixes': ['tt', 'tmdb', 'kitsu', 'yt:', 'archive:', 'dm:'],
+        'idPrefixes': ['tt', 'tmdb', 'kitsu', 'yt:', 'archive:', 'dm:', 'vimeo:'],
         'catalogs': CatalogService.getCatalogs(),
         'behaviorHints': {
           'configurable': true,
@@ -240,8 +240,8 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
 
         print('[Server] Received stream request: type=$type, id=$idWithExt');
 
-        // Check custom video streams (YouTube, Archive.org, Dailymotion)
-        if (idWithExt.startsWith('yt:') || idWithExt.startsWith('archive:') || idWithExt.startsWith('dm:')) {
+        // Check custom video streams (YouTube, Vimeo, Archive.org, Dailymotion)
+        if (idWithExt.startsWith('yt:') || idWithExt.startsWith('vimeo:') || idWithExt.startsWith('archive:') || idWithExt.startsWith('dm:')) {
           final customStreams = await CatalogService.instance.resolveCustomStreams(type, idWithExt);
           request.response.headers.contentType = ContentType.json;
           request.response.write(jsonEncode({'streams': customStreams}));
@@ -459,14 +459,14 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       Map<String, dynamic> releaseInfo = {
         'version': 'v2.0.0',
         'isLatest': true,
-        'apkUrl': 'https://github.com/sakinator/hosthound/releases/latest/download/hosthound.apk',
-        'zipUrl': 'https://github.com/sakinator/hosthound/releases/latest/download/hosthound-windows-x64.zip',
-        'url': 'https://github.com/sakinator/hosthound/releases',
+        'apkUrl': 'https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio.apk',
+        'zipUrl': 'https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio-windows-x64.zip',
+        'url': 'https://github.com/sakinator/hostreamio/releases',
       };
       try {
         final client = HttpClient()..connectionTimeout = const Duration(seconds: 4);
-        client.userAgent = 'HostHound';
-        final req = await client.getUrl(Uri.parse('https://api.github.com/repos/sakinator/hosthound/releases'));
+        client.userAgent = 'Hostreamio';
+        final req = await client.getUrl(Uri.parse('https://api.github.com/repos/sakinator/hostreamio/releases'));
         final res = await req.close();
         if (res.statusCode == 200) {
           final body = await utf8.decodeStream(res);
@@ -492,8 +492,8 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
               'name': latest['name'],
               'url': latest['html_url'],
               'publishedAt': latest['published_at'],
-              'apkUrl': apkUrl ?? 'https://github.com/sakinator/hosthound/releases/latest/download/hosthound.apk',
-              'zipUrl': zipUrl ?? 'https://github.com/sakinator/hosthound/releases/latest/download/hosthound-windows-x64.zip',
+              'apkUrl': apkUrl ?? 'https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio.apk',
+              'zipUrl': zipUrl ?? 'https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio-windows-x64.zip',
             };
           }
         }
@@ -632,8 +632,8 @@ Future<Map<String, dynamic>> _runUpdatePipeline([String channel = 'all']) async 
     Map<String, dynamic>? releaseInfo;
     try {
       final client = HttpClient()..connectionTimeout = const Duration(seconds: 4);
-      client.userAgent = 'HostHound';
-      final req = await client.getUrl(Uri.parse('https://api.github.com/repos/sakinator/hosthound/releases'));
+      client.userAgent = 'Hostreamio';
+      final req = await client.getUrl(Uri.parse('https://api.github.com/repos/sakinator/hostreamio/releases'));
       final res = await req.close();
       if (res.statusCode == 200) {
         final body = await utf8.decodeStream(res);

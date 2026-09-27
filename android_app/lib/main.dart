@@ -11,16 +11,16 @@ void main() async {
   await ServerService.instance.init();
   // Auto-start server on app launch
   await ServerService.instance.startServer();
-  runApp(const HosthoundAddonApp());
+  runApp(const HostreamioAddonApp());
 }
 
-class HosthoundAddonApp extends StatelessWidget {
-  const HosthoundAddonApp({super.key});
+class HostreamioAddonApp extends StatelessWidget {
+  const HostreamioAddonApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'HostHound',
+      title: 'Hostreamio',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,

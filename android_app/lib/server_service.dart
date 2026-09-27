@@ -44,9 +44,9 @@ class ServerService {
   void _initForegroundTask() {
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
-        channelId: 'hosthound_server_channel',
-        channelName: 'HostHound Server Service',
-        channelDescription: 'Keeps HostHound Addon HTTP Server active for Nuvio.',
+        channelId: 'hostreamio_server_channel',
+        channelName: 'Hostreamio Server Service',
+        channelDescription: 'Keeps Hostreamio Addon HTTP Server active for Nuvio.',
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
         iconData: const NotificationIconData(
@@ -140,7 +140,7 @@ class ServerService {
       try {
         if (!await FlutterForegroundTask.isRunningService) {
           await FlutterForegroundTask.startService(
-            notificationTitle: 'HostHound Server Active',
+            notificationTitle: 'Hostreamio Server Active',
             notificationText: 'Serving Nuvio streams on port ${cfg.port}',
           );
         }
@@ -225,13 +225,13 @@ class ServerService {
       // 2. Stremio/Nuvio Addon Manifest
       if (path == '/manifest.json') {
         final manifest = {
-          'id': 'org.sakinator.hosthound',
+          'id': 'org.sakinator.hostreamio',
           'version': '2.0.0',
-          'name': 'HostHound',
-          'description': 'HostHound — Direct Hosters, Regional OTT & TorBox Cloud Debrid Stream Engine with Smart Proxy & Instant Badges',
+          'name': 'Hostreamio',
+          'description': 'Hostreamio — Direct Hosters, Streaming Links & TorBox Cloud Debrid Stream Engine with Smart Proxy & Instant Badges',
           'resources': ['catalog', 'meta', 'stream'],
           'types': ['movie', 'series'],
-          'idPrefixes': ['tt', 'tmdb', 'kitsu', 'yt:', 'archive:', 'dm:'],
+          'idPrefixes': ['tt', 'tmdb', 'kitsu', 'yt:', 'archive:', 'dm:', 'vimeo:'],
           'catalogs': CatalogService.getCatalogs(),
           'behaviorHints': {
             'configurable': true,
@@ -566,14 +566,14 @@ class ServerService {
         Map<String, dynamic> releaseInfo = {
           'version': 'v2.0.0',
           'isLatest': true,
-          'apkUrl': 'https://github.com/sakinator/hosthound/releases/latest/download/hosthound.apk',
-          'zipUrl': 'https://github.com/sakinator/hosthound/releases/latest/download/hosthound-windows-x64.zip',
-          'url': 'https://github.com/sakinator/hosthound/releases',
+          'apkUrl': 'https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio.apk',
+          'zipUrl': 'https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio-windows-x64.zip',
+          'url': 'https://github.com/sakinator/hostreamio/releases',
         };
         try {
           final client = HttpClient()..connectionTimeout = const Duration(seconds: 4);
-          client.userAgent = 'HostHound';
-          final req = await client.getUrl(Uri.parse('https://api.github.com/repos/sakinator/hosthound/releases'));
+          client.userAgent = 'Hostreamio';
+          final req = await client.getUrl(Uri.parse('https://api.github.com/repos/sakinator/hostreamio/releases'));
           final res = await req.close();
           if (res.statusCode == 200) {
             final body = await utf8.decodeStream(res);
@@ -599,8 +599,8 @@ class ServerService {
                 'name': latest['name'],
                 'url': latest['html_url'],
                 'publishedAt': latest['published_at'],
-                'apkUrl': apkUrl ?? 'https://github.com/sakinator/hosthound/releases/latest/download/hosthound.apk',
-                'zipUrl': zipUrl ?? 'https://github.com/sakinator/hosthound/releases/latest/download/hosthound-windows-x64.zip',
+                'apkUrl': apkUrl ?? 'https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio.apk',
+                'zipUrl': zipUrl ?? 'https://github.com/sakinator/hostreamio/releases/latest/download/hostreamio-windows-x64.zip',
               };
             }
           }

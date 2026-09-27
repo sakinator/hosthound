@@ -15,7 +15,7 @@ PORT="${1:-7000}"
 
 echo ""
 echo "==============================================================="
-echo "               🐕 HostHound Addon for Nuvio 🐕"
+echo "               ⚡ Hostreamio Addon for Nuvio ⚡"
 echo "==============================================================="
 
 # ── 1. Find Dart ─────────────────────────────────────────────────────────────
@@ -51,7 +51,10 @@ echo "==============================================================="
 echo ""
 
 # ── 4. Start the server ───────────────────────────────────────────────────────
-if [ -f "./hosthound" ] && [ -x "./hosthound" ]; then
+if [ -f "./hostreamio" ] && [ -x "./hostreamio" ]; then
+    echo " Using compiled binary (fastest startup)..."
+    exec "./hostreamio" "$PORT"
+elif [ -f "./hosthound" ] && [ -x "./hosthound" ]; then
     echo " Using compiled binary (fastest startup)..."
     exec "./hosthound" "$PORT"
 elif [ -f "./unbound" ] && [ -x "./unbound" ]; then

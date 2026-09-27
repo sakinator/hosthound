@@ -43,13 +43,13 @@ jobs:
         working-directory: android_app
         run: |
           flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/hosthound.apk
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/hostreamio.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hosthound-apk
-          path: android_app/build/app/outputs/flutter-apk/hosthound.apk
+          name: hostreamio-apk
+          path: android_app/build/app/outputs/flutter-apk/hostreamio.apk
           if-no-files-found: error
 
   build-windows:
@@ -72,26 +72,26 @@ jobs:
         run: dart pub get
 
       - name: Compile Windows Standalone Executable
-        run: dart compile exe bin/server.dart -o hosthound.exe
+        run: dart compile exe bin/server.dart -o hostreamio.exe
 
       - name: Package Windows Release Archive
         shell: powershell
         run: |
           New-Item -ItemType Directory -Path dist -Force
-          Copy-Item hosthound.exe dist/
+          Copy-Item hostreamio.exe dist/
           Copy-Item badges.json dist/ -ErrorAction SilentlyContinue
           Copy-Item README.md dist/ -ErrorAction SilentlyContinue
           Copy-Item start.bat dist/ -ErrorAction SilentlyContinue
           Copy-Item start.ps1 dist/ -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Path dist/data -Force
           Copy-Item data/config.json dist/data/ -ErrorAction SilentlyContinue
-          Compress-Archive -Path dist/* -DestinationPath hosthound-windows-x64.zip -Force
+          Compress-Archive -Path dist/* -DestinationPath hostreamio-windows-x64.zip -Force
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hosthound-windows
-          path: hosthound-windows-x64.zip
+          name: hostreamio-windows
+          path: hostreamio-windows-x64.zip
           if-no-files-found: error
 
   release:
@@ -104,21 +104,21 @@ jobs:
       - name: Download Android Artifact
         uses: actions/download-artifact@v4
         with:
-          name: hosthound-apk
+          name: hostreamio-apk
           path: release-assets/
 
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
-          name: hosthound-windows
+          name: hostreamio-windows
           path: release-assets/
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release-assets/hosthound.apk
-            release-assets/hosthound-windows-x64.zip
+            release-assets/hostreamio.apk
+            release-assets/hostreamio-windows-x64.zip
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false

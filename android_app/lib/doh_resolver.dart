@@ -168,7 +168,7 @@ class _DnsEntry {
 }
 
 /// Global HttpOverrides that routes all socket connections through [DohResolver].
-class HosthoundHttpOverrides extends HttpOverrides {
+class HostreamioHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
@@ -190,5 +190,6 @@ class HosthoundHttpOverrides extends HttpOverrides {
   }
 }
 
-typedef MegascraperHttpOverrides = HosthoundHttpOverrides;
-typedef UnboundHttpOverrides = HosthoundHttpOverrides;
+typedef HosthoundHttpOverrides = HostreamioHttpOverrides;
+typedef MegascraperHttpOverrides = HostreamioHttpOverrides;
+typedef UnboundHttpOverrides = HostreamioHttpOverrides;

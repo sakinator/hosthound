@@ -9,7 +9,7 @@ import 'dart:io';
 ///   dart run tool/update.dart --no-compile
 void main(List<String> args) async {
   print('\x1B[36m==========================================================\x1B[0m');
-  print('\x1B[35m 🐕 HostHound Cross-Platform Update Pipeline\x1B[0m');
+  print('\x1B[35m ⚡ Hostreamio Cross-Platform Update Pipeline\x1B[0m');
   print('\x1B[36m==========================================================\x1B[0m');
 
   int port = 7002;
@@ -75,8 +75,8 @@ void main(List<String> args) async {
   if (shouldCompile) {
     print('\n\x1B[33m[4/5] Compiling standalone server executable...\x1B[0m');
     final isWindows = Platform.isWindows;
-    final binaryName = isWindows ? 'hosthound.exe' : 'hosthound';
-    final tempBinary = isWindows ? 'hosthound-new.exe' : 'hosthound-new';
+    final binaryName = isWindows ? 'hostreamio.exe' : 'hostreamio';
+    final tempBinary = isWindows ? 'hostreamio-new.exe' : 'hostreamio-new';
 
     final compileRes = await Process.run(Platform.resolvedExecutable, [
       'compile',
