@@ -971,6 +971,10 @@ class WebUI {
       .stream-actions .btn {
         flex: 1 1 100%;
       }
+      #catalogGrid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+        gap: 8px !important;
+      }
     }
   </style>
 </head>
@@ -1771,7 +1775,9 @@ class WebUI {
             type: cinemetaType,
             name: m.name || m.title || 'Unknown',
             poster: m.poster || m.background || '',
-            year: m.year || '',
+            nativePoster: m.nativePoster || m.poster || '',
+            year: m.year || m.releaseInfo || '',
+            rating: m.imdbRating || m.rating || '',
             genres: m.genres || [],
             description: m.description || '',
           }));
@@ -1786,7 +1792,9 @@ class WebUI {
             type: meta.type,
             name: m.name || m.title || 'Unknown',
             poster: m.poster || m.background || '',
-            year: m.year || '',
+            nativePoster: m.nativePoster || m.poster || '',
+            year: m.releaseInfo || m.year || '',
+            rating: m.imdbRating || m.rating || '',
             genres: m.genres || [],
             description: m.description || '',
           }));
@@ -1807,13 +1815,19 @@ class WebUI {
     }
 
     function onPosterError(img) {
-      const src = img.getAttribute('src') || '';
-      if ((src.includes('maxresdefault.jpg') || src.includes('hq720.jpg')) && !src.includes('hqdefault.jpg')) {
-        img.src = src.replace('maxresdefault.jpg', 'hqdefault.jpg').replace('hq720.jpg', 'hqdefault.jpg');
+      const fallback = img.getAttribute('data-fallback');
+      const curSrc = img.getAttribute('src') || '';
+      if (fallback && curSrc !== fallback) {
+        img.removeAttribute('data-fallback');
+        img.src = fallback;
         return;
       }
-      if (src.includes('/__ia_thumb.jpg')) {
-        img.src = src.replace('/download/', '/services/img/').replace('/__ia_thumb.jpg', '');
+      if ((curSrc.includes('maxresdefault.jpg') || curSrc.includes('hq720.jpg')) && !curSrc.includes('hqdefault.jpg')) {
+        img.src = curSrc.replace('maxresdefault.jpg', 'hqdefault.jpg').replace('hq720.jpg', 'hqdefault.jpg');
+        return;
+      }
+      if (curSrc.includes('/__ia_thumb.jpg')) {
+        img.src = curSrc.replace('/download/', '/services/img/').replace('/__ia_thumb.jpg', '');
         return;
       }
       img.style.display = 'none';
@@ -1824,17 +1838,8 @@ class WebUI {
       const grid = document.getElementById('catalogGrid');
       if (!grid) return;
 
-      const isLandscape = _activeCatalogTab === 'yt_indian' || 
-                          _activeCatalogTab === 'yt_international' || 
-                          _activeCatalogTab === 'vimeo_picks' || 
-                          _activeCatalogTab === 'archive_movies' || 
-                          _activeCatalogTab === 'dm_movies';
-
-      grid.style.gridTemplateColumns = isLandscape 
-        ? 'repeat(auto-fill, minmax(210px, 1fr))' 
-        : 'repeat(auto-fill, minmax(140px, 1fr))';
-
-      const imgHeight = isLandscape ? '124px' : '200px';
+      grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(145px, 1fr))';
+      const imgHeight = '215px';
 
       if (_catalogItems.length === 0) {
         grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:30px 0;">No results found.</div>';
@@ -1846,8 +1851,17 @@ class WebUI {
         const isSeries = item.type === 'series';
         const typeIcon = isSeries ? '📺' : '🎬';
         const yearBadge = item.year ? '<span style="font-size:0.72rem;color:var(--text-muted);">' + item.year + '</span>' : '';
+        const ratingBadge = item.rating
+          ? '<span style="background:rgba(227,179,65,0.2);color:#e3b341;border:1px solid rgba(227,179,65,0.35);font-size:0.7rem;padding:1px 5px;border-radius:4px;font-weight:700;">⭐ ' + item.rating + '</span>'
+          : '';
+        const metaRow = '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">'
+          + (yearBadge || '<span></span>')
+          + ratingBadge
+          + '</div>';
+
+        const fallbackAttr = item.nativePoster ? ' data-fallback="' + encodeURI(item.nativePoster) + '"' : '';
         const posterHtml = item.poster
-          ? '<img src="' + item.poster + '" alt="' + safeName + '" style="width:100%;height:' + imgHeight + ';object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="onPosterError(this)">'
+          ? '<img src="' + item.poster + '"' + fallbackAttr + ' alt="' + safeName + '" style="width:100%;height:' + imgHeight + ';object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="onPosterError(this)">'
             + '<div style="display:none;width:100%;height:' + imgHeight + ';background:linear-gradient(135deg,#1a1f2e,#0d1117);align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>'
           : '<div style="width:100%;height:' + imgHeight + ';background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>';
 
@@ -1855,7 +1869,7 @@ class WebUI {
           + posterHtml
           + '<div style="padding:8px 8px 10px;">'
           + '<div style="font-size:0.82rem;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + typeIcon + ' ' + (item.name || 'Unknown') + '</div>'
-          + yearBadge
+          + metaRow
           + '</div>'
           + '</div>';
       }).join('');

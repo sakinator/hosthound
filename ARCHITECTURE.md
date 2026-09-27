@@ -220,28 +220,36 @@ runZonedGuarded(() async {
 
 ---
 
-## 6. Catalog & Poster Engine
+### 3-Tier Poster & Rating Enrichment Engine
+Public catalog items (YouTube Indian, YouTube International, Vimeo, Internet Archive, Dailymotion) are enriched automatically via a robust 3-tier fallback hierarchy:
 
-Hostreamio supports two distinct poster aspect ratios depending on the media source:
+1. **Tier 1: OMDb & TMDB APIs (Key-Based or Built-In):**
+   - Strips noise keywords ("Full Movie", "Hindi Dubbed", "1080p", distributor/actor tags, Devanagari/Urdu foreign script).
+   - Queries OMDb API (`https://www.omdbapi.com/?t=...&y=...`) and TMDB (`/3/search/movie`).
+   - Retrieves high-resolution cinematic 2:3 vertical posters and verified IMDb / TMDB ratings (e.g. `⭐ 7.8`).
+2. **Tier 2: 100% Free / Zero-Key API Fallback (Cinemeta / Metahub):**
+   - If user has no API key or TMDB is rate-limited, queries Cinemeta (`https://v3-cinemeta.strem.io/catalog/movie/top/search=...json`).
+   - Returns official Metahub/Amazon posters and extracts IMDb ratings (via verified `tt...` ID lookup) with zero credentials required.
+3. **Tier 3: Last Fallback (Native Website Video Thumbnails):**
+   - If no external match is found or external CDNs fail, seamlessly falls back to the native video thumbnail:
+     - **YouTube:** `https://i.ytimg.com/vi/<id>/hq720.jpg` (falls back to `hqdefault.jpg`)
+     - **Archive.org:** `https://archive.org/download/<id>/__ia_thumb.jpg` (falls back to `/services/img/`)
+     - **Dailymotion:** `thumbnail_1080_url` (falls back to `720` -> `480`)
+     - **Vimeo:** `thumbnail_large`
+   - In `web_ui.dart`, `onPosterError(img)` checks `data-fallback` and swaps failed images to native video thumbnails instantly.
 
-### Portrait (2:3 Ratio) — Trending Movies & Series
-- Used by: `trending-movie`, `trending-series`
-- Grid Columns: `repeat(auto-fill, minmax(140px, 1fr))`
-- Card Height: `200px` (`aspect-ratio: 2/3`)
-- Source: TMDB & Cinemeta vertical poster art
+### Stremio & Nuvio Catalog Parity
+- Manifest declares `'posterShape': 'poster'` for all catalogs, rendering cinematic portrait cards in Stremio and Nuvio.
+- Catalog items provide both `imdbRating` (native Stremio star badge) and `rating` (Nuvio badge).
+- Metadata detail endpoint `/meta/:type/:id.json` returns full synopsis, release year, genres, backdrops, and ratings.
 
-### Landscape (16:9 Ratio) — Web & Archive Catalogs
-- Used by: `yt_indian`, `yt_international`, `vimeo_picks`, `archive_movies`, `dm_movies`
-- Grid Columns: `repeat(auto-fill, minmax(210px, 1fr))`
-- Card Height: `124px` (`aspect-ratio: 16/9`)
-- High-Resolution Endpoints:
-  - **YouTube:** `https://i.ytimg.com/vi/<id>/hq720.jpg` (with `hqdefault.jpg` fallback)
-  - **Dailymotion:** `thumbnail_1080_url` (falls back to `720` -> `480` -> default)
-  - **Archive.org:** `https://archive.org/download/<id>/__ia_thumb.jpg` (falls back to `/services/img/`)
-  - **Vimeo:** `thumbnail_large`
-
-### Responsive Catalog Layout
-In `lib/web_ui.dart`, `renderCatalogGrid()` detects whether the active catalog is landscape or portrait and switches CSS classes and styles dynamically so widescreen thumbnails are never vertically cropped or distorted.
+### Public Cloud Streams Integration for All Movies
+When any movie is requested in Stremio or Nuvio (`/stream/movie/tt...json`), `CatalogService.instance.searchPublicStreams` concurrently searches YouTube, Archive.org, and Dailymotion alongside the 61 hoster/torrent scrapers.
+- Returns instant, non-torrent cloud streams: `⚡ YouTube`, `🏛️ Archive.org`, `📺 Dailymotion`.
+- If supported by TorBox (e.g. direct `.mp4`, Archive.org links, YouTube links):
+  - Injects `⚡ TorBox [Cached]` if already cached on TorBox cloud CDN.
+  - Injects `☁️⬆️ TorBox [Start Caching]` for 1-click cloud caching.
+  - Injects native direct stream for zero-wait playback.
 
 ---
 

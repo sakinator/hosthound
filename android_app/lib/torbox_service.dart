@@ -284,7 +284,12 @@ class TorboxService {
         lower.contains('fastdl') ||
         lower.contains('vcloud') ||
         lower.contains('fileq') ||
-        lower.contains('workers.dev')) {
+        lower.contains('workers.dev') ||
+        lower.contains('archive.org') ||
+        lower.contains('youtube.com') ||
+        lower.contains('youtu.be') ||
+        lower.contains('vimeo.com') ||
+        lower.contains('dailymotion.com')) {
       return true;
     }
 
