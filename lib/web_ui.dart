@@ -616,7 +616,7 @@ class WebUI {
               <button type="button" class="btn btn-primary" onclick="copyText('lanUrl')" style="padding:8px 14px; font-size:0.85rem; white-space:nowrap; font-weight:600;">📋 Copy LAN URL</button>
             </div>
             <div style="font-size:0.76rem; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-              <span>💡</span> Open <strong>Nuvio/Stremio</strong> ➔ <strong>Add-ons (+)</strong> ➔ Paste URL ➔ <strong>Install</strong>
+              <span>💡</span> Open <strong>Nuvio</strong> ➔ <strong>Settings (⚙️)</strong> ➔ <strong>General</strong> ➔ <strong>Content & Discovery</strong> ➔ <strong>Addons (+)</strong> ➔ Paste URL ➔ <strong>Install</strong>
             </div>
           </div>
         </div>
@@ -638,7 +638,7 @@ class WebUI {
               <button type="button" class="btn btn-primary" onclick="copyText('badgesUrl')" style="padding:8px 16px; font-size:0.85rem; white-space:nowrap; font-weight:700; background:#ff69b4; border-color:#ff69b4; color:#fff;">📋 Copy Badge URL</button>
             </div>
             <div style="font-size:0.8rem; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-              <span>👉</span> In Nuvio app: <strong>Settings (⚙️)</strong> ➔ <strong>Layout</strong> ➔ <strong>Streams</strong> ➔ <strong>Fusion Badge URLs</strong> ➔ Paste & Add!
+              <span>👉</span> In Nuvio app: <strong>Settings (⚙️)</strong> ➔ <strong>General</strong> ➔ <strong>Layout</strong> ➔ <strong>Streams</strong> ➔ <strong>Fusion Badge URLs</strong> ➔ Paste & Add!
             </div>
           </div>
         </div>

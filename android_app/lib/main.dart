@@ -405,7 +405,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Paste this URL into Nuvio (Settings -> Addons -> Add Addon) or Stremio.',
+            'Paste this URL into Nuvio: Settings (⚙️) -> General -> Content & Discovery -> Addons (+)',
             style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
           ),
         ],

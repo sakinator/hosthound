@@ -179,8 +179,8 @@ The included CI workflow (`.github/workflows/build-apk.yml`) compiles the releas
    - Note your PC's local Wi-Fi IP address printed in the console (e.g., `http://192.168.0.127:7002`).
    *(Ensure Windows Firewall allows inbound TCP traffic on port 7002 on your local home network).*
 2. **Install Addon Manifest in Nuvio:**
-   - Open **Nuvio** on your Android TV, Fire TV, or mobile device.
-   - In the navigation menu, select **Addons** (🧩 icon).
+   - Open **Nuvio** on your Android TV, Fire TV, PC, or mobile device.
+   - Navigate to: **Settings (⚙️)** ➔ **General** ➔ **Content & Discovery** ➔ **Addons** (under Sources).
    - Click the **`+`** button (or **Install from URL / Custom Addon**).
    - Type or paste your LAN URL:
      ```text
@@ -189,7 +189,7 @@ The included CI workflow (`.github/workflows/build-apk.yml`) compiles the releas
      *(Example: `http://192.168.0.127:7002/manifest.json`)*
    - Click **Install**. Hostreamio will appear under Installed Addons with version `2.0.0`.
 3. **Enable OTT & Quality Badges (Fusion Badges in Nuvio):**
-   - In Nuvio, go to **Settings (⚙️)** ➔ **Layout** ➔ **Streams**.
+   - In Nuvio, go to **Settings (⚙️)** ➔ **General** ➔ **Layout** ➔ **Streams**.
    - Under **Fusion Badge URLs** (or **Badges URL**), enter:
      ```text
      http://<YOUR_PC_LAN_IP>:7002/badges.json
@@ -205,7 +205,7 @@ The included CI workflow (`.github/workflows/build-apk.yml`) compiles the releas
    - *(Optional)* Enter your TorBox API key and click **Save & Validate**.
 2. **Install into Nuvio (on the Same Device):**
    - Switch to **Nuvio** on your TV or phone.
-   - Go to **Addons** ➔ Click **`+`** (Install from URL).
+   - Go to: **Settings (⚙️)** ➔ **General** ➔ **Content & Discovery** ➔ **Addons** ➔ Click **`+`**.
    - Enter the localhost address:
      ```text
      http://127.0.0.1:7002/manifest.json
@@ -213,7 +213,7 @@ The included CI workflow (`.github/workflows/build-apk.yml`) compiles the releas
      *(Or click the `1-Click Install (Stremio / Nuvio)` button directly inside the Hostreamio Android app).*
    - Click **Install**.
 3. **Enable Badges in Nuvio:**
-   - In Nuvio: **Settings (⚙️)** ➔ **Layout** ➔ **Streams** ➔ **Fusion Badge URLs**.
+   - In Nuvio: **Settings (⚙️)** ➔ **General** ➔ **Layout** ➔ **Streams** ➔ **Fusion Badge URLs**.
    - Paste: `http://127.0.0.1:7002/badges.json` and save.
 
 ---
@@ -223,8 +223,8 @@ The included CI workflow (`.github/workflows/build-apk.yml`) compiles the releas
 2. **1-Click Install:**
    - Open your browser to `http://localhost:7002/configure`.
    - Click **`🚀 1-Click Install to Stremio / Nuvio`** (or open `stremio://127.0.0.1:7002/manifest.json`).
-   - Or in Nuvio Desktop: **Addons** ➔ **`+`** ➔ `http://localhost:7002/manifest.json`.
-3. **Badges:** Set Fusion Badges URL in Nuvio to `http://localhost:7002/badges.json`.
+   - Or in Nuvio Desktop: **Settings (⚙️)** ➔ **General** ➔ **Content & Discovery** ➔ **Addons** ➔ **`+`** ➔ `http://localhost:7002/manifest.json`.
+3. **Badges:** Set Fusion Badges URL in Nuvio (**Settings ➔ General ➔ Layout ➔ Streams**) to `http://localhost:7002/badges.json`.
 
 ---
 
