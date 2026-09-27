@@ -1,17 +1,19 @@
 // AUTO-GENERATED SCRAPER REGISTRY - DO NOT EDIT MANUALLY
-// Generated at: 2026-09-27T13:56:53.532402
+// Generated at: 2026-09-27T19:39:07.684817
 // Run "dart run tool/generate_registry.dart" or "pipeline/update.ps1" to regenerate.
 
 import 'upstream/services/scraper/stream_scraper.dart';
 import 'upstream/services/scraper/sites/a111477.dart';
 import 'upstream/services/scraper/sites/animepahe.dart';
 import 'upstream/services/scraper/sites/bcine.dart';
+import 'upstream/services/scraper/sites/bolly4u.dart';
 import 'upstream/services/scraper/sites/bollyflix.dart';
 import 'upstream/services/scraper/sites/cinejoy.dart';
 import 'upstream/services/scraper/sites/cinesrc.dart';
 import 'upstream/services/scraper/sites/cinesu.dart';
 import 'upstream/services/scraper/sites/downloadeverything.dart';
 import 'upstream/services/scraper/sites/dramacool.dart';
+import 'upstream/services/scraper/sites/dramaday.dart';
 import 'upstream/services/scraper/sites/dulo.dart';
 import 'upstream/services/scraper/sites/flaxmovies.dart';
 import 'upstream/services/scraper/sites/flystream.dart';
@@ -70,12 +72,14 @@ class ScraperRegistry {
     A111477Scraper(),
     AnimePaheScraper(),
     BcineScraper(),
+    Bolly4uScraper(),
     BollyflixScraper(),
     CinejoyScraper(),
     CineSrcScraper(),
     CineSuScraper(),
     DownloadEverythingScraper(),
     DramacoolScraper(),
+    DramaDayScraper(),
     DuloScraper(),
     FlaxMoviesScraper(),
     FlyStreamScraper(),
