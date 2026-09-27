@@ -110,8 +110,9 @@ class WebUI {
     .main-tabs-nav {
       display: flex;
       justify-content: center;
-      gap: 12px;
-      margin-bottom: 24px;
+      gap: 10px;
+      margin: 0 auto 24px auto;
+      max-width: 520px;
       padding: 6px;
       background: rgba(17, 20, 28, 0.95);
       border: 1px solid var(--border);
@@ -120,19 +121,18 @@ class WebUI {
     }
     .main-tab-btn {
       flex: 1;
-      max-width: 340px;
       padding: 12px 20px;
       background: transparent;
       border: 1px solid transparent;
       border-radius: 10px;
       color: var(--text-muted);
-      font-size: 0.98rem;
+      font-size: 0.96rem;
       font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
       transition: all 0.2s ease;
     }
     .main-tab-btn:hover {
@@ -144,17 +144,6 @@ class WebUI {
       background: linear-gradient(135deg, rgba(25, 95, 235, 0.4) 0%, rgba(255, 12, 130, 0.35) 100%);
       border-color: rgba(255, 12, 130, 0.5);
       box-shadow: 0 0 16px rgba(255, 12, 130, 0.3);
-    }
-    .main-tab-btn .tab-badge {
-      font-size: 0.72rem;
-      padding: 2px 8px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.12);
-      color: var(--text);
-    }
-    .main-tab-btn.active .tab-badge {
-      background: var(--accent);
-      color: #fff;
     }
     /* Breadcrumb Step Pills for Quick Install */
     .breadcrumb-container {
@@ -864,12 +853,10 @@ class WebUI {
     <!-- Main Top Tabs Switcher -->
     <div class="main-tabs-nav">
       <button id="tabBtnServer" class="main-tab-btn active" onclick="switchMainTab('server')">
-        <span>🖥️ Server &amp; Addon Hub</span>
-        <span class="tab-badge">Manifest &amp; Config</span>
+        🖥️ Server &amp; Addon Setup
       </button>
       <button id="tabBtnStreaming" class="main-tab-btn" onclick="switchMainTab('streaming')">
-        <span>🎬 Native Streaming Theater</span>
-        <span class="tab-badge">Search &amp; Play</span>
+        🎬 Streaming Theater
       </button>
     </div>
 
@@ -877,102 +864,93 @@ class WebUI {
     <div id="tabContentServer">
       <!-- Quick Install & Manifest Card -->
       <div class="card" style="background: linear-gradient(180deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.95) 100%);">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
           <h2>🔌 Quick Install in Nuvio &amp; Stremio</h2>
           <span class="badge" style="background:rgba(88, 166, 255, 0.15); color:var(--blue); border:1px solid rgba(88, 166, 255, 0.3); font-size:0.8rem; padding:4px 10px;">
             📡 Wi-Fi IP: $localIp
           </span>
         </div>
 
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:14px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
           <!-- Option 1: This PC -->
-          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
             <div>
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-                <span style="font-weight:700; font-size:0.95rem; color:var(--text);">💻 This PC (Local Player)</span>
-                <span style="font-size:0.7rem; color:var(--green-light); background:rgba(35, 134, 54, 0.2); padding:2px 8px; border-radius:12px; font-weight:600;">1-Click</span>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <span style="font-weight:700; font-size:1rem; color:var(--text);">💻 This PC (Local Player)</span>
+                <span style="font-size:0.75rem; color:var(--green-light); background:rgba(35, 134, 54, 0.2); border:1px solid rgba(35, 134, 54, 0.4); padding:3px 8px; border-radius:12px; font-weight:600;">1-Click</span>
               </div>
-              <p style="font-size:0.82rem; color:var(--text-muted); line-height:1.4;">
-                If Nuvio or Stremio is installed on this PC, launch and add the addon directly:
+              <p style="font-size:0.84rem; color:var(--text-muted); line-height:1.5; margin:0;">
+                If Nuvio or Stremio is installed on this PC, click to install the addon manifest directly:
               </p>
             </div>
             <div>
-              <a href="stremio://127.0.0.1:$port/manifest.json" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px 14px; font-size:0.92rem; font-weight:700; text-decoration:none;">
+              <a href="stremio://127.0.0.1:$port/manifest.json" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px 14px; font-size:0.92rem; font-weight:700; text-decoration:none; margin-bottom:8px;">
                 🚀 1-Click Install to Stremio / Nuvio
               </a>
-              <div style="display:flex; gap:8px; margin-top:8px;">
-                <input class="url-input" id="localUrl" value="$manifestLocal" readonly style="font-size:0.82rem; padding:6px 10px;">
-                <button type="button" class="btn" onclick="copyText('localUrl')" style="padding:6px 12px; font-size:0.8rem; white-space:nowrap;">📋 Copy</button>
+              <div style="display:flex; gap:8px;">
+                <input class="url-input" id="localUrl" value="$manifestLocal" readonly style="font-size:0.82rem; padding:8px 10px;">
+                <button type="button" class="btn" onclick="copyText('localUrl')" style="padding:8px 14px; font-size:0.82rem; white-space:nowrap;">📋 Copy</button>
               </div>
             </div>
           </div>
 
           <!-- Option 2: Android TV, Fire TV & Mobile -->
-          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
             <div>
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-                <span style="font-weight:700; font-size:0.95rem; color:var(--text);">📺 Android TV, Fire TV &amp; Mobile</span>
-                <span style="font-size:0.7rem; color:var(--blue); background:rgba(88, 166, 255, 0.2); padding:2px 8px; border-radius:12px; font-weight:600;">Wi-Fi LAN</span>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <span style="font-weight:700; font-size:1rem; color:var(--text);">📺 Android TV, Fire TV &amp; Mobile</span>
+                <span style="font-size:0.75rem; color:var(--blue); background:rgba(88, 166, 255, 0.2); border:1px solid rgba(88, 166, 255, 0.4); padding:3px 8px; border-radius:12px; font-weight:600;">Wi-Fi LAN</span>
               </div>
-              <p style="font-size:0.82rem; color:var(--text-muted); line-height:1.4;">
-                For Android TV, FireStick, or Mobile connected to the same Wi-Fi:
+              <p style="font-size:0.84rem; color:var(--text-muted); line-height:1.5; margin:0;">
+                For Android TV, Fire TV Stick, or Phone connected to the same Wi-Fi network:
               </p>
             </div>
             <div>
-              <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <div style="display:flex; gap:8px; margin-bottom:10px;">
                 <input class="url-input" id="lanUrl" value="$manifestLan" readonly style="font-size:0.82rem; padding:8px 10px; color:var(--green-light);">
-                <button type="button" class="btn btn-primary" onclick="copyText('lanUrl')" style="padding:8px 14px; font-size:0.85rem; white-space:nowrap; font-weight:600;">📋 Copy LAN URL</button>
+                <button type="button" class="btn btn-primary" onclick="copyText('lanUrl')" style="padding:8px 14px; font-size:0.82rem; white-space:nowrap; font-weight:600;">📋 Copy LAN URL</button>
               </div>
               <div class="breadcrumb-container">
-                <span class="breadcrumb-step">1. Open Nuvio</span>
+                <span class="breadcrumb-step">1. Nuvio Settings</span>
                 <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">2. Settings ⚙️</span>
+                <span class="breadcrumb-step">2. Content &amp; Discovery</span>
                 <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">3. General</span>
+                <span class="breadcrumb-step">3. Addons (+)</span>
                 <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">4. Content &amp; Discovery</span>
-                <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">5. Addons (+)</span>
-                <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step" style="color:var(--green-light); border-color:var(--green-light); font-weight:700;">6. Paste &amp; Install</span>
+                <span class="breadcrumb-step" style="color:var(--green-light); border-color:var(--green-light); font-weight:700;">4. Paste &amp; Install</span>
               </div>
             </div>
           </div>
 
           <!-- Option 3: Nuvio Fusion Badges (Quality & OTT Logos) -->
-          <div style="background:#090d13; border:1px solid #ff69b4; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; gap:12px; grid-column: 1 / -1;">
+          <div style="background:#090d13; border:1px solid rgba(255, 105, 180, 0.4); border-radius:10px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; gap:14px; grid-column: 1 / -1;">
             <div>
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
-                <span style="font-weight:700; font-size:0.95rem; color:#ff69b4;">🎨 Nuvio Logo Badges (Quality &amp; OTT Logos)</span>
-                <span style="font-size:0.75rem; color:#ff69b4; background:rgba(255, 105, 180, 0.15); border:1px solid rgba(255,105,180,0.4); padding:2px 8px; border-radius:12px; font-weight:600;">Required for Logo Badges</span>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                <span style="font-weight:700; font-size:1rem; color:#ff69b4;">🎨 Nuvio Logo Badges (Quality &amp; OTT Logos)</span>
+                <span style="font-size:0.75rem; color:#ff69b4; background:rgba(255, 105, 180, 0.15); border:1px solid rgba(255,105,180,0.4); padding:3px 8px; border-radius:12px; font-weight:600;">Required for Logo Badges</span>
               </div>
               <p style="font-size:0.84rem; color:var(--text); line-height:1.5; margin:0;">
-                Nuvio renders visual logos &amp; badges (4K, WEB-DL, Hotstar, Netflix, Prime, JioCinema, SonyLIV, Zee5) through <strong>Fusion Badge URLs</strong>. To enable badges in Nuvio, copy this URL:
+                Nuvio renders visual logos &amp; badges (4K, WEB-DL, Hotstar, Netflix, Prime, JioCinema, SonyLIV, Zee5) through <strong>Fusion Badge URLs</strong>:
               </p>
             </div>
             <div>
-              <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <div style="display:flex; gap:8px; margin-bottom:10px;">
                 <input class="url-input" id="badgesUrl" value="http://$localIp:$port/badges.json" readonly style="font-size:0.84rem; padding:8px 10px; color:#ff69b4; font-weight:600;">
                 <button type="button" class="btn btn-primary" onclick="copyText('badgesUrl')" style="padding:8px 16px; font-size:0.85rem; white-space:nowrap; font-weight:700; background:#ff69b4; border-color:#ff69b4; color:#fff;">📋 Copy Badge URL</button>
               </div>
               <div class="breadcrumb-container">
-                <span class="breadcrumb-step">1. Open Nuvio</span>
+                <span class="breadcrumb-step">1. Nuvio Settings</span>
                 <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">2. Settings ⚙️</span>
+                <span class="breadcrumb-step">2. Layout &amp; Streams</span>
                 <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">3. General</span>
+                <span class="breadcrumb-step">3. Fusion Badge URLs</span>
                 <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">4. Layout</span>
-                <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step">5. Streams</span>
-                <span class="breadcrumb-arrow">➔</span>
-                <span class="breadcrumb-step" style="color:#ff69b4; border-color:#ff69b4; font-weight:700;">6. Fusion Badge URLs ➔ Paste &amp; Add</span>
+                <span class="breadcrumb-step" style="color:#ff69b4; border-color:#ff69b4; font-weight:700;">4. Paste &amp; Save</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
     <!-- TorBox Debrid & Cache Integration -->
     <div class="card">
@@ -1588,9 +1566,11 @@ class WebUI {
       const genreRow = document.getElementById('catalogGenreRow');
       if (meta && meta.genres) {
         genreRow.style.display = 'flex';
-        genreRow.innerHTML = meta.genres.map(g =>
-          \`<button class="stream-filter-chip\${g === 'All' ? ' active' : ''}" onclick="setCatalogGenre('\${g.replace(/'/g,"\\\\'")}', this)">\${g}</button>\`
-        ).join('');
+        genreRow.innerHTML = meta.genres.map(g => {
+          const activeCls = g === 'All' ? ' active' : '';
+          const safeG = g.replace(/'/g, "\\'");
+          return '<button class="stream-filter-chip' + activeCls + '" onclick="setCatalogGenre(\'' + safeG + '\', this)">' + g + '</button>';
+        }).join('');
       } else {
         genreRow.style.display = 'none';
         genreRow.innerHTML = '';
@@ -1615,17 +1595,17 @@ class WebUI {
       if (!meta) return;
 
       if (reset) {
-        grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:40px 0;">⏳ Loading…</div>';
-        document.getElementById('btnCatalogLoadMore').style.display = 'none';
+        grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:40px 0;">⏳ Loading catalog…</div>';
+        const loadMoreBtn = document.getElementById('btnCatalogLoadMore');
+        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       }
 
       try {
         let items = [];
         if (meta.src === 'cinemeta') {
-          // Fetch from Cinemeta trending
           const cinemetaType = meta.type === 'series' ? 'series' : 'movie';
           const skip = _catalogSkip;
-          const url = \`https://v3-cinemeta.strem.io/catalog/\${cinemetaType}/\${meta.id}/skip=\${skip}.json\`;
+          const url = 'https://v3-cinemeta.strem.io/catalog/' + cinemetaType + '/' + meta.id + '/skip=' + skip + '.json';
           const res = await fetch(url);
           if (!res.ok) throw new Error('Cinemeta HTTP ' + res.status);
           const data = await res.json();
@@ -1639,9 +1619,8 @@ class WebUI {
             description: m.description || '',
           }));
         } else {
-          // Fetch from local /catalog/ endpoint
           const genre = (_catalogActiveGenre && _catalogActiveGenre !== 'All') ? '&genre=' + encodeURIComponent(_catalogActiveGenre) : '';
-          const url = \`/catalog/\${meta.type}/\${meta.id}/skip=\${_catalogSkip}\${genre}.json\`;
+          const url = '/catalog/' + meta.type + '/' + meta.id + '/skip=' + _catalogSkip + genre + '.json';
           const res = await fetch(url);
           if (!res.ok) throw new Error('Local catalog HTTP ' + res.status);
           const data = await res.json();
@@ -1659,12 +1638,14 @@ class WebUI {
         _catalogItems = reset ? items : [..._catalogItems, ...items];
         _catalogSkip += items.length || 20;
         renderCatalogGrid(reset);
-        document.getElementById('btnCatalogLoadMore').style.display = items.length >= 10 ? 'inline-block' : 'none';
+        const loadMoreBtn = document.getElementById('btnCatalogLoadMore');
+        if (loadMoreBtn) loadMoreBtn.style.display = items.length >= 10 ? 'inline-block' : 'none';
       } catch (e) {
         if (reset) {
-          grid.innerHTML = \`<div style="grid-column:1/-1;color:#f85149;text-align:center;padding:30px 0;">⚠️ Failed to load catalog: \${e.message}. <button class="btn btn-sm" onclick="loadCatalog(true)" style="margin-left:8px;">↺ Retry</button></div>\`;
+          grid.innerHTML = '<div style="grid-column:1/-1;color:#f85149;text-align:center;padding:30px 0;">⚠️ Failed to load catalog: ' + (e.message || e) + '. <button class="btn btn-sm" onclick="loadCatalog(true)" style="margin-left:8px;">↺ Retry</button></div>';
         }
-        document.getElementById('btnCatalogLoadMore').style.display = 'none';
+        const loadMoreBtn = document.getElementById('btnCatalogLoadMore');
+        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       }
     }
 
@@ -1678,27 +1659,30 @@ class WebUI {
       }
 
       const cards = _catalogItems.map(item => {
-        const poster = item.poster
-          ? \`<img src="\${item.poster}" alt="\${item.name}" style="width:100%;height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="this.style.display='none';this.nextSibling.style.display='flex';">\`
-            + \`<div style="display:none;width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>\`
-          : \`<div style="width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>\`;
-        const yearBadge = item.year ? \`<span style="font-size:0.72rem;color:var(--text-muted);">\${item.year}</span>\` : '';
-        const typeIcon = item.type === 'series' ? '📺' : '🎬';
-        return \`<div class="catalog-card" onclick="catalogItemClick('\${item.id.replace(/'/g,"\\\\'")}','\${item.type}','\${(item.name||'').replace(/'/g,"\\\\'")}','\${(item.poster||'').replace(/'/g,"\\\\'")}',\${item.type==='series'?'true':'false'})" title="\${item.name}">
-          \${poster}
-          <div style="padding:8px 8px 10px;">
-            <div style="font-size:0.82rem;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">\${typeIcon} \${item.name}</div>
-            \${yearBadge}
-          </div>
-        </div>\`;
+        const safeName = (item.name || 'Unknown').replace(/"/g, '&quot;').replace(/'/g, "\\'");
+        const safePoster = (item.poster || '').replace(/'/g, "\\'");
+        const safeId = (item.id || '').replace(/'/g, "\\'");
+        const isSeries = item.type === 'series';
+        const typeIcon = isSeries ? '📺' : '🎬';
+        const yearBadge = item.year ? '<span style="font-size:0.72rem;color:var(--text-muted);">' + item.year + '</span>' : '';
+        const posterHtml = item.poster
+          ? '<img src="' + item.poster + '" alt="' + safeName + '" style="width:100%;height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+            + '<div style="display:none;width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>'
+          : '<div style="width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>';
+
+        return '<div class="catalog-card" onclick="catalogItemClick(\'' + safeId + '\',\'' + item.type + '\',\'' + safeName + '\',\'' + safePoster + '\',' + isSeries + ')" title="' + safeName + '">'
+          + posterHtml
+          + '<div style="padding:8px 8px 10px;">'
+          + '<div style="font-size:0.82rem;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + typeIcon + ' ' + (item.name || 'Unknown') + '</div>'
+          + yearBadge
+          + '</div>'
+          + '</div>';
       }).join('');
 
       if (reset) {
         grid.innerHTML = cards;
       } else {
-        // Remove loader if present
-        const existing = grid.innerHTML;
-        grid.innerHTML = existing + cards;
+        grid.innerHTML = grid.innerHTML + cards;
       }
     }
 
