@@ -407,8 +407,8 @@ class ScraperEngine {
 
         final cacheBadge = cacheEnriched['badgeHeader'] ?? qLabel;
         final startCachingStream = ScrapedStream(
-          name: '🌐 TorBox [Start Caching]\n$cacheBadge',
-          title: '${cacheEnriched['title']}\n🌐 TorBox Cachable • Click to start caching on TorBox cloud & stream',
+          name: '☁️⬆️ TorBox [Start Caching]\n$cacheBadge',
+          title: '${cacheEnriched['title']}\n☁️⬆️ TorBox Cachable • Click to upload & cache on TorBox cloud & stream',
           url: cachePlayUrl,
           behaviorHints: const {'notWebReady': false},
           provider: '$providerName (TorBox Cachable)',

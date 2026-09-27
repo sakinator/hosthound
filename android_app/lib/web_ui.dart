@@ -1130,7 +1130,7 @@ class WebUI {
         </p>
         <div class="url-box">
           <input class="url-input" id="torboxUploadUrl" placeholder="https://hubcloud.cx/drive/... or any supported hoster URL">
-          <button class="btn btn-success" id="btnUploadTorbox" onclick="uploadLinkToTorbox()">🌐 Cache to TorBox</button>
+          <button class="btn btn-success" id="btnUploadTorbox" onclick="uploadLinkToTorbox()">☁️⬆️ Cache to TorBox</button>
         </div>
         <div id="torboxUploadStatus" style="font-size:0.85rem; margin-top:6px; display:none;"></div>
       </div>
@@ -1448,47 +1448,15 @@ class WebUI {
         <strong style="color: var(--blue);">💡 Dual-Rail Stream Philosophy:</strong>
         <span style="color: var(--text-muted); margin-left: 6px;">
           <span style="color:#3fb950; font-weight:600;">⚡ TorBox [Cached]</span>: Stream from high-speed TorBox CDN instantly.
-          • <span style="color:#58a6ff; font-weight:600;">🌐 TorBox [Start Caching]</span>: Caches link in cloud; plays direct immediately without waiting!
+          • <span style="color:#58a6ff; font-weight:600;">☁️⬆️ TorBox [Start Caching]</span>: Caches link in cloud; plays direct immediately without waiting!
           • <span style="color:#f0883e; font-weight:600;">🌐 Direct Play</span>: Plays direct hoster/HLS link without TorBox requirement.
         </span>
       </div>
       <button class="btn btn-sm" onclick="switchMainTab('server')" style="font-size: 0.8rem; white-space:nowrap;">⚙️ Configure TorBox</button>
     </div>
 
-    <!-- ═══════════════════ CATALOG BROWSER ═══════════════════ -->
-    <div class="card" id="catalogBrowserCard" style="margin-bottom:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
-        <h2 style="margin:0;">🗂️ Browse Catalogs</h2>
-        <span style="font-size:0.78rem; color:var(--text-muted);">Click any title to instantly load streams ↓</span>
-      </div>
-
-      <!-- Catalog Sub-Tabs -->
-      <div id="catalogTabNav" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border);">
-        <button class="stream-filter-chip active" id="ctab-trending-movie" onclick="switchCatalogTab('trending-movie')">🔥 Trending Movies</button>
-        <button class="stream-filter-chip" id="ctab-trending-series" onclick="switchCatalogTab('trending-series')">📺 Trending Series</button>
-        <button class="stream-filter-chip" id="ctab-yt_indian" onclick="switchCatalogTab('yt_indian')">🎬 YouTube Indian</button>
-        <button class="stream-filter-chip" id="ctab-yt_international" onclick="switchCatalogTab('yt_international')">🌍 YouTube Intl</button>
-        <button class="stream-filter-chip" id="ctab-vimeo_picks" onclick="switchCatalogTab('vimeo_picks')">🎥 Vimeo</button>
-        <button class="stream-filter-chip" id="ctab-archive_movies" onclick="switchCatalogTab('archive_movies')">🏛️ Archive</button>
-        <button class="stream-filter-chip" id="ctab-dm_movies" onclick="switchCatalogTab('dm_movies')">📺 Dailymotion</button>
-      </div>
-
-      <!-- Genre Filter Row (visible for applicable tabs) -->
-      <div id="catalogGenreRow" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:12px;"></div>
-
-      <!-- Catalog Grid -->
-      <div id="catalogGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:12px; min-height:180px;">
-        <div style="grid-column:1/-1; color:var(--text-muted); text-align:center; padding:40px 0; font-size:0.9rem;">⏳ Loading catalog…</div>
-      </div>
-
-      <!-- Load More -->
-      <div style="text-align:center; margin-top:14px;">
-        <button class="btn btn-sm" id="btnCatalogLoadMore" onclick="loadMoreCatalog()" style="display:none;">⬇️ Load More</button>
-      </div>
-    </div>
-
     <!-- ═══════════════════ SEARCH & STREAM THEATER ═══════════════════ -->
-    <div class="card" id="searchTheaterCard">
+    <div class="card" id="searchTheaterCard" style="margin-bottom:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
         <h2>🎬 Search &amp; Stream Theater</h2>
         <div style="display:flex; gap:6px;">
@@ -1526,6 +1494,38 @@ class WebUI {
 
       <!-- Scraped Stream Results -->
       <div id="testResults"></div>
+    </div>
+
+    <!-- ═══════════════════ CATALOG BROWSER ═══════════════════ -->
+    <div class="card" id="catalogBrowserCard" style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+        <h2 style="margin:0;">🗂️ Browse Catalogs</h2>
+        <span style="font-size:0.78rem; color:var(--text-muted);">Click any title to instantly load streams ↓</span>
+      </div>
+
+      <!-- Catalog Sub-Tabs -->
+      <div id="catalogTabNav" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+        <button class="stream-filter-chip active" id="ctab-trending-movie" onclick="switchCatalogTab('trending-movie')">🔥 Trending Movies</button>
+        <button class="stream-filter-chip" id="ctab-trending-series" onclick="switchCatalogTab('trending-series')">📺 Trending Series</button>
+        <button class="stream-filter-chip" id="ctab-yt_indian" onclick="switchCatalogTab('yt_indian')">🎬 YouTube Indian</button>
+        <button class="stream-filter-chip" id="ctab-yt_international" onclick="switchCatalogTab('yt_international')">🌍 YouTube Intl</button>
+        <button class="stream-filter-chip" id="ctab-vimeo_picks" onclick="switchCatalogTab('vimeo_picks')">🎥 Vimeo</button>
+        <button class="stream-filter-chip" id="ctab-archive_movies" onclick="switchCatalogTab('archive_movies')">🏛️ Archive</button>
+        <button class="stream-filter-chip" id="ctab-dm_movies" onclick="switchCatalogTab('dm_movies')">📺 Dailymotion</button>
+      </div>
+
+      <!-- Genre Filter Row (visible for applicable tabs) -->
+      <div id="catalogGenreRow" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:12px;"></div>
+
+      <!-- Catalog Grid -->
+      <div id="catalogGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:12px; min-height:180px;">
+        <div style="grid-column:1/-1; color:var(--text-muted); text-align:center; padding:40px 0; font-size:0.9rem;">⏳ Loading catalog…</div>
+      </div>
+
+      <!-- Load More -->
+      <div style="text-align:center; margin-top:14px;">
+        <button class="btn btn-sm" id="btnCatalogLoadMore" onclick="loadMoreCatalog()" style="display:none;">⬇️ Load More</button>
+      </div>
     </div>
   </div> <!-- End of tabContentStreaming -->
 
@@ -1807,6 +1807,15 @@ class WebUI {
     }
 
     function onPosterError(img) {
+      const src = img.getAttribute('src') || '';
+      if ((src.includes('maxresdefault.jpg') || src.includes('hq720.jpg')) && !src.includes('hqdefault.jpg')) {
+        img.src = src.replace('maxresdefault.jpg', 'hqdefault.jpg').replace('hq720.jpg', 'hqdefault.jpg');
+        return;
+      }
+      if (src.includes('/__ia_thumb.jpg')) {
+        img.src = src.replace('/download/', '/services/img/').replace('/__ia_thumb.jpg', '');
+        return;
+      }
       img.style.display = 'none';
       if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
     }
@@ -1814,6 +1823,18 @@ class WebUI {
     function renderCatalogGrid(reset = false) {
       const grid = document.getElementById('catalogGrid');
       if (!grid) return;
+
+      const isLandscape = _catalogActiveTab === 'yt_indian' || 
+                          _catalogActiveTab === 'yt_international' || 
+                          _catalogActiveTab === 'vimeo_picks' || 
+                          _catalogActiveTab === 'archive_movies' || 
+                          _catalogActiveTab === 'dm_movies';
+
+      grid.style.gridTemplateColumns = isLandscape 
+        ? 'repeat(auto-fill, minmax(210px, 1fr))' 
+        : 'repeat(auto-fill, minmax(140px, 1fr))';
+
+      const imgHeight = isLandscape ? '124px' : '200px';
 
       if (_catalogItems.length === 0) {
         grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:30px 0;">No results found.</div>';
@@ -1826,9 +1847,9 @@ class WebUI {
         const typeIcon = isSeries ? '📺' : '🎬';
         const yearBadge = item.year ? '<span style="font-size:0.72rem;color:var(--text-muted);">' + item.year + '</span>' : '';
         const posterHtml = item.poster
-          ? '<img src="' + item.poster + '" alt="' + safeName + '" style="width:100%;height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="onPosterError(this)">'
-            + '<div style="display:none;width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>'
-          : '<div style="width:100%;height:200px;background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>';
+          ? '<img src="' + item.poster + '" alt="' + safeName + '" style="width:100%;height:' + imgHeight + ';object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="onPosterError(this)">'
+            + '<div style="display:none;width:100%;height:' + imgHeight + ';background:linear-gradient(135deg,#1a1f2e,#0d1117);align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>'
+          : '<div style="width:100%;height:' + imgHeight + ';background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>';
 
         return '<div class="catalog-card" data-id="' + encodeURIComponent(item.id || '') + '" data-type="' + encodeURIComponent(item.type || 'movie') + '" data-name="' + encodeURIComponent(item.name || '') + '" data-poster="' + encodeURIComponent(item.poster || '') + '" data-series="' + (isSeries ? '1' : '0') + '" onclick="onCatalogCardClick(this)" title="' + safeName + '">'
           + posterHtml
@@ -2124,7 +2145,7 @@ class WebUI {
           showToast('❌ ' + (data.message || 'Cache failed'));
           if (btnElement) {
             btnElement.disabled = false;
-            btnElement.innerText = '🌐 Cache to TorBox';
+            btnElement.innerText = '☁️⬆️ Cache to TorBox';
           }
         }
       } catch (e) {
@@ -2132,7 +2153,7 @@ class WebUI {
         showToast('❌ Upload error: ' + e);
         if (btnElement) {
           btnElement.disabled = false;
-          btnElement.innerText = '🌐 Cache to TorBox';
+          btnElement.innerText = '☁️⬆️ Cache to TorBox';
         }
       }
     }
@@ -2547,7 +2568,7 @@ class WebUI {
         html += '    <button class="btn" onclick="downloadM3uCurrent(' + s.index + ')">📥 .m3u</button>';
         html += '    <button class="btn" onclick="copyStreamUrl(' + s.index + ')">📋 URL</button>';
         if (s.isCachableToTorbox) {
-          const btnLabel = s.isCache ? '⚡ Start TorBox Cache' : '🌐 Cache to TorBox';
+          const btnLabel = s.isCache ? '☁️⬆️ Start TorBox Cache' : '☁️⬆️ Cache to TorBox';
           html += '    <button class="btn btn-success" onclick="uploadStreamToTorbox(' + s.index + ', this)">' + btnLabel + '</button>';
         }
         html += '  </div>';

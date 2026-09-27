@@ -9,6 +9,7 @@ class CatalogService {
 
   // Invidious public instances with automatic fallback
   static const List<String> _invidiousInstances = [
+    'https://invidious.projectsegfau.lt',
     'https://inv.nadeko.net',
     'https://invidious.nerdvpn.de',
     'https://vid.puffyan.us',
@@ -240,17 +241,16 @@ class CatalogService {
             final title = item['title']?.toString() ?? '';
             if (vId.isEmpty || title.isEmpty) continue;
 
+            // Prefer HD 720p crisp thumbnail for YouTube
             final thumbs = item['videoThumbnails'] as List?;
-            String poster = 'https://i.ytimg.com/vi/$vId/mqdefault.jpg';
+            String poster = 'https://i.ytimg.com/vi/$vId/hq720.jpg';
             if (thumbs != null && thumbs.isNotEmpty) {
               final raw = thumbs.last['url']?.toString() ?? '';
-              if (raw.startsWith('http')) {
+              if (raw.startsWith('http') && !raw.contains('mqdefault') && !raw.contains('default.jpg')) {
                 poster = raw;
-              } else if (raw.isNotEmpty) {
+              } else if (raw.isNotEmpty && !raw.contains('mqdefault')) {
                 poster = 'https://i.ytimg.com$raw';
               }
-            } else {
-              poster = 'https://i.ytimg.com/vi/$vId/hq720.jpg';
             }
 
             metas.add({
@@ -315,7 +315,7 @@ class CatalogService {
           final title = doc['title']?.toString() ?? id;
           final year = doc['year']?.toString() ?? '';
           final desc = doc['description']?.toString() ?? 'Internet Archive Classic';
-          final poster = 'https://archive.org/services/img/$id';
+          final poster = 'https://archive.org/download/$id/__ia_thumb.jpg';
 
           return {
             'id': 'archive:$id',
@@ -410,7 +410,7 @@ class CatalogService {
 
     final page = (skip / 20).floor() + 1;
     final url = Uri.parse(
-        'https://api.dailymotion.com/videos?fields=id,title,description,thumbnail_720_url,created_time&search=${Uri.encodeComponent(q)}&limit=20&page=$page');
+        'https://api.dailymotion.com/videos?fields=id,title,description,thumbnail_1080_url,thumbnail_720_url,thumbnail_480_url,thumbnail_url,created_time&search=${Uri.encodeComponent(q)}&limit=20&page=$page');
 
     try {
       final res = await http.get(url).timeout(const Duration(seconds: 5));
@@ -421,7 +421,11 @@ class CatalogService {
           final id = item['id']?.toString() ?? '';
           final title = item['title']?.toString() ?? id;
           final desc = item['description']?.toString() ?? 'Dailymotion Stream';
-          final poster = item['thumbnail_720_url']?.toString() ?? '';
+          final poster = item['thumbnail_1080_url']?.toString() ??
+              item['thumbnail_720_url']?.toString() ??
+              item['thumbnail_480_url']?.toString() ??
+              item['thumbnail_url']?.toString() ??
+              '';
 
           return {
             'id': 'dm:$id',
