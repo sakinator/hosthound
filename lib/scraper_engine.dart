@@ -297,7 +297,7 @@ class ScraperEngine {
         if (existing != null && !existing.provider.contains(sourceName)) {
           final updated = ScrapedStream(
             name: existing.name,
-            title: '${existing.title}\n🌐 Source: Also available via $sourceName',
+            title: '${existing.title}\n🔗 Also mirrored on: $sourceName',
             url: existing.url,
             behaviorHints: existing.behaviorHints,
             provider: '${existing.provider} + $sourceName',
@@ -340,13 +340,6 @@ class ScraperEngine {
           .replaceAll(RegExp(r'\b(saket|sakinator)\b', caseSensitive: false), '')
           .trim();
 
-      final directLabel = (hostName.isNotEmpty &&
-              hostName.toLowerCase() != sourceName.toLowerCase() &&
-              !hostName.contains('Direct CDN') &&
-              !hostName.contains('Direct Stream'))
-          ? '$sourceName • $hostName'
-          : sourceName;
-
       final directEnriched = BadgeService.enrichStream(
         rawTitle: rawTitle,
         mediaTitle: meta.title,
@@ -357,7 +350,7 @@ class ScraperEngine {
         codec: src.codec,
         audioBadge: badge,
         fileSize: src.fileSize,
-        providerName: directLabel,
+        providerName: sourceName,
         sourceName: sourceName,
         hostName: hostName,
         ottPlatform: meta.ottPlatform,
@@ -412,11 +405,11 @@ class ScraperEngine {
         if (isDirectPlayable) {
           final directBadge = directEnriched['badgeHeader'] ?? qLabel;
           final directStream = ScrapedStream(
-            name: '🌐 Direct Play [$directLabel]\n$directBadge',
+            name: '🌐 Direct Play [$sourceName]\n$directBadge',
             title: '${directEnriched['title']}\n🌐 Direct Play • Original Hoster Link',
             url: directStreamUrl,
             behaviorHints: directBehaviorHints,
-            provider: directLabel,
+            provider: sourceName,
             quality: q,
             subtitles: subList,
           );
@@ -463,11 +456,11 @@ class ScraperEngine {
         if (isDirectPlayableUrl(rawUrl)) {
           final directBadge = directEnriched['badgeHeader'] ?? qLabel;
           final directStream = ScrapedStream(
-            name: '🌐 Direct Play [$directLabel]\n$directBadge',
+            name: '🌐 Direct Play [$sourceName]\n$directBadge',
             title: '${directEnriched['title']}\n🌐 Direct Play • Original Hoster Link',
             url: directStreamUrl,
             behaviorHints: directBehaviorHints,
-            provider: directLabel,
+            provider: sourceName,
             quality: q,
             subtitles: subList,
           );
@@ -479,11 +472,11 @@ class ScraperEngine {
         if (isDirectPlayableUrl(rawUrl)) {
           final directBadge = directEnriched['badgeHeader'] ?? qLabel;
           final directStream = ScrapedStream(
-            name: '🌐 Direct Play [$directLabel]\n$directBadge',
+            name: '🌐 Direct Play [$sourceName]\n$directBadge',
             title: directEnriched['title']!,
             url: directStreamUrl,
             behaviorHints: directBehaviorHints,
-            provider: directLabel,
+            provider: sourceName,
             quality: q,
             subtitles: subList,
           );
@@ -688,10 +681,12 @@ class ScraperEngine {
       var sub = providerName
           .replaceAll(RegExp(r'PlayTorrio(HTTP)?|MegaScraper|Unbound|HostHound', caseSensitive: false), '')
           .replaceAll(RegExp(r'\b(saket|sakinator)\b', caseSensitive: false), '')
-          .replaceAll(RegExp(r'^\[+|\]+$'), '')
+          .replaceAll('[', '')
+          .replaceAll(']', '')
           .trim();
       if (sub.isNotEmpty && sub.toLowerCase() != baseName.toLowerCase() && sub.toLowerCase() != 'hostreamio') {
-        if (sub.toLowerCase().contains(baseName.toLowerCase())) {
+        if (sub.toLowerCase().contains(baseName.toLowerCase()) ||
+            baseName.toLowerCase().contains(sub.toLowerCase().replaceAll(RegExp(r'\s*-\s*.*'), ''))) {
           return sub;
         }
         return '$baseName ($sub)';
@@ -755,30 +750,22 @@ class ScraperEngine {
     if (lower.contains('fastly')) return 'Fastly CDN';
     if (lower.contains('googlevideo.com')) return 'Google Video CDN';
 
-    // 3. Fallback: Parse hostname from URI
+    // 3. Fallback: Disposable Stealth Edge Domain
     try {
       final uri = Uri.parse(url);
       final host = uri.host;
       if (host.isNotEmpty) {
         final clean = host
             .replaceAll(RegExp(r'^(?:www|cdn\d*|edge\d*|s\d+|stream\d*|media\d*)\.', caseSensitive: false), '')
-            .trim();
+            .trim()
+            .toLowerCase();
         if (clean.isNotEmpty) {
-          final parts = clean.split('.');
-          if (parts.length >= 2) {
-            final domainName = parts[parts.length - 2];
-            final tld = parts.last;
-            if (domainName.length >= 3) {
-              final capitalized = domainName[0].toUpperCase() + domainName.substring(1);
-              return '$capitalized.$tld';
-            }
-          }
-          return clean;
+          return 'Stealth Edge ($clean)';
         }
       }
     } catch (_) {}
 
-    return 'Direct CDN';
+    return 'Direct Streaming Edge';
   }
 
   static String? _detectHoster(String url) {
