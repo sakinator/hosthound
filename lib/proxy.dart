@@ -106,6 +106,8 @@ class StreamProxy {
       return;
     }
 
+    final isHead = request.method.toUpperCase() == 'HEAD';
+
     // ── Check In-Memory Segment Cache (Ring Buffer) ──
     final cached = SegmentCache.get(targetUrl);
     if (cached != null) {
@@ -113,12 +115,15 @@ class StreamProxy {
       request.response.headers.set('Access-Control-Allow-Origin', '*');
       request.response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       request.response.headers.set('Access-Control-Allow-Headers', '*');
+      request.response.headers.set('Accept-Ranges', 'bytes');
       request.response.headers.set('X-Proxy-Cache', 'HIT');
       if (cached.contentType.isNotEmpty) {
         request.response.headers.set('Content-Type', cached.contentType);
       }
       request.response.headers.contentLength = cached.data.length;
-      request.response.add(cached.data);
+      if (!isHead) {
+        request.response.add(cached.data);
+      }
       await request.response.close();
       return;
     }
@@ -132,7 +137,9 @@ class StreamProxy {
     }
 
     try {
-      final req = await _client.getUrl(targetUri);
+      final req = isHead
+          ? await _client.headUrl(targetUri)
+          : await _client.getUrl(targetUri);
 
       // Forward request headers
       request.headers.forEach((name, values) {
@@ -174,7 +181,13 @@ class StreamProxy {
       request.response.headers.set('Access-Control-Allow-Origin', '*');
       request.response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       request.response.headers.set('Access-Control-Allow-Headers', '*');
+      request.response.headers.set('Accept-Ranges', 'bytes');
       request.response.headers.set('X-Proxy-Cache', 'MISS');
+
+      if (isHead) {
+        await request.response.close();
+        return;
+      }
 
       final proxyBaseUrl = '${request.requestedUri.scheme}://${request.requestedUri.host}:${request.requestedUri.port}/proxy';
 

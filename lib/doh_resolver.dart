@@ -40,6 +40,11 @@ class DohResolver {
   Future<List<InternetAddress>> resolve(String host) async {
     final cleanHost = host.trim().toLowerCase();
 
+    // 0. Localhost & Loopback check (prevents false ISP sinkhole filtering and IPv6 refusal)
+    if (cleanHost == 'localhost' || cleanHost == '127.0.0.1') {
+      return [InternetAddress.loopbackIPv4];
+    }
+
     // 1. Literal IP check
     final literal = InternetAddress.tryParse(cleanHost);
     if (literal != null) {
