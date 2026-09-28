@@ -9,8 +9,8 @@ data/config.json
 /upstream/
 !lib/upstream/
 !android_app/lib/upstream/
-test/test_*.dart
-test/scraper_test.dart
+data/*.tmp
+*.tmp
 
 # Flutter & Android
 **/build/

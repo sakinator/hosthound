@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -98,6 +99,15 @@ class AddonConfig {
     }
   }
 
+  Timer? _saveDebounceTimer;
+
+  void scheduleSave() {
+    _saveDebounceTimer?.cancel();
+    _saveDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      save();
+    });
+  }
+
   Future<void> save() async {
     try {
       if (!await _configFile.parent.exists()) {
@@ -123,7 +133,18 @@ class AddonConfig {
         'enableDeduplication': enableDeduplication,
         'enableDeadLinkFilter': enableDeadLinkFilter,
       };
-      await _configFile.writeAsString(const JsonEncoder.withIndent('  ').convert(data));
+      final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
+      final tmpFile = File('${_configFile.path}.tmp');
+      await tmpFile.writeAsString(jsonStr, flush: true);
+      try {
+        await tmpFile.rename(_configFile.path);
+      } catch (_) {
+        // Fallback for Windows file lock on atomic rename
+        await tmpFile.copy(_configFile.path);
+        try {
+          await tmpFile.delete();
+        } catch (_) {}
+      }
     } catch (e) {
       print('[AddonConfig] Error saving config: $e');
     }
@@ -140,6 +161,6 @@ class AddonConfig {
     } else {
       disabledProviders.add(id);
     }
-    save(); // fire-and-forget – non-blocking
+    scheduleSave(); // debounced & non-blocking
   }
 }

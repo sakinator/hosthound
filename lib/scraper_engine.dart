@@ -169,6 +169,8 @@ class ScraperEngine {
     // Each scraper collects into its own list to avoid concurrent-write races.
     final futures = scrapers.map((scraper) async {
       final localResults = <StreamSource>[];
+      final completer = Completer<void>();
+      StreamSubscription<StreamSource>? sub;
       try {
         final stream = scraper.scrapeStream(
           type: meta.type,
@@ -178,22 +180,27 @@ class ScraperEngine {
           episode: meta.episode,
           imdbId: meta.imdbId,
         );
-        await for (final item in stream.timeout(timeout)) {
-          localResults.add(item);
-        }
+        sub = stream.listen(
+          (item) => localResults.add(item),
+          onError: (_) {},
+          onDone: () {
+            if (!completer.isCompleted) completer.complete();
+          },
+          cancelOnError: false,
+        );
+        await completer.future.timeout(timeout);
+      } catch (_) {
+        await sub?.cancel();
+      }
+      if (localResults.isNotEmpty) {
         _consecutiveFailures[scraper.providerId] = 0;
         _trippedUntil.remove(scraper.providerId);
-      } catch (_) {
-        if (localResults.isEmpty) {
-          final fails = (_consecutiveFailures[scraper.providerId] ?? 0) + 1;
-          _consecutiveFailures[scraper.providerId] = fails;
-          if (fails >= 3) {
-            _trippedUntil[scraper.providerId] = DateTime.now().add(const Duration(minutes: 10));
-            print('[CircuitBreaker] Scraper ${scraper.providerId} tripped for 10m (3 consecutive failures).');
-          }
-        } else {
-          _consecutiveFailures[scraper.providerId] = 0;
-          _trippedUntil.remove(scraper.providerId);
+      } else {
+        final fails = (_consecutiveFailures[scraper.providerId] ?? 0) + 1;
+        _consecutiveFailures[scraper.providerId] = fails;
+        if (fails >= 3) {
+          _trippedUntil[scraper.providerId] = DateTime.now().add(const Duration(minutes: 10));
+          print('[CircuitBreaker] Scraper ${scraper.providerId} tripped for 10m (3 consecutive failures).');
         }
       }
       return localResults;
@@ -563,7 +570,9 @@ class ScraperEngine {
     // Cache source bonus
     if (s.name.contains('[Cached]')) {
       rank += 30;
-    } else if (s.name.contains('[Cachable]') || s.name.contains('[Cache]')) {
+    } else if (s.name.contains('[Start Caching]') ||
+        s.name.contains('[Cachable]') ||
+        s.name.contains('[Cache]')) {
       rank += 15;
     } else {
       rank += 5;

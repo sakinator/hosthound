@@ -60,7 +60,7 @@ void main(List<String> args) async {
     print(' Local:  http://localhost:${cfg.port}');
     print(' LAN IP: http://$lanIp:${cfg.port}');
     print('---------------------------------------------------------------');
-    print(' 🔌 Nuvio Addon Manifest URLs:');
+    print(' 🔌 Stremio & Nuvio Addon Manifest URLs:');
     print('    Localhost: http://localhost:${cfg.port}/manifest.json');
     print('    LAN (TV):  http://$lanIp:${cfg.port}/manifest.json');
     print('---------------------------------------------------------------');
@@ -567,6 +567,7 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode(result.toJson()));
       await request.response.close();
+      return;
     }
 
     // ── 6. API: Upstream update pipeline: POST /api/pipeline/update ───────

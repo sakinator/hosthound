@@ -213,10 +213,17 @@ class StreamProxy {
         // Media segment or direct file
         final isMediaSegment = targetUrl.contains('.ts') ||
             targetUrl.contains('.m4s') ||
-            targetUrl.contains('.mp4') ||
-            targetUrl.contains('.aac');
+            targetUrl.contains('.aac') ||
+            targetUrl.contains('init') ||
+            targetUrl.contains('map');
 
-        if (isMediaSegment && res.statusCode == HttpStatus.ok) {
+        final cl = res.headers.contentLength;
+        final shouldCache = isMediaSegment &&
+            res.statusCode == HttpStatus.ok &&
+            cl > 0 &&
+            cl <= 8 * 1024 * 1024;
+
+        if (shouldCache) {
           final bytes = await res.fold<List<int>>([], (prev, elem) => prev..addAll(elem));
           final uint8Data = Uint8List.fromList(bytes);
           final isInit = targetUrl.contains('init') || targetUrl.contains('map');
@@ -226,6 +233,7 @@ class StreamProxy {
           request.response.add(uint8Data);
           await request.response.close();
         } else {
+          // Stream directly to client chunk-by-chunk without RAM buffering (prevents OOM on large MP4/MKV)
           await request.response.addStream(res);
           await request.response.close();
         }

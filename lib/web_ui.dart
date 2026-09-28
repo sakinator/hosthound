@@ -1847,12 +1847,12 @@ class WebUI {
       }
 
       const cards = _catalogItems.map(item => {
-        const safeName = (item.name || 'Unknown').replace(/"/g, '&quot;');
+        const safeName = escapeHtml(item.name || 'Unknown');
         const isSeries = item.type === 'series';
         const typeIcon = isSeries ? '📺' : '🎬';
-        const yearBadge = item.year ? '<span style="font-size:0.72rem;color:var(--text-muted);">' + item.year + '</span>' : '';
+        const yearBadge = item.year ? '<span style="font-size:0.72rem;color:var(--text-muted);">' + escapeHtml(item.year) + '</span>' : '';
         const ratingBadge = item.rating
-          ? '<span style="background:rgba(227,179,65,0.2);color:#e3b341;border:1px solid rgba(227,179,65,0.35);font-size:0.7rem;padding:1px 5px;border-radius:4px;font-weight:700;">⭐ ' + item.rating + '</span>'
+          ? '<span style="background:rgba(227,179,65,0.2);color:#e3b341;border:1px solid rgba(227,179,65,0.35);font-size:0.7rem;padding:1px 5px;border-radius:4px;font-weight:700;">⭐ ' + escapeHtml(item.rating) + '</span>'
           : '';
         const metaRow = '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">'
           + (yearBadge || '<span></span>')
@@ -1861,14 +1861,13 @@ class WebUI {
 
         const fallbackAttr = item.nativePoster ? ' data-fallback="' + encodeURI(item.nativePoster) + '"' : '';
         const posterHtml = item.poster
-          ? '<img src="' + item.poster + '"' + fallbackAttr + ' alt="' + safeName + '" style="width:100%;height:' + imgHeight + ';object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="onPosterError(this)">'
-            + '<div style="display:none;width:100%;height:' + imgHeight + ';background:linear-gradient(135deg,#1a1f2e,#0d1117);align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>'
+          ? '<img src="' + encodeURI(item.poster) + '"' + fallbackAttr + ' alt="' + safeName + '" style="width:100%;height:' + imgHeight + ';object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="onPosterError(this)">'
           : '<div style="width:100%;height:' + imgHeight + ';background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>';
 
         return '<div class="catalog-card" data-id="' + encodeURIComponent(item.id || '') + '" data-type="' + encodeURIComponent(item.type || 'movie') + '" data-name="' + encodeURIComponent(item.name || '') + '" data-poster="' + encodeURIComponent(item.poster || '') + '" data-series="' + (isSeries ? '1' : '0') + '" onclick="onCatalogCardClick(this)" title="' + safeName + '">'
           + posterHtml
           + '<div style="padding:8px 8px 10px;">'
-          + '<div style="font-size:0.82rem;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + typeIcon + ' ' + (item.name || 'Unknown') + '</div>'
+          + '<div style="font-size:0.82rem;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + typeIcon + ' ' + safeName + '</div>'
           + metaRow
           + '</div>'
           + '</div>';
@@ -2772,7 +2771,12 @@ class WebUI {
     }
 
     function escapeHtml(str) {
-      return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     function copyStreamUrl(idx) {
