@@ -319,6 +319,8 @@ class BadgeService {
     String? audioBadge,
     String? fileSize,
     required String providerName,
+    String? sourceName,
+    String? hostName,
     String? ottPlatform,
     bool isCached = false,
     bool isHls = false,
@@ -400,8 +402,18 @@ class BadgeService {
         .replaceAll(RegExp(r'\b(?:4K|1080p|720p|FHD|HD)\b', caseSensitive: false), '')
         .replaceAll(RegExp(r'\[\s*\]'), '')
         .replaceAll(RegExp(r'\s+-\s*$'), '')
+        .replaceAll(RegExp(r'^\[+|\]+$'), '')
         .trim();
-    if (cleanProvider.isEmpty) cleanProvider = providerName;
+    if (cleanProvider.isEmpty || cleanProvider.toLowerCase() == 'hostreamio') {
+      cleanProvider = (sourceName != null && sourceName.isNotEmpty) ? sourceName : 'Direct';
+    }
+
+    final effectiveSource = (sourceName != null && sourceName.isNotEmpty)
+        ? sourceName
+        : cleanProvider;
+    final effectiveHost = (hostName != null && hostName.isNotEmpty)
+        ? hostName
+        : (isCached ? 'TorBox Cloud CDN' : 'Direct Stream');
 
     // 5. Build multi-line title for Nuvio stream card
     final technicalMarkers = generateNuvioMarkers(
@@ -416,7 +428,8 @@ class BadgeService {
     final titleLines = [
       sceneFilename,
       if (details.isNotEmpty) details.join(' • '),
-      '🌐 Source: $cleanProvider',
+      '🌐 Source: $effectiveSource',
+      '📦 Host: $effectiveHost',
     ];
 
     // 6. Built-in Header Badges: [OTT] [Resolution] [Release] [Visual] [Audio] [Language]

@@ -872,7 +872,7 @@ class CatalogService {
               if (streamUrl != null && streamUrl.isNotEmpty) {
                 streams.add({
                   'name': 'YouTube ($quality)',
-                  'title': '⚡ Direct Stream (Non-Torrent) • $quality',
+                  'title': '⚡ Direct Stream • $quality\n🌐 Source: YouTube\n📦 Host: Google Video CDN',
                   'url': streamUrl,
                   'behaviorHints': {'notWebReady': false},
                 });
@@ -883,7 +883,7 @@ class CatalogService {
           if (hlsUrl != null && hlsUrl.isNotEmpty) {
             streams.insert(0, {
               'name': 'YouTube HLS',
-              'title': '⚡ Adaptive HLS Master Stream (Non-Torrent)',
+              'title': '⚡ Adaptive HLS Master Stream\n🌐 Source: YouTube\n📦 Host: Google Video CDN',
               'url': hlsUrl,
               'behaviorHints': {'notWebReady': false},
             });
@@ -896,7 +896,7 @@ class CatalogService {
     // Fallback: direct invidious playback url
     streams.add({
       'name': 'YouTube Web Player',
-      'title': 'Direct Stream Link',
+      'title': 'Direct Stream Link\n🌐 Source: YouTube\n📦 Host: YouTube Web',
       'url': 'https://www.youtube.com/watch?v=$vId',
     });
     return streams;
@@ -928,7 +928,7 @@ class CatalogService {
                 if (m3u8Url != null && m3u8Url.isNotEmpty) {
                   streams.add({
                     'name': '⚡ Vimeo Master HLS',
-                    'title': '⚡ Adaptive Quality Master Stream (Direct CDN)',
+                    'title': '⚡ Adaptive Quality Master Stream\n🌐 Source: Vimeo\n📦 Host: Vimeo CDN',
                     'url': m3u8Url,
                     'behaviorHints': {'notWebReady': false},
                   });
@@ -944,7 +944,7 @@ class CatalogService {
                   if (pUrl != null && pUrl.isNotEmpty) {
                     streams.add({
                       'name': '🌐 Vimeo Direct ($q)',
-                      'title': '🌐 Direct MP4 Video • $q',
+                      'title': '🌐 Direct MP4 Video • $q\n🌐 Source: Vimeo\n📦 Host: Vimeo CDN',
                       'url': pUrl,
                       'behaviorHints': {'notWebReady': false},
                     });
@@ -962,7 +962,7 @@ class CatalogService {
     if (streams.isEmpty) {
       streams.add({
         'name': 'Vimeo Web Player',
-        'title': '⚡ Direct Web Stream',
+        'title': '⚡ Direct Web Stream\n🌐 Source: Vimeo\n📦 Host: Vimeo Web',
         'url': 'https://vimeo.com/$vId',
       });
     }
@@ -985,7 +985,7 @@ class CatalogService {
               final size = f['size'] != null ? ' (${(int.parse(f['size'].toString()) / (1024 * 1024)).toStringAsFixed(1)} MB)' : '';
               streams.add({
                 'name': 'Archive.org',
-                'title': '⚡ $name$size • Direct Cloud Stream (Non-Torrent)',
+                'title': '⚡ $name$size • Direct Cloud Stream\n🌐 Source: Archive.org\n📦 Host: Archive.org',
                 'url': 'https://archive.org/download/$ident/$name',
                 'behaviorHints': {'notWebReady': false},
               });
@@ -1000,7 +1000,7 @@ class CatalogService {
     if (streams.isEmpty) {
       streams.add({
         'name': 'Archive.org',
-        'title': '⚡ Direct Video Download/Stream',
+        'title': '⚡ Direct Video Download/Stream\n🌐 Source: Archive.org\n📦 Host: Archive.org',
         'url': 'https://archive.org/download/$ident/$ident.mp4',
       });
     }
@@ -1022,7 +1022,7 @@ class CatalogService {
             if (hlsUrl != null && hlsUrl.isNotEmpty) {
               streams.add({
                 'name': 'Dailymotion HLS',
-                'title': '⚡ Adaptive Auto Quality HLS • Direct Stream (Non-Torrent)',
+                'title': '⚡ Adaptive Auto Quality HLS • Direct Stream\n🌐 Source: Dailymotion\n📦 Host: Dailymotion CDN',
                 'url': hlsUrl,
                 'behaviorHints': {'notWebReady': false},
               });
@@ -1037,7 +1037,7 @@ class CatalogService {
     if (streams.isEmpty) {
       streams.add({
         'name': 'Dailymotion Direct',
-        'title': '⚡ Direct Web Stream',
+        'title': '⚡ Direct Web Stream\n🌐 Source: Dailymotion\n📦 Host: Dailymotion CDN',
         'url': 'https://www.dailymotion.com/video/$vId',
       });
     }

@@ -181,7 +181,32 @@ class ScraperEngine {
           imdbId: meta.imdbId,
         );
         sub = stream.listen(
-          (item) => localResults.add(item),
+          (item) {
+            final realScraper = resolveSourceName(scraper.providerId, scraper.providerName);
+            String itemProv = item.providerName ?? '';
+            if (itemProv.isEmpty ||
+                itemProv.toLowerCase().contains('playtorrio') ||
+                itemProv.toLowerCase().contains('megascraper') ||
+                itemProv.toLowerCase().contains('unbound') ||
+                itemProv.toLowerCase().contains('hosthound') ||
+                itemProv.toLowerCase() == 'hostreamio') {
+              final itemName = item.name ?? '';
+              if (itemName.isNotEmpty &&
+                  !itemName.toLowerCase().contains('playtorrio') &&
+                  !itemName.toLowerCase().contains('hostreamio') &&
+                  !itemName.toLowerCase().contains('megascraper')) {
+                final cleanItemName = itemName.replaceAll(RegExp(r'^\[+|\]+$'), '').trim();
+                itemProv = cleanItemName.isNotEmpty ? cleanItemName : realScraper;
+              } else {
+                itemProv = realScraper;
+              }
+            }
+
+            localResults.add(item.copyWith(
+              providerName: itemProv,
+              providerId: scraper.providerId,
+            ));
+          },
           onError: (_) {},
           onDone: () {
             if (!completer.isCompleted) completer.complete();
@@ -259,27 +284,23 @@ class ScraperEngine {
       if (rawUrl == null || rawUrl.isEmpty || !rawUrl.startsWith('http')) continue;
       if (deadUrls.contains(rawUrl)) continue; // Filtered broken link
 
-      String providerName = src.providerName ?? src.name ?? 'Hostreamio';
-      if (providerName.toLowerCase().contains('playtorrio') || providerName.toLowerCase().contains('megascraper') || providerName.toLowerCase().contains('unbound') || providerName.toLowerCase().contains('hosthound')) {
-        providerName = providerName.replaceAll(RegExp(r'PlayTorrio(HTTP)?|MegaScraper|Unbound|HostHound', caseSensitive: false), 'Hostreamio').trim();
-        if (providerName.isEmpty) providerName = 'Hostreamio';
-      }
+      final isSupportedHoster = torboxKey.isNotEmpty && TorboxService.instance.isSupportedHoster(rawUrl);
+      final isTorboxCached = torboxCacheMap[rawUrl] == true;
 
-      final detectedHoster = _detectHoster(rawUrl);
-      if (detectedHoster != null && !providerName.toLowerCase().contains(detectedHoster.toLowerCase())) {
-        providerName = '$providerName ($detectedHoster)';
-      }
+      // Clean Source & Host names
+      final sourceName = resolveSourceName(src.providerId ?? '', src.providerName ?? src.name);
+      final hostName = detectStreamHost(rawUrl, isCached: isTorboxCached);
 
       // Smart Deduplication across scrapers
       if (cfg.enableDeduplication && seenUrls.contains(rawUrl)) {
         final existing = streamDedupeMap[rawUrl];
-        if (existing != null && !existing.provider.contains(providerName)) {
+        if (existing != null && !existing.provider.contains(sourceName)) {
           final updated = ScrapedStream(
             name: existing.name,
-            title: '${existing.title} • Merged with $providerName',
+            title: '${existing.title}\n🌐 Source: Also available via $sourceName',
             url: existing.url,
             behaviorHints: existing.behaviorHints,
-            provider: '${existing.provider} + $providerName',
+            provider: '${existing.provider} + $sourceName',
             quality: existing.quality,
             subtitles: existing.subtitles,
           );
@@ -295,9 +316,6 @@ class ScraperEngine {
       final isHls = rawUrl.contains('.m3u8');
       final badge = src.getAudioBadge(mediaTitle: meta.title) ?? '';
       final headers = src.headers ?? {};
-
-      final isSupportedHoster = torboxKey.isNotEmpty && TorboxService.instance.isSupportedHoster(rawUrl);
-      final isTorboxCached = torboxCacheMap[rawUrl] == true;
 
       // ── Direct (Uncached) Stream Configuration ────────────────────────
       String directStreamUrl = rawUrl;
@@ -322,6 +340,13 @@ class ScraperEngine {
           .replaceAll(RegExp(r'\b(saket|sakinator)\b', caseSensitive: false), '')
           .trim();
 
+      final directLabel = (hostName.isNotEmpty &&
+              hostName.toLowerCase() != sourceName.toLowerCase() &&
+              !hostName.contains('Direct CDN') &&
+              !hostName.contains('Direct Stream'))
+          ? '$sourceName • $hostName'
+          : sourceName;
+
       final directEnriched = BadgeService.enrichStream(
         rawTitle: rawTitle,
         mediaTitle: meta.title,
@@ -332,7 +357,9 @@ class ScraperEngine {
         codec: src.codec,
         audioBadge: badge,
         fileSize: src.fileSize,
-        providerName: isSupportedHoster ? '$providerName [Direct]' : providerName,
+        providerName: directLabel,
+        sourceName: sourceName,
+        hostName: hostName,
         ottPlatform: meta.ottPlatform,
         isCached: false,
         isHls: isHls,
@@ -349,6 +376,7 @@ class ScraperEngine {
       if (isTorboxCached) {
         // ── 1. Link is ALREADY TorBox cached: show 2 links (Cached + Direct Play) ──
         final torboxPlayUrl = '$localBaseUrl/torbox/play?url=${Uri.encodeComponent(rawUrl)}';
+        final cachedHost = detectStreamHost(rawUrl, isCached: false);
         final cachedEnriched = BadgeService.enrichStream(
           rawTitle: rawTitle,
           mediaTitle: meta.title,
@@ -359,7 +387,9 @@ class ScraperEngine {
           codec: src.codec,
           audioBadge: badge,
           fileSize: src.fileSize,
-          providerName: '$providerName [TorBox Cached]',
+          providerName: '$sourceName (TorBox Cached)',
+          sourceName: sourceName,
+          hostName: '⚡ TorBox Cloud CDN ($cachedHost)',
           ottPlatform: meta.ottPlatform,
           isCached: true,
           isHls: false,
@@ -368,24 +398,25 @@ class ScraperEngine {
 
         final cachedBadge = cachedEnriched['badgeHeader'] ?? qLabel;
         final cachedStream = ScrapedStream(
-          name: '⚡ TorBox [Cached]\n$cachedBadge',
-          title: '${cachedEnriched['title']}\n⚡ Cached on TorBox CDN • Instant High-Speed Playback',
+          name: '⚡ TorBox [Cached] • $cachedHost\n$cachedBadge',
+          title: '${cachedEnriched['title']}\n⚡ Instant TorBox Cloud CDN Playback',
           url: torboxPlayUrl,
           behaviorHints: const {'notWebReady': false},
-          provider: '$providerName (TorBox Cached)',
+          provider: '$sourceName ($cachedHost)',
           quality: q,
           subtitles: subList,
         );
         finalStreams.add(cachedStream);
+
         final isDirectPlayable = isDirectPlayableUrl(rawUrl);
         if (isDirectPlayable) {
           final directBadge = directEnriched['badgeHeader'] ?? qLabel;
           final directStream = ScrapedStream(
-            name: '🌐 Direct Play [$providerName]\n$directBadge',
+            name: '🌐 Direct Play [$directLabel]\n$directBadge',
             title: '${directEnriched['title']}\n🌐 Direct Play • Original Hoster Link',
             url: directStreamUrl,
             behaviorHints: directBehaviorHints,
-            provider: providerName,
+            provider: directLabel,
             quality: q,
             subtitles: subList,
           );
@@ -406,7 +437,9 @@ class ScraperEngine {
           codec: src.codec,
           audioBadge: badge,
           fileSize: src.fileSize,
-          providerName: '$providerName [TorBox Cachable]',
+          providerName: '$sourceName (TorBox Cachable)',
+          sourceName: sourceName,
+          hostName: '$hostName (TorBox Cachable)',
           ottPlatform: meta.ottPlatform,
           isCached: false,
           isHls: isHls,
@@ -415,11 +448,11 @@ class ScraperEngine {
 
         final cacheBadge = cacheEnriched['badgeHeader'] ?? qLabel;
         final startCachingStream = ScrapedStream(
-          name: '☁️⬆️ TorBox [Start Caching]\n$cacheBadge',
+          name: '☁️⬆️ TorBox [Start Caching] • $hostName\n$cacheBadge',
           title: '${cacheEnriched['title']}\n☁️⬆️ TorBox Cachable • Click to upload & cache on TorBox cloud & stream',
           url: cachePlayUrl,
           behaviorHints: const {'notWebReady': false},
-          provider: '$providerName (TorBox Cachable)',
+          provider: '$sourceName ($hostName)',
           quality: q,
           subtitles: subList,
         );
@@ -430,11 +463,11 @@ class ScraperEngine {
         if (isDirectPlayableUrl(rawUrl)) {
           final directBadge = directEnriched['badgeHeader'] ?? qLabel;
           final directStream = ScrapedStream(
-            name: '🌐 Direct Play [$providerName]\n$directBadge',
+            name: '🌐 Direct Play [$directLabel]\n$directBadge',
             title: '${directEnriched['title']}\n🌐 Direct Play • Original Hoster Link',
             url: directStreamUrl,
             behaviorHints: directBehaviorHints,
-            provider: providerName,
+            provider: directLabel,
             quality: q,
             subtitles: subList,
           );
@@ -446,11 +479,11 @@ class ScraperEngine {
         if (isDirectPlayableUrl(rawUrl)) {
           final directBadge = directEnriched['badgeHeader'] ?? qLabel;
           final directStream = ScrapedStream(
-            name: '🌐 Direct Play [$providerName]\n$directBadge',
+            name: '🌐 Direct Play [$directLabel]\n$directBadge',
             title: directEnriched['title']!,
             url: directStreamUrl,
             behaviorHints: directBehaviorHints,
-            provider: providerName,
+            provider: directLabel,
             quality: q,
             subtitles: subList,
           );
@@ -561,35 +594,199 @@ class ScraperEngine {
     return false;
   }
 
-  static String? _detectHoster(String url) {
+  /// Maps scraper IDs and names to clear website and scraper source labels
+  static String resolveSourceName(String providerId, [String? providerName]) {
+    final cleanId = providerId.toLowerCase().replaceAll('scraper', '').trim();
+    const siteMap = {
+      'fourkhdhub': '4KHDHub',
+      'vegamovies': 'VegaMovies',
+      'uhdmovies': 'UHDMovies',
+      'bollyflix': 'BollyFlix',
+      'bolly4u': 'Bolly4u',
+      'hdhub4u': 'HDHub4u',
+      'moviesdrive': 'MoviesDrive',
+      'moviesmod': 'MoviesMod',
+      'multimovies': 'MultiMovies',
+      'dramacool': 'Dramacool',
+      'dramaday': 'DramaDay',
+      'animepahe': 'AnimePahe',
+      'gogoanime': 'GogoAnime',
+      'hianime': 'HiAnime',
+      'kissasian': 'KissAsian',
+      'kisskh': 'KissKh',
+      'lookmovie': 'LookMovie',
+      'vadapav': 'Vadapav',
+      'yomovies': 'YoMovies',
+      'cinesu': 'CineSu',
+      'cinesrc': 'CineSrc',
+      'cinejoy': 'CineJoy',
+      'flaxmovies': 'FlaxMovies',
+      'fsharetv': 'FShareTV',
+      'fsonic': 'FSonic',
+      'fsonline': 'FSOnline',
+      'hindmoviez': 'HindMoviez',
+      'playdesi': 'PlayDesi',
+      'toonstream': 'ToonStream',
+      'vuflix': 'Vuflix',
+      'downloadeverything': 'DownloadEverything',
+      'videasy': 'Videasy',
+      'vidsrc': 'VidSrc',
+      'vidlink': 'VidLink',
+      'vidcore': 'VidCore',
+      'vidfast': 'VidFast',
+      'vidrock': 'VidRock',
+      'vidup': 'VidUp',
+      'vidvault': 'VidVault',
+      'vidzee': 'VidZee',
+      'vixsrc': 'VixSrc',
+      'flystream': 'FlyStream',
+      'rivestream': 'RiveStream',
+      'movy': 'Movy',
+      'dulo': 'Dulo',
+      'frame': 'Frame',
+      'hexa': 'Hexa',
+      'lmscript': 'LMScript',
+      'mapple': 'Mapple',
+      'megasource': 'MegaSource',
+      'meowtv': 'MeowTV',
+      'movienight': 'MovieNight',
+      'multiembed': 'MultiEmbed',
+      'nova': 'Nova',
+      'peestream': 'PeeStream',
+      'purstream': 'PurStream',
+      'xdownloader': 'XDownloader',
+      'xpass': 'XPass',
+      'bcine': 'BCine',
+      'a111477': '111477',
+      'vidgod': 'VidGod',
+      'zxcstream': 'ZxcStream',
+      'archive': 'Archive.org',
+      'dailymotion': 'Dailymotion',
+      'youtube': 'YouTube',
+      'vimeo': 'Vimeo',
+    };
+
+    String baseName = siteMap[cleanId] ?? '';
+    if (baseName.isEmpty) {
+      if (providerName != null && providerName.isNotEmpty) {
+        final clean = providerName
+            .replaceAll(RegExp(r'PlayTorrio(HTTP)?|MegaScraper|Unbound|HostHound', caseSensitive: false), '')
+            .replaceAll(RegExp(r'\b(saket|sakinator)\b', caseSensitive: false), '')
+            .replaceAll(RegExp(r'^\[+|\]+$'), '')
+            .trim();
+        if (clean.isNotEmpty && clean.toLowerCase() != 'hostreamio') {
+          baseName = clean;
+        }
+      }
+      if (baseName.isEmpty) {
+        baseName = cleanId.isNotEmpty ? cleanId : 'Hostreamio';
+      }
+    }
+
+    // Preserve sub-server information if provided
+    if (providerName != null && providerName.isNotEmpty) {
+      var sub = providerName
+          .replaceAll(RegExp(r'PlayTorrio(HTTP)?|MegaScraper|Unbound|HostHound', caseSensitive: false), '')
+          .replaceAll(RegExp(r'\b(saket|sakinator)\b', caseSensitive: false), '')
+          .replaceAll(RegExp(r'^\[+|\]+$'), '')
+          .trim();
+      if (sub.isNotEmpty && sub.toLowerCase() != baseName.toLowerCase() && sub.toLowerCase() != 'hostreamio') {
+        if (sub.toLowerCase().contains(baseName.toLowerCase())) {
+          return sub;
+        }
+        return '$baseName ($sub)';
+      }
+    }
+
+    return baseName;
+  }
+
+  /// Detects where the file or stream is hosted (filehoster, cyberlocker, or CDN host)
+  static String detectStreamHost(String url, {bool isCached = false}) {
+    if (isCached) {
+      return 'TorBox Cloud CDN';
+    }
+
     final lower = url.toLowerCase();
+
+    // 1. Filehosters & Cyberlockers
     if (lower.contains('hubcloud')) return 'HubCloud';
     if (lower.contains('driveseed') || lower.contains('drivebot')) return 'DriveSeed';
-    if (lower.contains('pixeldrain')) return 'Pixeldrain';
-    if (lower.contains('mega.nz') || lower.contains('mega.co.nz')) return 'Mega';
+    if (lower.contains('fast-dl') || lower.contains('fastdl') || lower.contains('fastcloud')) return 'Fast-DL';
+    if (lower.contains('pixeldrain')) return 'PixelDrain';
     if (lower.contains('1fichier')) return '1fichier';
     if (lower.contains('rapidgator')) return 'Rapidgator';
     if (lower.contains('turbobit')) return 'Turbobit';
     if (lower.contains('nitroflare')) return 'Nitroflare';
     if (lower.contains('katfile')) return 'Katfile';
     if (lower.contains('ddownload')) return 'DDownload';
-    if (lower.contains('fastcloud') || lower.contains('fastdl')) return 'FastCloud';
-    if (lower.contains('gdflix')) return 'GDFlix';
+    if (lower.contains('mega.nz') || lower.contains('mega.co.nz')) return 'Mega';
+    if (lower.contains('gofile')) return 'Gofile';
+    if (lower.contains('mediafire')) return 'Mediafire';
     if (lower.contains('filepress')) return 'Filepress';
-    if (lower.contains('streamtape')) return 'Streamtape';
-    if (lower.contains('mixdrop')) return 'Mixdrop';
-    if (lower.contains('doodstream') || lower.contains('dood.')) return 'Doodstream';
-    if (lower.contains('vidcloud') || lower.contains('rabbitstream') || lower.contains('megacloud')) return 'MegaCloud';
-    if (lower.contains('streamwish')) return 'Streamwish';
+    if (lower.contains('gdflix')) return 'GDFlix';
     if (lower.contains('filelions')) return 'Filelions';
+    if (lower.contains('streamwish')) return 'Streamwish';
     if (lower.contains('vidhide')) return 'Vidhide';
     if (lower.contains('dropload')) return 'Dropload';
     if (lower.contains('vidspeed')) return 'Vidspeed';
     if (lower.contains('krakenfiles')) return 'Krakenfiles';
-    if (lower.contains('gofile')) return 'Gofile';
-    if (lower.contains('mediafire')) return 'Mediafire';
+    if (lower.contains('streamtape')) return 'Streamtape';
+    if (lower.contains('mixdrop')) return 'Mixdrop';
+    if (lower.contains('doodstream') || lower.contains('dood.')) return 'Doodstream';
     if (lower.contains('vadapav')) return 'Vadapav';
-    return null;
+    if (lower.contains('archive.org')) return 'Archive.org';
+    if (lower.contains('dailymotion')) return 'Dailymotion';
+    if (lower.contains('youtube') || lower.contains('youtu.be')) return 'YouTube';
+    if (lower.contains('vimeo')) return 'Vimeo';
+
+    // 2. Direct Streaming CDNs & Edge Providers
+    if (lower.contains('rabbitstream') || lower.contains('megacloud')) return 'MegaCloud CDN';
+    if (lower.contains('vidcloud')) return 'VidCloud CDN';
+    if (lower.contains('upcloud')) return 'UpCloud CDN';
+    if (lower.contains('dokicloud')) return 'DokiCloud';
+    if (lower.contains('streamlare')) return 'Streamlare';
+    if (lower.contains('streamruby')) return 'StreamRuby';
+    if (lower.contains('voe.sx') || lower.contains('voe-network')) return 'VOE CDN';
+    if (lower.contains('vidsrc')) return 'VidSrc CDN';
+    if (lower.contains('workers.dev') || lower.contains('cloudflare')) return 'Cloudflare Edge';
+    if (lower.contains('b-cdn.net') || lower.contains('bunnycdn')) return 'BunnyCDN';
+    if (lower.contains('akamai')) return 'Akamai CDN';
+    if (lower.contains('fastly')) return 'Fastly CDN';
+    if (lower.contains('googlevideo.com')) return 'Google Video CDN';
+
+    // 3. Fallback: Parse hostname from URI
+    try {
+      final uri = Uri.parse(url);
+      final host = uri.host;
+      if (host.isNotEmpty) {
+        final clean = host
+            .replaceAll(RegExp(r'^(?:www|cdn\d*|edge\d*|s\d+|stream\d*|media\d*)\.', caseSensitive: false), '')
+            .trim();
+        if (clean.isNotEmpty) {
+          final parts = clean.split('.');
+          if (parts.length >= 2) {
+            final domainName = parts[parts.length - 2];
+            final tld = parts.last;
+            if (domainName.length >= 3) {
+              final capitalized = domainName[0].toUpperCase() + domainName.substring(1);
+              return '$capitalized.$tld';
+            }
+          }
+          return clean;
+        }
+      }
+    } catch (_) {}
+
+    return 'Direct CDN';
+  }
+
+  static String? _detectHoster(String url) {
+    final host = detectStreamHost(url);
+    if (host == 'Direct CDN' || host.contains('CDN') || host.contains('Edge')) {
+      return null;
+    }
+    return host;
   }
 
   static Future<bool> _probeDirectLink(String url) async {
