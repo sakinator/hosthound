@@ -2687,26 +2687,67 @@ class WebUI {
       const streamUrl = s.url;
       const cleanName = (s.mediaTitle || 'Hostreamio') + ' - ' + s.name;
 
-      // VLC
+      // VLC (1-Click Desktop Launcher)
       const vlcBtn = document.getElementById('openWithVlc');
-      vlcBtn.onclick = (e) => {
+      vlcBtn.onclick = async (e) => {
         e.preventDefault();
+        showToast('🚀 Launching VLC Media Player on Desktop...');
+        try {
+          const res = await fetch('/api/player/launch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ player: 'vlc', url: streamUrl })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast('✅ ' + json.message);
+            closeOpenWithModal();
+            return;
+          }
+        } catch (_) {}
+        // Fallback for non-Windows devices or custom URI protocols
         window.location.href = 'vlc://' + streamUrl;
-        showToast('🚀 Sent to VLC (or click "Download .m3u" below if vlc:// is not registered)');
       };
 
-      // PotPlayer
+      // PotPlayer (1-Click Desktop Launcher)
       const potBtn = document.getElementById('openWithPotPlayer');
-      potBtn.onclick = (e) => {
+      potBtn.onclick = async (e) => {
         e.preventDefault();
+        showToast('🚀 Launching PotPlayer on Desktop...');
+        try {
+          const res = await fetch('/api/player/launch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ player: 'potplayer', url: streamUrl })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast('✅ ' + json.message);
+            closeOpenWithModal();
+            return;
+          }
+        } catch (_) {}
         window.location.href = 'potplayer://' + streamUrl;
-        showToast('🚀 Launching PotPlayer...');
       };
 
-      // MPV
+      // MPV (1-Click Desktop Launcher)
       const mpvBtn = document.getElementById('openWithMpv');
-      mpvBtn.onclick = (e) => {
+      mpvBtn.onclick = async (e) => {
         e.preventDefault();
+        showToast('🚀 Launching MPV Player on Desktop...');
+        try {
+          const res = await fetch('/api/player/launch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ player: 'mpv', url: streamUrl })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast('✅ ' + json.message);
+            closeOpenWithModal();
+            return;
+          }
+        } catch (_) {}
         navigator.clipboard.writeText('mpv "' + streamUrl + '"');
         showToast('📋 MPV command copied! Also launching mpv://...');
         window.location.href = 'mpv://' + streamUrl;

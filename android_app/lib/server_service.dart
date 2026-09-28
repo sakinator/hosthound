@@ -521,10 +521,54 @@ class ServerService {
         }
         // Fallback: if debrid failed on an unplayable hoster landing page, do NOT redirect video player to an HTML page!
         if (!ScraperEngine.isDirectPlayableUrl(targetUrl)) {
+          final errReason = TorboxService.instance.lastDebridError ??
+              'TorBox could not unrestrict this hoster link. The file may be offline, deleted, or hoster is temporarily unavailable.';
+          _addLog('TorBox debrid failure for $targetUrl: $errReason');
+
+          final accept = request.headers.value('accept') ?? '';
+          if (accept.contains('text/html')) {
+            request.response.statusCode = HttpStatus.badGateway;
+            request.response.headers.contentType = ContentType.html;
+            request.response.write('''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>TorBox Debrid Notice - Hostreamio</title>
+  <style>
+    body { background:#0a0d14; color:#e6edf3; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:32px; max-width:540px; box-shadow:0 12px 32px rgba(0,0,0,0.5); text-align:center; }
+    h2 { color:#f85149; margin-top:0; }
+    p { color:#8b949e; line-height:1.6; font-size:0.95rem; }
+    .err-box { background:#21262d; border:1px solid #30363d; padding:12px; border-radius:8px; font-family:monospace; font-size:0.85rem; color:#ff7b72; margin:16px 0; word-break:break-all; }
+    .btn-group { display:flex; gap:12px; justify-content:center; margin-top:24px; }
+    .btn { padding:10px 18px; border-radius:6px; font-weight:600; text-decoration:none; font-size:0.9rem; cursor:pointer; }
+    .btn-primary { background:#1f6feb; color:#fff; border:none; }
+    .btn-secondary { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>⚠️ TorBox Cloud Debrid Notice</h2>
+    <p>TorBox was unable to unrestrict and stream this hoster file into your cloud drive.</p>
+    <div class="err-box">${htmlEscape.convert(errReason)}</div>
+    <div class="btn-group">
+      <a href="/configure" class="btn btn-primary">⬅️ Back to Dashboard</a>
+      <a href="${htmlEscape.convert(targetUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">🔗 Open Hoster Web Page</a>
+    </div>
+  </div>
+</body>
+</html>
+''');
+            await request.response.close();
+            return;
+          }
+
           request.response.statusCode = HttpStatus.badGateway;
           request.response.headers.contentType = ContentType.json;
           request.response.write(jsonEncode({
-            'error': 'TorBox could not debrid this hoster link. The file may be offline, deleted, or hoster is temporarily unavailable.',
+            'success': false,
+            'error': errReason,
             'targetUrl': targetUrl,
           }));
           await request.response.close();
@@ -536,6 +580,43 @@ class ServerService {
           return;
         }
         await request.response.redirect(Uri.parse(targetUrl), status: HttpStatus.found);
+        return;
+      }
+
+      // 4b2. Native Desktop Player Launcher: POST/GET /api/player/launch
+      if (path == '/api/player/launch' && (method == 'POST' || method == 'GET')) {
+        String player = (request.uri.queryParameters['player'] ?? '').toLowerCase();
+        String streamUrl = request.uri.queryParameters['url'] ?? '';
+
+        if (streamUrl.isEmpty && method == 'POST') {
+          try {
+            final bodyStr = await utf8.decodeStream(request);
+            final map = _safeParseJsonMap(bodyStr) ?? {};
+            if (map['url'] != null && map['url'].toString().isNotEmpty) {
+              streamUrl = map['url'].toString();
+            }
+            if (map['player'] != null && map['player'].toString().isNotEmpty) {
+              player = map['player'].toString().toLowerCase();
+            }
+          } catch (_) {}
+        }
+
+        if (player.isEmpty) player = 'vlc';
+
+        if (streamUrl.isEmpty) {
+          request.response.statusCode = HttpStatus.badRequest;
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(jsonEncode({'success': false, 'message': 'Missing stream URL'}));
+          await request.response.close();
+          return;
+        }
+
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({
+          'success': false,
+          'message': 'Direct desktop player launch is only supported on Windows'
+        }));
+        await request.response.close();
         return;
       }
 

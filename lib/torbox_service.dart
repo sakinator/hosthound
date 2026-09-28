@@ -227,13 +227,18 @@ class TorboxService {
     }
   }
 
+  String? lastDebridError;
+
   /// Initiates or retrieves a debrided Torbox web download stream URL.
   /// If file is already cached, returns instant CDN URL (<1s).
-  /// If not cached, initiates Torbox cloud caching and quickly returns null
-  /// so the player can immediately fall back to direct play without timing out.
+  /// If not cached, initiates Torbox cloud caching and returns null.
   Future<String?> debridLink(String url, String apiKey) async {
+    lastDebridError = null;
     final cleanKey = apiKey.trim();
-    if (cleanKey.isEmpty) return null;
+    if (cleanKey.isEmpty) {
+      lastDebridError = 'TorBox API key is not configured in settings.';
+      return null;
+    }
     try {
       final res = await uploadToTorbox(url, cleanKey);
       if (res['success'] == true) {
@@ -247,17 +252,35 @@ class TorboxService {
           final dlRes = await http.get(
             reqUri,
             headers: _headers(cleanKey),
-          ).timeout(const Duration(seconds: 4));
+          ).timeout(const Duration(seconds: 5));
 
           if (dlRes.statusCode == 200) {
             final dlData = jsonDecode(dlRes.body);
             if (dlData is Map && dlData['data'] is String) {
               return dlData['data'] as String;
             }
+            if (dlData is Map && dlData['detail'] != null) {
+              lastDebridError = dlData['detail'].toString();
+            } else if (dlData is Map && dlData['error'] != null) {
+              lastDebridError = dlData['error'].toString();
+            }
+          } else {
+            try {
+              final errJson = jsonDecode(dlRes.body);
+              lastDebridError = errJson['detail']?.toString() ?? errJson['error']?.toString() ?? 'TorBox returned HTTP ${dlRes.statusCode}';
+            } catch (_) {
+              lastDebridError = 'TorBox returned HTTP ${dlRes.statusCode}';
+            }
           }
+        } else {
+          lastDebridError = 'TorBox accepted link but did not return a download ID.';
         }
+      } else {
+        lastDebridError = res['message']?.toString() ?? 'TorBox could not unrestrict this link.';
       }
-    } catch (_) {}
+    } catch (e) {
+      lastDebridError = 'TorBox connection error: $e';
+    }
     return null;
   }
 
@@ -286,8 +309,14 @@ class TorboxService {
         lower.contains('hubcloud') ||
         lower.contains('hubdrive') ||
         lower.contains('driveseed') ||
+        lower.contains('drivebot') ||
         lower.contains('fastdl') ||
+        lower.contains('fast-dl') ||
+        lower.contains('vgmlinks') ||
         lower.contains('vcloud') ||
+        lower.contains('turbobit') ||
+        lower.contains('katfile') ||
+        lower.contains('nitroflare') ||
         lower.contains('fileq') ||
         lower.contains('workers.dev') ||
         lower.contains('archive.org') ||
