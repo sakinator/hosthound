@@ -665,6 +665,7 @@ class ServerService {
         request.response.headers.contentType = ContentType.json;
         request.response.write(jsonEncode(result.toJson()));
         await request.response.close();
+        return;
       }
 
       // 5g. API: Upstream update pipeline: POST /api/pipeline/update
