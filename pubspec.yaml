@@ -1,6 +1,6 @@
 name: playtorrio_nuvio_addon
 description: Stremio and Nuvio compatible HTTP stream scraper addon powered by PlayTorrio scrapers.
-version: 2.0.1
+version: 2.0.2
 publish_to: none
 
 environment:

@@ -279,7 +279,7 @@ class ServerService {
       if (path == '/manifest.json') {
         final manifest = {
           'id': 'org.sakinator.hostreamio',
-          'version': '2.0.1',
+          'version': '2.0.2',
           'name': 'Hostreamio',
           'description': 'Hostreamio — Direct Hosters, Streaming Links & TorBox Cloud Debrid Stream Engine with Smart Proxy & Instant Badges',
           'resources': ['catalog', 'meta', 'stream'],
@@ -777,7 +777,7 @@ class ServerService {
 
         request.response.headers.contentType = ContentType.json;
         request.response.write(jsonEncode({
-          'currentVersion': 'v2.0.1',
+          'currentVersion': 'v2.0.2',
           'providersCount': ScraperEngine.instance.getProviderList().length,
           'release': releaseInfo,
         }));
