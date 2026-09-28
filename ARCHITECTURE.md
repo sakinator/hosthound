@@ -199,6 +199,36 @@ runZonedGuarded(() async {
 - **Cached Streams:** Always use **`⚡`** (Lightning) for `⚡ TorBox [Cached]`.
 - **Direct Play:** Always use **`🌐`** (Globe) for `🌐 Direct Play`.
 
+### ⚠️ Invariant 7: CI/CD Build & Release Protocol (GitHub Actions Only for APKs)
+- **Local Environment Limitation:** The local development Windows PC only has the **Dart SDK** installed (`dart compile exe`), **NOT the Flutter SDK**.
+- **NEVER attempt to run `flutter build apk` locally.** It will fail with `flutter: command not found`.
+- **All Android APK builds & release archives are strictly automated via GitHub Actions** (`.github/workflows/build-apk.yml`).
+- **To create a release:**
+  1. Bump version in all 4 required files (see Invariant 8).
+  2. Sync code to Android (`powershell -File tool/sync_android.ps1`).
+  3. Commit and tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`.
+  4. Push: `git push origin main --tags`.
+  5. GitHub Actions runner automatically builds `hostreamio.apk` (Flutter 3.24.3, Java 17) and `hostreamio-windows-x64.zip`, and attaches them to the new GitHub Release.
+
+### ⚠️ Invariant 8: Four-Point Version Synchronization
+Whenever updating the version number, you **MUST** update all 4 locations in lockstep:
+1. `pubspec.yaml` -> `version: X.Y.Z`
+2. `android_app/pubspec.yaml` -> `version: X.Y.Z+build`
+3. `bin/server.dart` -> `manifest['version']` and updates API `currentVersion`
+4. `android_app/lib/server_service.dart` -> `manifest['version']` and updates API `currentVersion`
+
+### ⚠️ Invariant 9: Automated File Mirroring (`tool/sync_android.ps1`)
+`android_app/lib/` contains copies of shared backend services. 
+- **ALWAYS run [`tool/sync_android.ps1`](file:///D:/hostreamio/tool/sync_android.ps1) before committing any changes** to shared services (`config.dart`, `proxy.dart`, `scraper_engine.dart`, `web_ui.dart`, `doh_resolver.dart`, etc.).
+- Never commit edits to root `lib/` without syncing to `android_app/lib/`.
+
+### ⚠️ Invariant 10: Zero-Breakage Network & Streaming Rules
+1. **Network Binding:** Always bind to `0.0.0.0` (`InternetAddress.anyIPv4`). Never bind strictly to `127.0.0.1`, or Android TV, Fire TV, and mobile LAN streaming will break.
+2. **Selective CORS:** Always keep `Access-Control-Allow-Origin: *` on public Stremio routes (`/manifest.json`, `/catalog/*`, `/stream/*`, `/meta/*`, `/proxy*`, `/torbox/play*`). Only restrict CORS on internal administrative `/api/*` routes.
+3. **Scoped TLS Validation:** Never enforce strict TLS globally with `badCertificateCallback = false`. 30–50% of direct pirate video hosters have expired, self-signed, or Cloudflare origin SSL certificates. Strictly validate official APIs (`themoviedb.org`, `torbox.app`, `omdbapi.com`, `thetvdb.com`, `fanart.tv`, `github.com`) while keeping scrapers relaxed.
+4. **Proxy Memory Streaming:** Never buffer media streams (`.mp4`, `.mkv`, `>8MB`) into RAM with `res.fold()`. Always use `response.addStream(res)` chunk-by-chunk. Only small micro-segments (`<8MB`) belong in the in-memory `SegmentCache`.
+5. **Atomic Config Saving:** Always write config updates to `${path}.tmp` with flush, followed by atomic rename and Windows file-lock copy/delete fallback. Debounce rapid toggles by 300ms.
+
 ---
 
 ## 5. API Routes & Protocol Specifications
@@ -377,6 +407,12 @@ Remove-Item "D:\hostreamio\live_test.js"
 | **Thumbnails look blurry or cropped** | 16:9 landscape image forced into a 2:3 vertical portrait container. | Ensure catalog is registered as `isLandscape` in `renderCatalogGrid()` with `124px` height and `aspect-ratio: 16/9`. |
 | **YouTube thumbnails fail to load** | Video does not have a 720p custom thumbnail (`hq720.jpg` 404). | `onPosterError()` automatically swaps `hq720.jpg` to `hqdefault.jpg`. |
 | **403 Forbidden on stream playback** | Hoster checks HTTP `Referer` or `Origin`. | Ensure stream URL is routed through `/proxy?url=...&headers=...`. |
+| **`flutter: command not found`** | Local machine lacks Flutter SDK. | Do not run Flutter locally. All Android APK builds are triggered in the cloud via GitHub Actions upon pushing a release tag (`v*`). |
+| **Android TV / Fire TV cannot connect over LAN** | Server was bound to `127.0.0.1` (loopback) instead of `0.0.0.0`. | Always bind `HttpServer.bind(InternetAddress.anyIPv4, cfg.port)`. Protect `/api/*` by origin, not IP bind. |
+| **Stremio Web shows "Failed to fetch"** | Strict CORS restricted to localhost. | Keep `Access-Control-Allow-Origin: *` on `/manifest.json`, `/catalog/*`, and `/stream/*`. |
+| **Scrapers return 0 streams / `HandshakeException`** | Strict TLS verification enabled on unofficial video hosts. | Scope strict TLS only to official APIs (`themoviedb.org`, `torbox.app`, etc.) and keep relaxed TLS on scrapers. |
+| **Android TV app crashes / freezes on direct MP4** | Reverse proxy buffered multi-gigabyte video into RAM (`res.fold()`). | Stream binary media (`.mp4`, `.mkv`) directly via `response.addStream(res)` chunk-by-chunk without RAM buffering. |
+| **`Cannot set status code on closed response`** | Missing `return;` after `request.response.close()`. | Always add `return;` immediately after `await request.response.close()` in route handlers. |
 
 ---
 *Maintained under 100% Vibe Coding standards. Always preserve backward compatibility for Nuvio & Stremio manifests.*
