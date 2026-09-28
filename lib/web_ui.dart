@@ -2847,7 +2847,7 @@ class WebUI {
       try {
         const res = await fetch('/api/updates/check');
         const data = await res.json();
-        const cur = data.currentVersion || 'v1.5.0';
+        const cur = data.currentVersion || 'v2.0.0';
         const rel = data.release;
         
         if (rel && rel.version) {

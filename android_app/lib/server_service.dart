@@ -731,7 +731,7 @@ class ServerService {
 
         request.response.headers.contentType = ContentType.json;
         request.response.write(jsonEncode({
-          'currentVersion': 'v1.5.0',
+          'currentVersion': 'v2.0.0',
           'providersCount': ScraperEngine.instance.getProviderList().length,
           'release': releaseInfo,
         }));

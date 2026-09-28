@@ -7,7 +7,7 @@
   <p align="center"><i>High-Performance Stream Engine for Nuvio & Stremio (Windows & Android TV / Mobile)</i></p>
 
   [![Vibe Coded](https://img.shields.io/badge/Vibe%20Coded-100%25%20with%20AI-ff0c82?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://github.com/sakinator/hostreamio)
-  [![Scrapers](https://img.shields.io/badge/Scrapers-61%20Cloud%20Extractors-195feb?style=for-the-badge)](https://github.com/sakinator/hostreamio)
+  [![Scrapers](https://img.shields.io/badge/Scrapers-63%20Cloud%20Extractors-195feb?style=for-the-badge)](https://github.com/sakinator/hostreamio)
   [![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20TV%20%26%20Mobile-f55014?style=for-the-badge)](https://github.com/sakinator/hostreamio)
   [![Debrid](https://img.shields.io/badge/TorBox-Cloud%20WebDL%20Caching-0070f3?style=for-the-badge)](https://torbox.app)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
@@ -16,14 +16,14 @@
 > [!NOTE]
 > **✨ 100% Vibe Coded with AI:** This entire project is vibe-coded through continuous human-AI agentic collaboration, real-time feedback loops, automated regression test suites, and live self-healing pipelines. High velocity, zero bloat, pure vibes.
 
-A high-performance local Stremio & Nuvio-compatible addon server featuring **61 Direct HTTP/HLS Cloud Scrapers**, **TorBox Debrid Integration**, **Live Hoster Cloud Caching**, and rich public catalogs (**YouTube, Vimeo, Internet Archive & Dailymotion**) with automatic badge tagging, native 16:9 widescreen video posters, and embedded streaming proxy.
+A high-performance local Stremio & Nuvio-compatible addon server featuring **63 Direct HTTP/HLS Cloud Scrapers**, **TorBox Debrid Integration**, **Live Hoster Cloud Caching**, and rich public catalogs (**YouTube, Vimeo, Internet Archive & Dailymotion**) with automatic badge tagging, native 16:9 widescreen video posters, and embedded streaming proxy.
 
 ---
 
 ## 🌟 Features
 
 - **100% Non-Torrent (Zero P2P):** No seeders, no torrent clients, and no IP seeding exposure. Streams directly from fast cloud storage and HTTP/HLS CDNs.
-- **61 Cloud Scraper Providers:** Extracts streams across 61 scrapers including *MoviesDrive, UHDMovies, MoviesMod, MultiMovies, ToonStream, 4KHDHub, Bollyflix, HDHub4u, Vegamovies, Vadapav, HindMoviez, PlayDesi, YoMovies, RiveStream, LookMovie, VidLink, Movy, Videasy, Cinejoy, FlyStream, X-Downloader, Vuflix, FSOnline, KissKH, Megasource, Nova, Purstream*, and more.
+- **63 Cloud Scraper Providers:** Extracts streams across 63 scrapers including *Bolly4u, DramaDay, MoviesDrive, UHDMovies, MoviesMod, MultiMovies, ToonStream, 4KHDHub, Bollyflix, HDHub4u, Vegamovies, Vadapav, HindMoviez, PlayDesi, YoMovies, RiveStream, LookMovie, VidLink, Movy, Videasy, Cinejoy, FlyStream, X-Downloader, Vuflix, FSOnline, KissKH, Megasource, Nova, Purstream*, and more.
 - **TorBox Debrid Integration:**
   - **Batch Cache Checking:** Instantly checks up to 100 links in a single API query (`/webdl/checkcached`), cutting scraper turnaround by 2-3 seconds.
   - **1-Click Cloud Caching:** Direct "⚡ Cache to TorBox" links in Nuvio and the Web Dashboard. Submits uncached links to TorBox's WebDL downloader in 1 click.

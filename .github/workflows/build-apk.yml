@@ -74,24 +74,35 @@ jobs:
       - name: Compile Windows Standalone Executable
         run: dart compile exe bin/server.dart -o hostreamio.exe
 
+      - name: Inject Application Icon
+        shell: powershell
+        run: |
+          if (Test-Path "tool/rcedit.exe") {
+            & "tool/rcedit.exe" hostreamio.exe --set-icon hostreamio.ico
+          }
+
       - name: Package Windows Release Archive
         shell: powershell
         run: |
           New-Item -ItemType Directory -Path dist -Force
           Copy-Item hostreamio.exe dist/
-          Copy-Item badges.json dist/ -ErrorAction SilentlyContinue
+          Copy-Item hostreamio.ico dist/ -ErrorAction SilentlyContinue
+          Copy-Item hostreamio_logo.png dist/ -ErrorAction SilentlyContinue
           Copy-Item README.md dist/ -ErrorAction SilentlyContinue
           Copy-Item start.bat dist/ -ErrorAction SilentlyContinue
           Copy-Item start.ps1 dist/ -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Path dist/data -Force
+          Copy-Item data/badges.json dist/data/ -ErrorAction SilentlyContinue
           Copy-Item data/config.json dist/data/ -ErrorAction SilentlyContinue
           Compress-Archive -Path dist/* -DestinationPath hostreamio-windows-x64.zip -Force
 
-      - name: Upload Windows Artifact
+      - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: hostreamio-windows
-          path: hostreamio-windows-x64.zip
+          path: |
+            hostreamio.exe
+            hostreamio-windows-x64.zip
           if-no-files-found: error
 
   release:
@@ -119,6 +130,7 @@ jobs:
           files: |
             release-assets/hostreamio.apk
             release-assets/hostreamio-windows-x64.zip
+            release-assets/hostreamio.exe
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
