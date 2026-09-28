@@ -2537,7 +2537,11 @@ class WebUI {
           renderFilteredStreams('all');
         }
       } catch (err) {
-        resultsDiv.innerHTML = '<div style="color:#f85149; padding:10px;">Error scraping streams: ' + err + '</div>';
+        const isNetErr = String(err).includes('NetworkError') || String(err).includes('Failed to fetch');
+        const msg = isNetErr
+          ? 'Network connection interrupted (server may be restarting or busy). Please click "Search & Scrape" again.'
+          : String(err);
+        resultsDiv.innerHTML = '<div style="color:#f85149; padding:10px;">⚠️ ' + escapeHtml(msg) + '</div>';
       } finally {
         btn.disabled = false;
         btn.innerText = '🔍 Search & Scrape';
