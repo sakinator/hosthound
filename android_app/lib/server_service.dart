@@ -289,6 +289,7 @@ class ServerService {
           'behaviorHints': {
             'configurable': true,
             'configurationRequired': false,
+            'configurationURL': 'http://${request.headers.host ?? "${localIp.value}:$port"}/configure',
           },
         };
         request.response.headers.contentType = ContentType.json;
@@ -419,9 +420,10 @@ class ServerService {
             final meta = results[1] as Map<String, dynamic>?;
 
             List<Map<String, dynamic>> otherStreams = [];
-            if (meta != null && meta['name'] != null && meta['name'].toString().isNotEmpty) {
+            final imdbId = meta?['imdbId']?.toString();
+            if (imdbId != null && imdbId.isNotEmpty) {
               try {
-                final cleanTitle = meta['name'].toString();
+                final cleanTitle = meta!['name'].toString();
                 int? year;
                 if (meta['year'] != null) {
                   year = int.tryParse(meta['year'].toString());
@@ -430,10 +432,9 @@ class ServerService {
                   final match = RegExp(r'\b(19\d\d|20\d\d)\b').firstMatch(meta['releaseInfo'].toString());
                   if (match != null) year = int.tryParse(match.group(1)!);
                 }
-                final imdbId = meta['imdbId']?.toString();
 
                 final mediaMeta = MediaMetadata(
-                  id: (imdbId != null && imdbId.isNotEmpty) ? imdbId : idWithExt,
+                  id: imdbId,
                   type: type,
                   title: cleanTitle,
                   year: year,
@@ -443,7 +444,7 @@ class ServerService {
                 final scraped = await ScraperEngine.instance.scrapeAll(
                   meta: mediaMeta,
                   localBaseUrl: localBaseUrl,
-                );
+                ).timeout(const Duration(seconds: 3), onTimeout: () => <ScrapedStream>[]);
                 otherStreams = scraped.map((s) => s.toJson()).toList();
               } catch (e) {
                 _addLog('Error scraping other providers for $idWithExt: $e');
