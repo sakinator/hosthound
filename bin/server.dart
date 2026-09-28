@@ -177,7 +177,7 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
     if (path == '/manifest.json') {
       final manifest = {
         'id': 'org.sakinator.hostreamio',
-        'version': '2.0.0',
+        'version': '2.0.1',
         'name': 'Hostreamio',
         'description': 'Hostreamio — Direct Hosters, Streaming Links & TorBox Cloud Debrid Stream Engine with Smart Proxy & Instant Badges',
         'resources': ['catalog', 'meta', 'stream'],
@@ -680,7 +680,7 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
 
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({
-        'currentVersion': 'v2.0.0',
+        'currentVersion': 'v2.0.1',
         'providersCount': ScraperEngine.instance.getProviderList().length,
         'release': releaseInfo,
       }));
