@@ -1305,6 +1305,7 @@ class WebUI {
         <div style="display:flex; gap:8px;">
           <button class="btn" onclick="bulkToggle(true)">Enable All</button>
           <button class="btn" onclick="bulkToggle(false)">Disable All</button>
+          <button class="btn" style="background:#1f6feb; border-color:#388bfd;" onclick="resetScrapers()">🔄 Reset Circuit Breaker</button>
         </div>
       </div>
       <!-- Instant Search Filter & Quick Chips -->
@@ -2009,6 +2010,16 @@ class WebUI {
         }
       } catch (err) {
         showToast('Error updating providers');
+      }
+    }
+
+    async function resetScrapers() {
+      try {
+        const res = await fetch('/api/scrapers/reset', { method: 'POST' });
+        const data = await res.json();
+        showToast('✅ ' + (data.message || 'Circuit breaker and scrapers reset!'));
+      } catch (e) {
+        showToast('❌ Error resetting scrapers: ' + e);
       }
     }
 

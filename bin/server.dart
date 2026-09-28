@@ -93,10 +93,47 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
   final path = request.uri.path;
   final method = request.method.toUpperCase();
 
-  // Always enable CORS for Nuvio TV, Mobile, Desktop & Web
-  request.response.headers.set('Access-Control-Allow-Origin', '*');
-  request.response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
-  request.response.headers.set('Access-Control-Allow-Headers', '*');
+  // CORS: Allow public access for Stremio Web / apps on addon & proxy routes,
+  // while securing internal admin / control API endpoints against cross-origin CSRF.
+  final origin = request.headers.value('origin');
+  final isPublicRoute = path == '/manifest.json' ||
+      path.startsWith('/catalog') ||
+      path.startsWith('/stream') ||
+      path.startsWith('/meta') ||
+      path.startsWith('/subtitles') ||
+      path.startsWith('/proxy') ||
+      path.startsWith('/torbox/play') ||
+      path == '/logo.png' ||
+      path == '/favicon.png' ||
+      path == '/favicon.ico' ||
+      path == '/configure';
+
+  if (isPublicRoute) {
+    request.response.headers.set('Access-Control-Allow-Origin', '*');
+    request.response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+    request.response.headers.set('Access-Control-Allow-Headers', '*');
+  } else {
+    // API & control routes: Allow local / dashboard origins, block cross-site CSRF from third parties
+    final isAllowedOrigin = origin == null ||
+        origin.contains('localhost') ||
+        origin.contains('127.0.0.1') ||
+        origin.contains(lanIp) ||
+        origin.startsWith('stremio://') ||
+        origin.startsWith('http://localhost') ||
+        origin.startsWith('https://localhost');
+
+    if (isAllowedOrigin) {
+      request.response.headers.set('Access-Control-Allow-Origin', origin ?? '*');
+      request.response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+      request.response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    } else {
+      // Disallow cross-origin requests from arbitrary 3rd party web pages to admin API
+      request.response.statusCode = HttpStatus.forbidden;
+      request.response.write('Cross-origin request to admin API blocked');
+      await request.response.close();
+      return;
+    }
+  }
 
   if (method == 'OPTIONS') {
     request.response.statusCode = HttpStatus.ok;
@@ -566,6 +603,15 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       final result = await KeyValidator.validate(service, key);
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode(result.toJson()));
+      await request.response.close();
+      return;
+    }
+
+    // ── 5g. API: Reset Circuit Breaker: POST /api/scrapers/reset ───────────
+    if (path == '/api/scrapers/reset' && method == 'POST') {
+      ScraperEngine.instance.reloadScrapers();
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({'success': true, 'message': 'All scrapers and circuit breakers reset'}));
       await request.response.close();
       return;
     }

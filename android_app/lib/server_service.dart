@@ -199,10 +199,46 @@ class ServerService {
     final path = request.uri.path;
     final method = request.method.toUpperCase();
 
-    // CORS
-    request.response.headers.set('Access-Control-Allow-Origin', '*');
-    request.response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
-    request.response.headers.set('Access-Control-Allow-Headers', '*');
+    // CORS: Allow public access for Stremio Web / apps on addon & proxy routes,
+    // while securing internal admin / control API endpoints against cross-origin CSRF.
+    final origin = request.headers.value('origin');
+    final isPublicRoute = path == '/manifest.json' ||
+        path.startsWith('/catalog') ||
+        path.startsWith('/stream') ||
+        path.startsWith('/meta') ||
+        path.startsWith('/subtitles') ||
+        path.startsWith('/proxy') ||
+        path.startsWith('/torbox/play') ||
+        path == '/logo.png' ||
+        path == '/favicon.png' ||
+        path == '/favicon.ico' ||
+        path == '/configure';
+
+    if (isPublicRoute) {
+      request.response.headers.set('Access-Control-Allow-Origin', '*');
+      request.response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+      request.response.headers.set('Access-Control-Allow-Headers', '*');
+    } else {
+      final lan = localIp.value;
+      final isAllowedOrigin = origin == null ||
+          origin.contains('localhost') ||
+          origin.contains('127.0.0.1') ||
+          (lan.isNotEmpty && origin.contains(lan)) ||
+          origin.startsWith('stremio://') ||
+          origin.startsWith('http://localhost') ||
+          origin.startsWith('https://localhost');
+
+      if (isAllowedOrigin) {
+        request.response.headers.set('Access-Control-Allow-Origin', origin ?? '*');
+        request.response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+        request.response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      } else {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.write('Cross-origin request to admin API blocked');
+        await request.response.close();
+        return;
+      }
+    }
 
     if (method == 'OPTIONS') {
       request.response.statusCode = HttpStatus.ok;
@@ -668,7 +704,16 @@ class ServerService {
         return;
       }
 
-      // 5g. API: Upstream update pipeline: POST /api/pipeline/update
+      // 5g. API: Reset Circuit Breakers: POST /api/scrapers/reset
+      if (path == '/api/scrapers/reset' && method == 'POST') {
+        ScraperEngine.instance.reloadScrapers();
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({'success': true, 'message': 'All scrapers and circuit breakers reset'}));
+        await request.response.close();
+        return;
+      }
+
+      // 5h. API: Upstream update pipeline: POST /api/pipeline/update
       if (path == '/api/pipeline/update' && method == 'POST') {
         String channel = 'all';
         try {

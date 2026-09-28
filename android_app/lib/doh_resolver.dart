@@ -169,10 +169,30 @@ class _DnsEntry {
 
 /// Global HttpOverrides that routes all socket connections through [DohResolver].
 class HostreamioHttpOverrides extends HttpOverrides {
+  static const Set<String> _officialApiDomains = {
+    'themoviedb.org',
+    'torbox.app',
+    'omdbapi.com',
+    'thetvdb.com',
+    'fanart.tv',
+    'github.com',
+  };
+
+  static bool _isOfficialApi(String host) {
+    final lower = host.toLowerCase();
+    return _officialApiDomains.any((d) => lower == d || lower.endsWith('.$d'));
+  }
+
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
-    client.badCertificateCallback = (cert, host, port) => true;
+    client.badCertificateCallback = (cert, host, port) {
+      if (_isOfficialApi(host)) {
+        final subject = cert.subject.toLowerCase();
+        return subject.contains(host.toLowerCase());
+      }
+      return true; // Relaxed for unofficial scrapers and video hosts
+    };
     client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) async {
       final addresses = await DohResolver.instance.resolve(uri.host);
       final target = addresses.isNotEmpty ? addresses.first : (await InternetAddress.lookup(uri.host)).first;
@@ -180,7 +200,13 @@ class HostreamioHttpOverrides extends HttpOverrides {
         return SecureSocket.startConnect(
           target,
           uri.port,
-          onBadCertificate: (cert) => true,
+          onBadCertificate: (cert) {
+            if (_isOfficialApi(uri.host)) {
+              final subject = cert.subject.toLowerCase();
+              return subject.contains(uri.host.toLowerCase());
+            }
+            return true;
+          },
         );
       } else {
         return Socket.startConnect(target, uri.port);
