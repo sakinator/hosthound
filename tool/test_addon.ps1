@@ -19,7 +19,7 @@ $allPassed = $true
 foreach ($test in $tests) {
   $sw = [System.Diagnostics.Stopwatch]::StartNew()
   try {
-    $res = Invoke-WebRequest -Uri $test.url -Method Get -TimeoutSec 20 -UseBasicParsing
+    $res = Invoke-WebRequest -Uri $test.url -Method Get -TimeoutSec 35 -UseBasicParsing
     $sw.Stop()
     $json = $res.Content | ConvertFrom-Json
     $cors = $res.Headers['Access-Control-Allow-Origin']

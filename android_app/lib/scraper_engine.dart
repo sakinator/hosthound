@@ -377,21 +377,22 @@ class ScraperEngine {
           subtitles: subList,
         );
         finalStreams.add(cachedStream);
-        streamDedupeMap[rawUrl] = cachedStream;
-
-        final directBadge = directEnriched['badgeHeader'] ?? qLabel;
-        final directStream = ScrapedStream(
-          name: '🌐 Direct Play [$providerName]\n$directBadge',
-          title: '${directEnriched['title']}\n🌐 Direct Play • Original Hoster Link',
-          url: directStreamUrl,
-          behaviorHints: directBehaviorHints,
-          provider: providerName,
-          quality: q,
-          subtitles: subList,
-        );
-        finalStreams.add(directStream);
+        final isDirectPlayable = isDirectPlayableUrl(rawUrl);
+        if (isDirectPlayable) {
+          final directBadge = directEnriched['badgeHeader'] ?? qLabel;
+          final directStream = ScrapedStream(
+            name: '🌐 Direct Play [$providerName]\n$directBadge',
+            title: '${directEnriched['title']}\n🌐 Direct Play • Original Hoster Link',
+            url: directStreamUrl,
+            behaviorHints: directBehaviorHints,
+            provider: providerName,
+            quality: q,
+            subtitles: subList,
+          );
+          finalStreams.add(directStream);
+        }
       } else if (isSupportedHoster) {
-        // ── 2. Link is NOT cached but IS cachable: show 2 links (TorBox Start Caching + Direct Play) ──
+        // ── 2. Link is NOT cached but IS cachable: show TorBox Start Caching (and Direct Play only if truly playable) ──
         final headersParam = headers.isNotEmpty ? '&headers=${Uri.encodeComponent(jsonEncode(headers))}' : '';
         final cachePlayUrl = '$localBaseUrl/torbox/play?url=${Uri.encodeComponent(rawUrl)}$headersParam';
 
@@ -423,33 +424,39 @@ class ScraperEngine {
           subtitles: subList,
         );
         finalStreams.add(startCachingStream);
+        streamDedupeMap[rawUrl] = startCachingStream;
 
-        final directBadge = directEnriched['badgeHeader'] ?? qLabel;
-        final directStream = ScrapedStream(
-          name: '🌐 Direct Play [$providerName]\n$directBadge',
-          title: '${directEnriched['title']}\n🌐 Direct Play • Original Hoster Link',
-          url: directStreamUrl,
-          behaviorHints: directBehaviorHints,
-          provider: providerName,
-          quality: q,
-          subtitles: subList,
-        );
-        finalStreams.add(directStream);
-        streamDedupeMap[rawUrl] = directStream;
+        // ONLY add direct stream if rawUrl is actually a playable video container/stream!
+        if (isDirectPlayableUrl(rawUrl)) {
+          final directBadge = directEnriched['badgeHeader'] ?? qLabel;
+          final directStream = ScrapedStream(
+            name: '🌐 Direct Play [$providerName]\n$directBadge',
+            title: '${directEnriched['title']}\n🌐 Direct Play • Original Hoster Link',
+            url: directStreamUrl,
+            behaviorHints: directBehaviorHints,
+            provider: providerName,
+            quality: q,
+            subtitles: subList,
+          );
+          finalStreams.add(directStream);
+        }
       } else {
         // ── 3. Standard Non-Hoster / Direct Stream (1 link) ──
-        final directBadge = directEnriched['badgeHeader'] ?? qLabel;
-        final directStream = ScrapedStream(
-          name: '🌐 Direct Play [$providerName]\n$directBadge',
-          title: directEnriched['title']!,
-          url: directStreamUrl,
-          behaviorHints: directBehaviorHints,
-          provider: providerName,
-          quality: q,
-          subtitles: subList,
-        );
-        finalStreams.add(directStream);
-        streamDedupeMap[rawUrl] = directStream;
+        // Validate that this link is actually a playable stream rather than an unparsed website/blog URL!
+        if (isDirectPlayableUrl(rawUrl)) {
+          final directBadge = directEnriched['badgeHeader'] ?? qLabel;
+          final directStream = ScrapedStream(
+            name: '🌐 Direct Play [$providerName]\n$directBadge',
+            title: directEnriched['title']!,
+            url: directStreamUrl,
+            behaviorHints: directBehaviorHints,
+            provider: providerName,
+            quality: q,
+            subtitles: subList,
+          );
+          finalStreams.add(directStream);
+          streamDedupeMap[rawUrl] = directStream;
+        }
       }
     }
 
@@ -493,6 +500,65 @@ class ScraperEngine {
 
     print('[ScraperEngine] Found ${finalStreams.length} stream(s) for "${meta.title}".');
     return finalStreams;
+  }
+
+  static bool isDirectPlayableUrl(String url) {
+    final lower = url.toLowerCase();
+    // 1. Definite media containers & manifests
+    if (lower.contains('.m3u8') ||
+        lower.contains('.mpd') ||
+        lower.contains('.mp4') ||
+        lower.contains('.mkv') ||
+        lower.contains('.webm') ||
+        lower.contains('.ts') ||
+        lower.contains('.avi') ||
+        lower.contains('/proxy?') ||
+        lower.contains('/torbox/play')) {
+      return true;
+    }
+
+    // 2. Definite non-playable hoster landing pages / link shorteners / blog posts
+    if (lower.contains('hubcloud') ||
+        lower.contains('hubdrive') ||
+        lower.contains('driveseed') ||
+        lower.contains('drivebot') ||
+        lower.contains('fast-dl') ||
+        lower.contains('modpro.blog') ||
+        lower.contains('multimovies.casa') ||
+        lower.contains('/drive/') ||
+        lower.contains('/dl/') ||
+        lower.contains('/archives/') ||
+        lower.contains('/tvshows/') ||
+        lower.contains('1fichier.com') ||
+        lower.contains('rapidgator.net') ||
+        lower.contains('katfile.com') ||
+        lower.contains('turbobit.net') ||
+        lower.contains('ddownload.com') ||
+        lower.contains('nitroflare.com') ||
+        lower.contains('mega.nz/file') ||
+        lower.contains('mega.co.nz/file')) {
+      return false;
+    }
+
+    // 3. Known direct streaming CDNs
+    if (lower.contains('pontv.to') ||
+        lower.contains('quietridge.top') ||
+        lower.contains('stillhaven.top') ||
+        lower.contains('vidzy.cc') ||
+        lower.contains('workers.dev') ||
+        lower.contains('streamtape.com/get_video') ||
+        lower.contains('vidsrc') ||
+        lower.contains('superstream') ||
+        lower.contains('youtube.com') ||
+        lower.contains('googlevideo.com') ||
+        lower.contains('archive.org/download') ||
+        lower.contains('dailymotion.com/cdn') ||
+        lower.contains('dmcdn.net') ||
+        lower.contains('pixeldrain.com/api/file/')) {
+      return true;
+    }
+
+    return false;
   }
 
   static String? _detectHoster(String url) {

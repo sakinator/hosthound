@@ -1584,7 +1584,7 @@ class WebUI {
           <span class="player-opt-icon">🟧</span>
           <div>
             <div>VLC Media Player</div>
-            <div style="font-size:0.75rem; color:var(--text-muted);">vlc:// scheme &amp; auto-download</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Direct vlc:// protocol launch</div>
           </div>
         </a>
         <a class="player-opt-btn" id="openWithPotPlayer" href="#">
@@ -2692,10 +2692,7 @@ class WebUI {
       vlcBtn.onclick = (e) => {
         e.preventDefault();
         window.location.href = 'vlc://' + streamUrl;
-        showToast('🚀 Launching VLC...');
-        setTimeout(() => {
-          downloadM3u(cleanName, streamUrl);
-        }, 1200);
+        showToast('🚀 Sent to VLC (or click "Download .m3u" below if vlc:// is not registered)');
       };
 
       // PotPlayer

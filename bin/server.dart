@@ -421,7 +421,17 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
         await request.response.redirect(Uri.parse(debridedUrl), status: HttpStatus.found);
         return;
       }
-      // Fallback: if headers required, redirect to proxy; otherwise direct to targetUrl
+      // Fallback: if debrid failed on an unplayable hoster landing page, do NOT redirect video player to an HTML page!
+      if (!ScraperEngine.isDirectPlayableUrl(targetUrl)) {
+        request.response.statusCode = HttpStatus.badGateway;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({
+          'error': 'TorBox could not debrid this hoster link. The file may be offline, deleted, or hoster is temporarily unavailable.',
+          'targetUrl': targetUrl,
+        }));
+        await request.response.close();
+        return;
+      }
       if (headersParam != null && headersParam.isNotEmpty) {
         final proxyUrl = '$localBaseUrl/proxy?url=${Uri.encodeComponent(targetUrl)}&headers=${Uri.encodeComponent(headersParam)}';
         await request.response.redirect(Uri.parse(proxyUrl), status: HttpStatus.found);
