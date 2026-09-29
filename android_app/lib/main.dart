@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -1244,7 +1245,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           children: [
                             if (isDone && rawUrl.isNotEmpty) ...[
                               ElevatedButton.icon(
-                                onPressed: () => _playDirectStream(playUrl, name),
+                                onPressed: () => _playStream(playUrl),
                                 icon: const Icon(Icons.play_arrow_rounded, size: 14),
                                 label: const Text('Play', style: TextStyle(fontSize: 11)),
                                 style: ElevatedButton.styleFrom(
@@ -1255,7 +1256,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                               ),
                               const SizedBox(width: 6),
                               ElevatedButton.icon(
-                                onPressed: () => _showExternalPlayerChooser(playUrl, name),
+                                onPressed: () => _showPlayWithDialog({'url': playUrl, 'title': name, 'name': name}),
                                 icon: const Icon(Icons.open_in_new_rounded, size: 14),
                                 label: const Text('Play With', style: TextStyle(fontSize: 11)),
                                 style: ElevatedButton.styleFrom(

@@ -21,13 +21,15 @@
 
 ## 1. Executive Summary & Core Philosophy
 
-Hostreamio is a **100% non-torrent (zero P2P)** stream aggregation engine. It connects media clients (Nuvio and Stremio) with direct cloud hosters, regional OTT platforms, and public video archives.
+Hostreamio is a **Zero-P2P (Peer-Free) High-Speed Cloud Stream Engine**. It strictly separates media indexing from peer networking: direct hosters and OTT broadcasts stream unhindered over HTTP/HLS, while torrent sources are strictly gated behind TorBox Cloud CDN caching (with uncached torrents rejected at the engine boundary).
 
 ### Core Principles
-- **No P2P / No Seeding:** Hostreamio never opens BitTorrent sockets, downloads torrent metadata, or uploads chunks. All traffic is pure HTTP, HTTPS, or HLS (`.m3u8`).
+- **Zero-P2P Guarantee (No Swarms, No Seeding):** Hostreamio never opens BitTorrent sockets, downloads torrent swarms to the client, or uploads chunks. All playback traffic is pure HTTPS or HLS (`.m3u8`) delivered directly from high-speed CDNs.
+- **Dual-Rail Stream Engine (Direct Hosters + Cloud Debrid):** Direct DDL hosters (HubCloud, PixelDrain, Gofile, etc.) and regional OTT platforms operate independently of debrid. When TorBox is enabled, it functions as a cloud accelerator and universal DDL bridge.
+- **Strictly Gated Cached Torrents (Default OFF):** Community torrent providers (Nyaa Anime, 1TamilMV Desi, YTS, EZTV, Galaxy) are only queried when explicitly enabled in settings. If enabled, torrent hashes are checked in batch against TorBox — **only 100% pre-cached files** are served. Uncached torrents are dropped immediately (zero seeding, zero waiting).
 - **Single Unified Binary (`hostreamio.exe`):** The entire application compiles into a single, standalone Windows binary with zero runtime dependencies. A native Flutter app (`android_app`) embeds the exact same server logic for Android TV & Mobile.
 - **Strict Privacy Guarantee:** All user credentials (TorBox, OMDb, Fanart, TVDB, TMDB API keys) are stored solely on the user's local disk in `data/config.json`. Nothing is ever sent to telemetry servers or GitHub.
-- **Fail-Safe Self-Healing Daemon:** The server process must run continuously in the background without dying from network drops, scraper timeouts, or uncaught asynchronous exceptions.
+- **Fail-Safe Self-Healing Daemon:** The server process runs continuously in the background without dying from network drops, scraper timeouts, or uncaught asynchronous exceptions.
 
 ---
 
@@ -36,7 +38,7 @@ Hostreamio is a **100% non-torrent (zero P2P)** stream aggregation engine. It co
 ```mermaid
 flowchart TD
     Client["Nuvio / Stremio Client (PC, TV, Mobile)"]
-    WebUI["Browser Dashboard (/configure)"]
+    WebUI["Browser Dashboard & Theater (/configure)"]
 
     subgraph Server ["Hostreamio Server Daemon (Port 7002)"]
         Router["HTTP Router & CORS Dispatcher (server.dart)"]
@@ -47,12 +49,17 @@ flowchart TD
         Catalogs["Catalog Service (catalog_service.dart)"]
         ScraperEngine["Scraper Engine (scraper_engine.dart)"]
         TorBox["TorBox Debrid Client (torbox_service.dart)"]
+        Prowlarr["Prowlarr FlareSolverr Resolver & Anti-Cache"]
+        QueueMgr["Live Caching Queue Manager"]
+        VideoSlate["Embedded Video Notice (/video/caching.mp4)"]
     end
 
     subgraph External ["Upstream Providers & Clouds"]
-        Scrapers["61+ Direct HTTP Scrapers (MoviesDrive, Vega, UHD, etc.)"]
-        PublicCats["Public Video Catalogs (YouTube, Vimeo, Archive, Dailymotion)"]
-        TorBoxCDN["TorBox Cloud CDN & WebDL Cache"]
+        DirectScrapers["63 Direct Cloud Scrapers (Bolly4u, Vega, UHD, HubCloud)"]
+        TorrentToggle{"⚡ TorBox Cached Torrents Toggle<br/>(Strictly Default OFF • 0 P2P)"}
+        TorrentScrapers["7 Community Torrent Providers (Nyaa, 1TamilMV, YTS, EZTV)"]
+        PublicCats["Public Video Catalogs (YouTube, Vimeo, Archive, IPTV-Org)"]
+        TorBoxCDN["TorBox Cloud CDN & WebDL Storage"]
         MetaAPIs["TMDB / OMDb / Fanart / TVDB APIs"]
     end
 
@@ -63,10 +70,17 @@ flowchart TD
     Guard --> Catalogs
     Guard --> Proxy
     Guard --> Badges
+    Guard --> QueueMgr
+    Guard --> VideoSlate
 
-    ScraperEngine --> Scrapers
+    ScraperEngine --> DirectScrapers
+    ScraperEngine --> TorrentToggle
+    TorrentToggle -->|ON (Opt-in)| TorrentScrapers
+    TorrentToggle -->|OFF (Default)| ScraperEngine
+    DirectScrapers --> Prowlarr
     ScraperEngine --> TorBox
     TorBox --> TorBoxCDN
+    QueueMgr --> TorBox
     Catalogs --> PublicCats
     Badges --> MetaAPIs
     Config -.-> Router
@@ -79,24 +93,38 @@ sequenceDiagram
     actor User as Nuvio / Stremio Player
     participant Server as Hostreamio Daemon
     participant Engine as Scraper Engine
-    participant Scrapers as 61+ Cloud Scrapers
+    participant Direct as 63 Direct Cloud Scrapers
+    participant Torrents as 7 Torrent Scrapers (If Opted In)
     participant Torbox as TorBox API
     participant Badges as Badge Service
 
     User->>Server: GET /stream/movie/tt1375666.json
-    Server->>Engine: scrapeMedia(Inception, 2010)
-    par Parallel Scrape across 61 Providers
-        Engine->>Scrapers: Scrape providers (9s timeout)
-        Scrapers-->>Engine: Raw hoster streams (HubCloud, Pixeldrain, etc.)
+    Server->>Engine: scrapeMedia(Title, Year)
+    
+    par Parallel Scraper Execution
+        Engine->>Direct: Scrape direct cloud hosters (9s timeout)
+        Direct-->>Engine: Direct hoster streams (HubCloud, PixelDrain, Gofile)
+        opt When enableTorBoxCachedTorrents == true
+            Engine->>Torrents: Extract torrent hashes (Nyaa, 1TamilMV, YTS)
+            Torrents-->>Engine: Torrent stream candidates
+        end
     end
-    Engine->>Engine: Strip CAMs + Deduplicate identical CDNs
-    Engine->>Torbox: POST /webdl/checkcached (Batch check hoster URLs)
+
+    Engine->>Engine: Strip low-grade CAMs & deduplicate identical CDNs
+    Engine->>Torbox: POST /webdl/checkcached & /torrents/checkcached (Batch check)
     Torbox-->>Engine: Cached status map
-    Engine->>Engine: Synthesize '☁️⬆️ TorBox [Start Caching]' for cachable links
-    Engine->>Badges: Enrich titles with quality, codec, audio & OTT badges
+
+    Engine->>Engine: Keep 100% cached torrents; DROP uncached torrents (0 P2P)
+    Engine->>Engine: Synthesize '☁️⬆️ TorBox [Start Caching]' for uncached hosters
+    Engine->>Badges: Enrich stream titles with quality, codec, audio & OTT badges
     Badges-->>Server: Formatted Stremio Stream Objects
     Server-->>User: JSON Response with streams list
-```
+
+    opt If User Clicks Uncached / In-Progress Link
+        User->>Server: GET /torbox/play?url=...
+        Server->>Torbox: Track caching job in Live Caching Queue
+        Server-->>User: 302 Redirect to /video/caching.mp4 (Smooth In-Video Notice)
+    end
 
 ---
 

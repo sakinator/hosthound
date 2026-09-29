@@ -2216,7 +2216,7 @@ class WebUI {
           '<div style="font-size:2rem; margin-bottom:8px;">🔑</div>' +
           '<strong style="color:var(--text); font-size:1rem;">TorBox API Key Not Configured</strong>' +
           '<p style="color:var(--text-muted); font-size:0.85rem; margin:8px 0 16px 0;">Configure your TorBox API key in Server &amp; Addon tab to activate cloud caching &amp; instant CDN streaming.</p>' +
-          '<button class="btn btn-primary btn-sm" onclick="switchMainTab(\'server\')">⚙️ Configure TorBox</button>' +
+          '<button class="btn btn-primary btn-sm" onclick="switchMainTab(&apos;server&apos;)">⚙️ Configure TorBox</button>' +
           '</div>';
         return;
       }
@@ -2232,8 +2232,9 @@ class WebUI {
         return;
       }
 
+      window._cacheQueueItems = items;
       let html = '';
-      items.forEach(it => {
+      items.forEach((it, idx) => {
         const isDone = it.status === 'completed';
         const isFailed = it.status === 'failed';
         const isCaching = it.status === 'caching';
@@ -2287,16 +2288,36 @@ class WebUI {
             '<div style="font-size:0.75rem; color:var(--text-muted);">' + (isDone ? '✨ Stream ready at unlimited speed on TorBox CDN' : 'Downloading to cloud storage…') + '</div>' +
             '<div style="display:flex; gap:8px;">' +
               (isDone && playUrl ? (
-                '<button class="btn btn-sm btn-success" onclick="playStream(\'' + playUrl + '\', \'' + encodeURIComponent(it.name) + '\')">▶ Stream</button>' +
-                '<button class="btn btn-sm" onclick="openWithModal(\'' + playUrl + '\', \'' + encodeURIComponent(it.name) + '\')">🚀 Play With</button>'
+                '<button class="btn btn-sm btn-success" onclick="playQueueIndex(' + idx + ')">▶ Stream</button>' +
+                '<button class="btn btn-sm" onclick="openWithQueueIndex(' + idx + ')">🚀 Play With</button>'
               ) : '') +
-              '<button class="btn btn-sm btn-danger" onclick="deleteQueueDownload(\'' + it.id + '\', \'' + it.type + '\')" title="Remove from queue">🗑️</button>' +
+              '<button class="btn btn-sm btn-danger" onclick="deleteQueueIndex(' + idx + ')" title="Remove from queue">🗑️</button>' +
             '</div>' +
           '</div>' +
         '</div>';
       });
 
       container.innerHTML = html;
+    }
+
+    function playQueueIndex(idx) {
+      const it = (window._cacheQueueItems || [])[idx];
+      if (!it) return;
+      const playUrl = it.rawUrl ? ('/torbox/play?url=' + encodeURIComponent(it.rawUrl)) : '';
+      if (playUrl) playStream(playUrl, it.name);
+    }
+
+    function openWithQueueIndex(idx) {
+      const it = (window._cacheQueueItems || [])[idx];
+      if (!it) return;
+      const playUrl = it.rawUrl ? ('/torbox/play?url=' + encodeURIComponent(it.rawUrl)) : '';
+      if (playUrl) openWithModal(playUrl, it.name);
+    }
+
+    function deleteQueueIndex(idx) {
+      const it = (window._cacheQueueItems || [])[idx];
+      if (!it) return;
+      deleteQueueDownload(it.id, it.type);
     }
 
     async function deleteQueueDownload(id, type) {

@@ -153,27 +153,53 @@ Hostreamio was architected around a resilient, **Dual-Rail Zero Single-Point-of-
 
 ```mermaid
 flowchart TD
-    A["Scraper Engine Queries 61 Providers"] --> B{"Link Discovered"}
-    B -->|Check TorBox API| C{"Already Cached?"}
-    C -->|Yes| D["⚡ TorBox [Cached]<br/>(Instant 10Gbps CDN • Byte-Range Seeking)"]
-    C -->|No / Caching| E["🌐 TorBox [Start Caching]<br/>(1-Click Background Cloud Download)"]
-    
-    B -->|Bypass Debrid| F["🌐 Direct Play [Hoster]<br/>(Zero-Delay Streaming via Smart Proxy)"]
-    B -->|Web Streams| G["⚡ Adaptive HLS (.m3u8)<br/>(Dynamic Quality Scaling)"]
+    subgraph Discovery ["1. Content Discovery Engine"]
+        DirectScrapers["63 Direct Cloud Scrapers<br/>(Bolly4u, Vegamovies, UHD, HubCloud, etc.)"]
+        TorrentToggle{"⚡ TorBox Cached Torrents Toggle<br/>(Strictly Default OFF • 0 P2P)"}
+        TorrentScrapers["7 Community Torrent Providers<br/>(Nyaa Anime, 1TamilMV Desi, YTS, EZTV, Galaxy)"]
+        PublicCatalogs["Public Video Feeds & Live IPTV<br/>(YouTube, Archive, Vimeo, IPTV-Org)"]
+        
+        TorrentToggle -->|OFF (Default)| NoTorrents["Zero Torrent Scrapers Queried<br/>(Pure 100% Direct Hosters)"]
+        TorrentToggle -->|ON (Opt-in)| TorrentScrapers
+    end
 
-    E -.->|"Watch immediately while caching!"| F
+    subgraph Processing ["2. Verification & Anti-Cache Engine"]
+        Prowlarr["🛡️ Prowlarr Resolver & Anti-Cache<br/>(FlareSolverr Cloudflare Clearance + Cache Bypass)"]
+        BatchCache{"TorBox Batch Cache Check<br/>(/webdl/checkcached & /torrents/checkcached)"}
+        
+        DirectScrapers --> Prowlarr
+        TorrentScrapers --> BatchCache
+        Prowlarr --> BatchCache
+    end
+
+    subgraph Playback ["3. High-Speed Line-Speed Playback Rails"]
+        BatchCache -->|Cached on Cloud| TorboxCached["⚡ TorBox [Cached]<br/>(10Gbps CDN • Full Byte-Range Seeking)"]
+        BatchCache -->|Uncached Torrent| DropTorrent["❌ Dropped Immediately<br/>(Strict Zero P2P / No Seeding Guarantee)"]
+        BatchCache -->|Uncached Hoster| CachingQueue["☁️⬆️ TorBox [Start Caching]<br/>(Tracked in Live Caching Queue)"]
+        
+        CachingQueue -.->|"Watch Direct while Caching!"| DirectPlay["🌐 Direct Play [Hoster / HLS]<br/>(Zero-Wait Playback via Reverse Proxy)"]
+        CachingQueue -->|"Opened in Player before Ready"| VideoNotice["🎬 In-Video Player Notice (/video/caching.mp4)<br/>(Displays Caching Progress Slate instead of 502 error)"]
+    end
 ```
 
 1. **Watch Immediately on Direct Play While TorBox Caches (Zero Idle Wait Time):**
    * When discovering a fresh, rare, or newly scraped 4K/1080p release on HubCloud, DriveSeed, or PixelDrain that isn't yet cached in TorBox's cloud (`[Cachable]`), you don't have to stare at a caching progress bar.
    * You can dispatch the 1-click cloud caching job to TorBox so it is downloaded and accelerated in the cloud, and **simultaneously click `🌐 Direct Play` to start watching the movie right now** without waiting a single second for the cloud download to complete.
 
-2. **Bulletproof Resilience When TorBox Is Down:**
+2. **Zero P2P Guarantee & Cloud Debrid Bridge (Strictly Default OFF):**
+   * Unlike conventional addons that force you into BitTorrent swarms, Hostreamio never exposes your IP to peers.
+   * If you opt-in to the Cached Torrents toggle, only releases that are **100% pre-cached on TorBox cloud CDN** are ever served. Uncached torrents are completely discarded at the engine boundary — zero seeding, zero waiting, pure cloud line-speed.
+
+3. **Live Caching Queue & In-Video Player Notice:**
+   * Track real-time download progress, transfer speeds, ETA, and size in the dedicated **⚡ Caching Queue** tab.
+   * If an in-progress link is opened directly in Nuvio, Stremio, or VLC, Hostreamio serves an animated in-video notice (`/video/caching.mp4`) instead of failing with an HTTP error.
+
+4. **Bulletproof Resilience When TorBox Is Down:**
    * Cloud debrid services can undergo API maintenance, rate-limiting, edge-node routing hiccups, or billing expirations.
    * If TorBox is temporarily offline or unreachable, Hostreamio **never goes dark**. Every single file hoster stream always exposes a parallel `🌐 Direct Play` counterpart routed through Hostreamio's built-in header-injection proxy (`/proxy`). Your streaming theater remains 100% functional 24/7.
 
-3. **No Debrid Lock-In (Subscription Freedom):**
-   * A TorBox account is treated as an optional performance enhancement, never a mandatory requirement. Users without a debrid subscription enjoy full, unrestricted access to all 61 non-torrent HTTP scrapers, regional Indian OTT feeds, and Asian anime libraries out of the box.
+5. **No Debrid Lock-In (Subscription Freedom):**
+   * A TorBox account is treated as an optional performance enhancement, never a mandatory requirement. Users without a debrid subscription enjoy full, unrestricted access to all 63 direct non-torrent HTTP scrapers, regional Indian OTT feeds, and Asian anime libraries out of the box.
 
 ---
 
@@ -305,6 +331,46 @@ All external API integrations are 100% optional:
 
 > [!IMPORTANT]
 > **Strict Privacy Guarantee:** None of your API keys are ever shared, committed to Git, or uploaded to third parties. They are stored exclusively in your local `data/config.json`.
+
+---
+
+## 🛡️ Optional: Cloudflare Captcha Bypass (FlareSolverr Setup)
+
+Hostreamio features a **Prowlarr-style Captcha & Cloudflare Resolver** ([`ProxyResolverService`](file:///D:/hostreamio/lib/proxy_resolver.dart)). While Hostreamio bypasses most standard edge blocks automatically using origin-fresh anti-cache headers, indexers like *1TamilMV*, *Vegamovies*, *Bollyflix*, or *Nyaa* occasionally activate strict Cloudflare Turnstile or IUAM challenges ("Just a moment...").
+
+You can connect Hostreamio to **FlareSolverr** to solve these challenges automatically:
+
+### 1. Run FlareSolverr
+
+* **Option A: Via Docker (Recommended):**
+  ```bash
+  docker run -d \
+    --name=flaresolverr \
+    -p 8191:8191 \
+    -e LOG_LEVEL=info \
+    --restart unless-stopped \
+    ghcr.io/flaresolverr/flaresolverr:latest
+  ```
+
+* **Option B: Windows Standalone (No Docker Needed):**
+  1. Download the latest `flaresolverr_windows_x64.zip` from [FlareSolverr GitHub Releases](https://github.com/FlareSolverr/FlareSolverr/releases).
+  2. Extract and run `flaresolverr.exe`. It listens locally on `http://localhost:8191`.
+
+### 2. Configure in Hostreamio
+
+1. Open the Web Dashboard at `http://localhost:7002/configure` (or open the Android app).
+2. Go to the **🖥️ Server & Addon** tab and scroll to **🛡️ Cloudflare & Anti-Bot Captcha Resolver**.
+3. Set the Resolver URL:
+   ```text
+   http://localhost:8191/v1
+   ```
+   *(Or `http://<YOUR_NAS_OR_SERVER_IP>:8191/v1` if running on another machine).*
+4. Click **Save Settings**.
+
+### 3. How It Operates
+
+* **Zero-Wait In-Memory Cookie Store:** When FlareSolverr solves a challenge, Hostreamio saves the clearance cookie (`cf_clearance`) in memory for 1 hour. All subsequent requests to that domain complete at normal, instant line speeds with zero delay.
+* **Purely Optional:** If you do not configure FlareSolverr, Hostreamio simply scrapes directly without external dependencies. Zero bloat is bundled into the Hostreamio binary.
 
 ---
 
