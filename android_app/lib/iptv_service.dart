@@ -46,6 +46,7 @@ class IptvService {
   IptvService._();
 
   static const String _m3uUrl = 'https://iptv-org.github.io/iptv/index.category.m3u';
+  static const String _indiaM3uUrl = 'https://iptv-org.github.io/iptv/countries/in.m3u';
   static final File _cacheFile = File('data/iptv_cache.json');
 
   List<IptvChannel> _channels = [];
@@ -100,43 +101,69 @@ class IptvService {
   }
 
   Future<void> _fetchRemoteM3u() async {
+    final Map<String, IptvChannel> channelMap = {};
+
+    // 1. Dedicated India Playlist (738+ high-speed Indian regional live channels)
+    try {
+      final inRes = await http.get(Uri.parse(_indiaM3uUrl), headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Hostreamio/1.0.0',
+      }).timeout(const Duration(seconds: 15));
+      if (inRes.statusCode == 200) {
+        final inChannels = parseM3u(inRes.body, defaultCountry: 'IN');
+        for (final ch in inChannels) {
+          final key = ch.id.isNotEmpty ? ch.id : ch.url;
+          channelMap[key] = ch;
+        }
+        print('[IptvService] Loaded ${inChannels.length} Indian live channels from iptv-org.');
+      }
+    } catch (e) {
+      print('[IptvService] India M3U fetch error: $e');
+    }
+
+    // 2. Global Category Playlist (Worldwide channels)
     try {
       final res = await http.get(Uri.parse(_m3uUrl), headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Hostreamio/1.0.0',
-      }).timeout(const Duration(seconds: 12));
+      }).timeout(const Duration(seconds: 20));
 
       if (res.statusCode == 200) {
         final parsed = parseM3u(res.body);
-        if (parsed.isNotEmpty) {
-          _channels = parsed;
-          _lastLoaded = DateTime.now();
-          // Save to local cache
-          try {
-            if (!await _cacheFile.parent.exists()) {
-              await _cacheFile.parent.create(recursive: true);
-            }
-            final jsonStr = jsonEncode(_channels.map((c) => c.toJson()).toList());
-            await _cacheFile.writeAsString(jsonStr, flush: true);
-          } catch (_) {}
+        for (final ch in parsed) {
+          final key = ch.id.isNotEmpty ? ch.id : ch.url;
+          if (!channelMap.containsKey(key)) {
+            channelMap[key] = ch;
+          }
         }
+        print('[IptvService] Total unified channels loaded: ${channelMap.length}.');
       }
     } catch (e) {
-      print('[IptvService] Remote fetch error: $e');
-      if (_channels.isEmpty) {
-        _channels = _getFallbackChannels();
-      }
+      print('[IptvService] Remote global M3U fetch error: $e');
+    }
+
+    if (channelMap.isNotEmpty) {
+      _channels = channelMap.values.toList();
+      _lastLoaded = DateTime.now();
+      try {
+        if (!_cacheFile.parent.existsSync()) {
+          _cacheFile.parent.createSync(recursive: true);
+        }
+        final jsonStr = jsonEncode(_channels.map((c) => c.toJson()).toList());
+        await _cacheFile.writeAsString(jsonStr, flush: true);
+      } catch (_) {}
+    } else if (_channels.isEmpty) {
+      _channels = _getFallbackChannels();
     }
   }
 
   /// Parses M3U content into structured IptvChannel objects
-  static List<IptvChannel> parseM3u(String body) {
+  static List<IptvChannel> parseM3u(String body, {String defaultCountry = 'Global'}) {
     final lines = body.split('\n');
     final List<IptvChannel> list = [];
 
     String? currentName;
     String currentLogo = '';
     String currentCategory = 'General';
-    String currentCountry = 'Global';
+    String currentCountry = defaultCountry;
     String currentId = '';
 
     for (var line in lines) {
@@ -144,7 +171,6 @@ class IptvService {
       if (line.isEmpty) continue;
 
       if (line.startsWith('#EXTINF:')) {
-        // Parse attributes: tvg-id, tvg-logo, group-title, and channel name
         final logoMatch = RegExp(r'tvg-logo="([^"]*)"').firstMatch(line);
         currentLogo = logoMatch != null ? logoMatch.group(1)! : '';
 
@@ -154,8 +180,7 @@ class IptvService {
         final idMatch = RegExp(r'tvg-id="([^"]*)"').firstMatch(line);
         currentId = idMatch != null ? idMatch.group(1)! : '';
 
-        // Extract country from tvg-id (e.g. "AnimaxAsia.sg@India" -> "IN" or ".us@" -> "US")
-        currentCountry = _extractCountry(currentId, line);
+        currentCountry = _extractCountry(currentId, line, fallback: defaultCountry);
 
         final commaIdx = line.indexOf(',');
         if (commaIdx != -1 && commaIdx + 1 < line.length) {
@@ -177,7 +202,7 @@ class IptvService {
         currentName = null;
         currentLogo = '';
         currentCategory = 'General';
-        currentCountry = 'Global';
+        currentCountry = defaultCountry;
         currentId = '';
       }
     }
@@ -185,21 +210,22 @@ class IptvService {
     return list;
   }
 
-  static String _extractCountry(String tvgId, String extInfLine) {
+  static String _extractCountry(String tvgId, String extInfLine, {String fallback = 'Global'}) {
     final lowerId = tvgId.toLowerCase();
-    if (lowerId.contains('.us@') || lowerId.endsWith('.us')) return 'US';
-    if (lowerId.contains('.uk@') || lowerId.endsWith('.uk') || lowerId.contains('.gb@')) return 'UK';
-    if (lowerId.contains('.in@') || lowerId.endsWith('.in') || lowerId.contains('@india')) return 'IN';
-    if (lowerId.contains('.ca@') || lowerId.endsWith('.ca')) return 'CA';
-    if (lowerId.contains('.fr@') || lowerId.endsWith('.fr')) return 'FR';
-    if (lowerId.contains('.de@') || lowerId.endsWith('.de')) return 'DE';
-    if (lowerId.contains('.es@') || lowerId.endsWith('.es')) return 'ES';
-    if (lowerId.contains('.it@') || lowerId.endsWith('.it')) return 'IT';
-    if (lowerId.contains('.au@') || lowerId.endsWith('.au')) return 'AU';
-    if (lowerId.contains('.jp@') || lowerId.endsWith('.jp')) return 'JP';
-    if (lowerId.contains('.br@') || lowerId.endsWith('.br')) return 'BR';
-    if (lowerId.contains('.mx@') || lowerId.endsWith('.mx')) return 'MX';
-    return 'Global';
+    final lowerLine = extInfLine.toLowerCase();
+    if (lowerId.contains('.in@') || lowerId.endsWith('.in') || lowerId.contains('@in') || lowerId.contains('@india') || lowerLine.contains('country="in"') || lowerLine.contains('tvg-country="in"') || lowerLine.contains('(india)') || lowerLine.contains(' india') || lowerLine.contains('[india]') || lowerLine.contains('hindi') || lowerLine.contains('tamil') || lowerLine.contains('telugu') || lowerLine.contains('malayalam') || lowerLine.contains('kannada') || lowerLine.contains('bengali') || lowerLine.contains('marathi') || lowerLine.contains('punjabi')) return 'IN';
+    if (lowerId.contains('.us@') || lowerId.endsWith('.us') || lowerLine.contains('country="us"') || lowerLine.contains('tvg-country="us"')) return 'US';
+    if (lowerId.contains('.uk@') || lowerId.endsWith('.uk') || lowerId.contains('.gb@') || lowerLine.contains('country="uk"') || lowerLine.contains('country="gb"')) return 'UK';
+    if (lowerId.contains('.ca@') || lowerId.endsWith('.ca') || lowerLine.contains('country="ca"')) return 'CA';
+    if (lowerId.contains('.fr@') || lowerId.endsWith('.fr') || lowerLine.contains('country="fr"')) return 'FR';
+    if (lowerId.contains('.de@') || lowerId.endsWith('.de') || lowerLine.contains('country="de"')) return 'DE';
+    if (lowerId.contains('.es@') || lowerId.endsWith('.es') || lowerLine.contains('country="es"')) return 'ES';
+    if (lowerId.contains('.it@') || lowerId.endsWith('.it') || lowerLine.contains('country="it"')) return 'IT';
+    if (lowerId.contains('.au@') || lowerId.endsWith('.au') || lowerLine.contains('country="au"')) return 'AU';
+    if (lowerId.contains('.jp@') || lowerId.endsWith('.jp') || lowerLine.contains('country="jp"')) return 'JP';
+    if (lowerId.contains('.br@') || lowerId.endsWith('.br') || lowerLine.contains('country="br"')) return 'BR';
+    if (lowerId.contains('.mx@') || lowerId.endsWith('.mx') || lowerLine.contains('country="mx"')) return 'MX';
+    return fallback;
   }
 
   /// Filters channels in memory by search query, category, and country
@@ -216,7 +242,7 @@ class IptvService {
       if (cat != 'all' && !c.category.toLowerCase().contains(cat)) {
         return false;
       }
-      if (ctry != 'ALL' && c.country != ctry && ctry != 'GLOBAL') {
+      if (ctry != 'ALL' && c.country.toUpperCase() != ctry) {
         return false;
       }
       if (query.isNotEmpty) {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -399,31 +400,212 @@ class TorboxService {
     return null;
   }
 
-  // Local map of active caching jobs initiated from Hostreamio
-  final Map<String, Map<String, dynamic>> _locallyInitiatedJobs = {};
+  // In-memory poster cache: cleanTitle -> posterUrl
+  final Map<String, String> _posterCache = {};
+
+  // Persistent store of caching jobs initiated by Hostreamio
+  Map<String, Map<String, dynamic>> _hostreamioJobs = {};
+  bool _jobsLoaded = false;
+  File get _jobsFile => File('data/caching_jobs.json');
+
+  void _loadJobsIfNeeded() {
+    if (_jobsLoaded) return;
+    _jobsLoaded = true;
+    try {
+      if (_jobsFile.existsSync()) {
+        final content = _jobsFile.readAsStringSync();
+        final decoded = jsonDecode(content);
+        if (decoded is Map) {
+          _hostreamioJobs = decoded.map((k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)));
+        }
+      }
+    } catch (e) {
+      print('[TorboxService] Could not load caching_jobs.json: $e');
+    }
+  }
+
+  void _saveJobs() {
+    try {
+      if (!_jobsFile.parent.existsSync()) {
+        _jobsFile.parent.createSync(recursive: true);
+      }
+      _jobsFile.writeAsStringSync(jsonEncode(_hostreamioJobs));
+    } catch (e) {
+      print('[TorboxService] Could not save caching_jobs.json: $e');
+    }
+  }
+
+  /// Parses raw release filename into clean movie/series title, quality badges, and resolves poster
+  ({String movieTitle, String cleanTitle, String poster, List<String> qualityBadges, String year, String season, String episode})
+      _parseReleaseDetails(String rawName, {String? fallbackMovieTitle, String? fallbackPoster, String? fallbackYear}) {
+    String clean = rawName.replaceAll(RegExp(r'\.(?:mkv|mp4|avi|webm|mov|7z|rar|zip)$', caseSensitive: false), '');
+
+    // Check if filename is generic quality or random hash token
+    final isGeneric = RegExp(r'^(?:1080p|720p|2160p|4k|480p|240p|_\d)\b', caseSensitive: false).hasMatch(clean) ||
+        (clean.length > 40 && !clean.contains('.') && !clean.contains(' '));
+
+    if (isGeneric && fallbackMovieTitle != null && fallbackMovieTitle.isNotEmpty) {
+      clean = fallbackMovieTitle;
+    }
+
+    String season = '';
+    String episode = '';
+    final seMatch = RegExp(r'[sS](\d+)[eE](\d+)', caseSensitive: false).firstMatch(clean);
+    if (seMatch != null) {
+      season = int.tryParse(seMatch.group(1) ?? '')?.toString() ?? seMatch.group(1)!;
+      episode = int.tryParse(seMatch.group(2) ?? '')?.toString() ?? seMatch.group(2)!;
+    }
+
+    String year = fallbackYear ?? '';
+    final yearMatch = RegExp(r'\b(19\d\d|20\d\d)\b').firstMatch(clean);
+    if (yearMatch != null) {
+      year = yearMatch.group(1)!;
+    }
+
+    // Extract base movie/series title
+    String titlePart = clean;
+    if (seMatch != null) {
+      titlePart = clean.substring(0, seMatch.start);
+    } else if (yearMatch != null) {
+      titlePart = clean.substring(0, yearMatch.start);
+    } else {
+      // Split on quality tokens
+      final qSplit = RegExp(r'[._\-\s](?:2160p|1080p|720p|4k|hdr|dv|web-?dl|bluray|hdtc|hdts|hdtv)\b', caseSensitive: false).firstMatch(clean);
+      if (qSplit != null) {
+        titlePart = clean.substring(0, qSplit.start);
+      }
+    }
+
+    titlePart = titlePart.replaceAll(RegExp(r'[._\-]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (titlePart.isEmpty && fallbackMovieTitle != null && fallbackMovieTitle.isNotEmpty) {
+      titlePart = fallbackMovieTitle;
+    }
+    if (titlePart.isEmpty) {
+      titlePart = isGeneric ? 'Cloud Stream' : clean;
+    }
+
+    // Format clean display title
+    String displayTitle = titlePart;
+    if (season.isNotEmpty && episode.isNotEmpty) {
+      displayTitle = '$titlePart • Season $season, Ep $episode';
+    } else if (year.isNotEmpty && !displayTitle.contains(year)) {
+      displayTitle = '$titlePart ($year)';
+    }
+
+    // Extract quality badges
+    final badges = <String>[];
+    final lower = clean.toLowerCase();
+    if (lower.contains('2160p') || lower.contains('4k')) badges.add('4K 2160p');
+    else if (lower.contains('1080p')) badges.add('1080p');
+    else if (lower.contains('720p')) badges.add('720p');
+
+    if (lower.contains('hdr')) badges.add('HDR');
+    if (lower.contains('dv') || lower.contains('dolby vision')) badges.add('Dolby Vision');
+    if (lower.contains('atmos')) badges.add('Atmos');
+    else if (lower.contains('ddp5.1') || lower.contains('5.1')) badges.add('5.1 Audio');
+
+    if (lower.contains('remux')) badges.add('Remux');
+    else if (lower.contains('bluray')) badges.add('BluRay');
+    else if (lower.contains('web-dl') || lower.contains('webdl')) badges.add('WEB-DL');
+
+    if (lower.contains('hindi')) badges.add('Hindi');
+    if (lower.contains('tamil')) badges.add('Tamil');
+    if (lower.contains('telugu')) badges.add('Telugu');
+    if (lower.contains('multi')) badges.add('Multi Audio');
+
+    // Poster resolution
+    String resolvedPoster = fallbackPoster ?? '';
+    if (resolvedPoster.isEmpty && _posterCache.containsKey(titlePart)) {
+      resolvedPoster = _posterCache[titlePart]!;
+    } else if (resolvedPoster.isEmpty && titlePart.isNotEmpty && !isGeneric) {
+      // Background query to Cinemeta
+      unawaited(() async {
+        try {
+          final t = seMatch != null ? 'series' : 'movie';
+          final searchUrl = Uri.parse('https://v3-cinemeta.strem.io/catalog/$t/top/search=${Uri.encodeComponent(titlePart)}.json');
+          final resp = await http.get(searchUrl, headers: {'User-Agent': 'Hostreamio/1.0'}).timeout(const Duration(seconds: 4));
+          if (resp.statusCode == 200) {
+            final data = jsonDecode(resp.body);
+            if (data is Map && data['metas'] is List && (data['metas'] as List).isNotEmpty) {
+              final first = (data['metas'] as List).first;
+              if (first is Map && first['poster'] != null && first['poster'].toString().isNotEmpty) {
+                _posterCache[titlePart] = first['poster'].toString();
+              }
+            }
+          }
+        } catch (_) {}
+      }());
+    }
+
+    return (
+      movieTitle: titlePart,
+      cleanTitle: displayTitle,
+      poster: resolvedPoster,
+      qualityBadges: badges,
+      year: year,
+      season: season,
+      episode: episode,
+    );
+  }
 
   /// Tracks a caching job initiated in Hostreamio
   void trackCachingJob({
     required String url,
     String? name,
+    String? movieTitle,
+    String? poster,
+    String? year,
+    String? season,
+    String? episode,
     String? type,
     dynamic id,
     String? status,
   }) {
-    final key = (id != null) ? id.toString() : url;
-    _locallyInitiatedJobs[key] = {
+    _loadJobsIfNeeded();
+    final cleanUrl = url.trim();
+    final key = (id != null) ? id.toString() : cleanUrl;
+    final extractedName = name ?? _extractFileNameFromUrl(cleanUrl);
+
+    final details = _parseReleaseDetails(
+      extractedName,
+      fallbackMovieTitle: movieTitle,
+      fallbackPoster: poster,
+      fallbackYear: year,
+    );
+
+    final resolvedMovie = (movieTitle != null && movieTitle.isNotEmpty) ? movieTitle : details.movieTitle;
+    final resolvedPoster = (poster != null && poster.isNotEmpty) ? poster : details.poster;
+
+    final job = {
       'id': id ?? key.hashCode.abs().toString(),
-      'name': name ?? _extractFileNameFromUrl(url),
-      'type': type ?? (url.startsWith('magnet:') ? 'torrent' : 'webdl'),
+      'name': extractedName,
+      'movieTitle': resolvedMovie,
+      'cleanTitle': details.cleanTitle,
+      'poster': resolvedPoster,
+      'year': year ?? details.year,
+      'season': season ?? details.season,
+      'episode': episode ?? details.episode,
+      'qualityBadges': details.qualityBadges,
+      'type': type ?? (cleanUrl.startsWith('magnet:') ? 'torrent' : 'webdl'),
       'status': status ?? 'caching',
       'progress': 0.05,
       'progressPercent': 5,
       'speed': 'Connecting...',
       'eta': 'Calculating...',
       'size': 'Calculating...',
-      'rawUrl': url,
+      'rawUrl': cleanUrl,
+      'isHostreamio': true,
       'updatedAt': DateTime.now().toIso8601String(),
     };
+
+    _hostreamioJobs[key] = job;
+    if (id != null) {
+      _hostreamioJobs[id.toString()] = job;
+    }
+    if (cleanUrl.isNotEmpty) {
+      _hostreamioJobs[cleanUrl] = job;
+    }
+    _saveJobs();
   }
 
   /// Returns the embedded/cached in-progress video notification MP4 bytes
@@ -473,7 +655,8 @@ class TorboxService {
   }
 
   /// Retrieves the unified live TorBox caching queue (WebDL + Torrents)
-  Future<List<Map<String, dynamic>>> getLiveCacheQueue(String apiKey) async {
+  Future<List<Map<String, dynamic>>> getLiveCacheQueue(String apiKey, {bool hostreamioOnly = true}) async {
+    _loadJobsIfNeeded();
     final cleanKey = apiKey.trim();
     final items = <Map<String, dynamic>>[];
     final seenIds = <String>{};
@@ -504,12 +687,49 @@ class TorboxService {
               }
               if (isFinished) rawProgress = 1.0;
 
-              final name = d['name']?.toString() ?? d['url']?.toString() ?? 'Web Download';
+              String name = d['name']?.toString() ?? d['url']?.toString() ?? 'Web Download';
               final rawUrl = d['url']?.toString() ?? '';
+
+              // Check if top-level name is generic and if inner files have real movie filename
+              final isGeneric = RegExp(r'^(?:\d{3,4}p|_\d|\b[a-zA-Z0-9_\-]{30,}\b)', caseSensitive: false).hasMatch(name);
+              if (isGeneric && d['files'] is List && (d['files'] as List).isNotEmpty) {
+                Map? largestFile;
+                num maxBytes = 0;
+                for (final f in d['files']) {
+                  if (f is Map) {
+                    final num sz = f['size'] is num ? f['size'] : (num.tryParse(f['size']?.toString() ?? '') ?? 0);
+                    if (sz > maxBytes) {
+                      maxBytes = sz;
+                      largestFile = f;
+                    }
+                  }
+                }
+                if (largestFile != null && largestFile['name'] != null && largestFile['name'].toString().isNotEmpty) {
+                  name = largestFile['name'].toString();
+                }
+              }
+
+              // Check if initiated from Hostreamio
+              final matchedJob = _hostreamioJobs[id] ?? _hostreamioJobs[rawUrl];
+              final isHostreamio = matchedJob != null ||
+                  _hostreamioJobs.values.any((j) =>
+                      (j['id']?.toString() == id) ||
+                      (j['rawUrl'] != null && j['rawUrl'].toString() == rawUrl && rawUrl.isNotEmpty));
+
+              final details = _parseReleaseDetails(
+                name,
+                fallbackMovieTitle: matchedJob?['movieTitle']?.toString(),
+                fallbackPoster: matchedJob?['poster']?.toString(),
+                fallbackYear: matchedJob?['year']?.toString(),
+              );
 
               items.add({
                 'id': id,
                 'name': name,
+                'movieTitle': matchedJob?['movieTitle'] ?? details.movieTitle,
+                'cleanTitle': details.cleanTitle,
+                'poster': matchedJob?['poster'] ?? details.poster,
+                'qualityBadges': details.qualityBadges,
                 'type': 'webdl',
                 'status': status,
                 'progress': rawProgress.clamp(0.0, 1.0),
@@ -518,6 +738,7 @@ class TorboxService {
                 'eta': isFinished ? 'Ready' : _formatEta(d['eta']),
                 'size': _formatBytes(d['size']),
                 'rawUrl': rawUrl,
+                'isHostreamio': isHostreamio,
                 'createdAt': d['created_at']?.toString() ?? '',
                 'updatedAt': d['updated_at']?.toString() ?? '',
               });
@@ -551,12 +772,49 @@ class TorboxService {
               }
               if (isFinished) rawProgress = 1.0;
 
-              final name = d['name']?.toString() ?? 'Torrent Release';
+              String name = d['name']?.toString() ?? 'Torrent Release';
               final hash = d['hash']?.toString() ?? '';
+
+              // Check if top-level name is generic and if inner files have real movie filename
+              final isGeneric = RegExp(r'^(?:\d{3,4}p|_\d|\b[a-zA-Z0-9_\-]{30,}\b)', caseSensitive: false).hasMatch(name);
+              if (isGeneric && d['files'] is List && (d['files'] as List).isNotEmpty) {
+                Map? largestFile;
+                num maxBytes = 0;
+                for (final f in d['files']) {
+                  if (f is Map) {
+                    final num sz = f['size'] is num ? f['size'] : (num.tryParse(f['size']?.toString() ?? '') ?? 0);
+                    if (sz > maxBytes) {
+                      maxBytes = sz;
+                      largestFile = f;
+                    }
+                  }
+                }
+                if (largestFile != null && largestFile['name'] != null && largestFile['name'].toString().isNotEmpty) {
+                  name = largestFile['name'].toString();
+                }
+              }
+
+              final rawUrl = hash.isNotEmpty ? 'magnet:?xt=urn:btih:$hash' : '';
+              final matchedJob = _hostreamioJobs[id] ?? _hostreamioJobs[hash] ?? _hostreamioJobs[rawUrl];
+              final isHostreamio = matchedJob != null ||
+                  _hostreamioJobs.values.any((j) =>
+                      (j['id']?.toString() == id) ||
+                      (j['rawUrl'] != null && j['rawUrl'].toString() == rawUrl && rawUrl.isNotEmpty));
+
+              final details = _parseReleaseDetails(
+                name,
+                fallbackMovieTitle: matchedJob?['movieTitle']?.toString(),
+                fallbackPoster: matchedJob?['poster']?.toString(),
+                fallbackYear: matchedJob?['year']?.toString(),
+              );
 
               items.add({
                 'id': id,
                 'name': name,
+                'movieTitle': matchedJob?['movieTitle'] ?? details.movieTitle,
+                'cleanTitle': details.cleanTitle,
+                'poster': matchedJob?['poster'] ?? details.poster,
+                'qualityBadges': details.qualityBadges,
                 'type': 'torrent',
                 'status': status,
                 'progress': rawProgress.clamp(0.0, 1.0),
@@ -565,7 +823,8 @@ class TorboxService {
                 'eta': isFinished ? 'Ready' : _formatEta(d['eta']),
                 'size': _formatBytes(d['size']),
                 'hash': hash,
-                'rawUrl': hash.isNotEmpty ? 'magnet:?xt=urn:btih:$hash' : '',
+                'rawUrl': rawUrl,
+                'isHostreamio': isHostreamio,
                 'createdAt': d['created_at']?.toString() ?? '',
                 'updatedAt': d['updated_at']?.toString() ?? '',
               });
@@ -576,12 +835,17 @@ class TorboxService {
     }
 
     // 3. Merge locally initiated jobs that haven't shown up in TorBox API yet
-    for (final entry in _locallyInitiatedJobs.entries) {
+    for (final entry in _hostreamioJobs.entries) {
       final local = entry.value;
       final localId = local['id']?.toString();
       if (localId != null && !seenIds.contains(localId)) {
         items.insert(0, Map<String, dynamic>.from(local));
+        seenIds.add(localId);
       }
+    }
+
+    if (hostreamioOnly) {
+      items.removeWhere((it) => it['isHostreamio'] != true);
     }
 
     return items;
@@ -590,7 +854,8 @@ class TorboxService {
   /// Deletes a web download or torrent item from TorBox cloud
   Future<bool> deleteQueueItem(String id, String type, String apiKey) async {
     final cleanKey = apiKey.trim();
-    _locallyInitiatedJobs.remove(id);
+    _hostreamioJobs.remove(id);
+    _saveJobs();
 
     if (cleanKey.isEmpty || id.isEmpty) return true;
 

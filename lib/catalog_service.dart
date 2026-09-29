@@ -143,6 +143,7 @@ class CatalogService {
             'name': 'genre',
             'options': [
               'All',
+              'India (All Regional)',
               'News',
               'Sports',
               'Movies',
@@ -213,9 +214,11 @@ class CatalogService {
     int skip = 0,
   }) async {
     await IptvService.instance.loadChannels();
+    final isIndia = genre == 'India' || genre == 'Indian' || genre == 'India (All Regional)';
     final filtered = IptvService.instance.filterChannels(
       search: search,
-      category: genre == 'All' ? null : genre,
+      category: (genre == 'All' || isIndia) ? null : genre,
+      country: isIndia ? 'IN' : null,
     );
     final slice = filtered.skip(skip).take(50);
     return slice.map((c) => {
@@ -518,6 +521,22 @@ class CatalogService {
 
   // ── Meta Details Resolver (/meta/:type/:id.json) ───────────────────────────
   Future<Map<String, dynamic>?> getMetaDetail(String type, String id) async {
+    if (id.startsWith('iptv:')) {
+      final chId = id.replaceFirst('iptv:', '');
+      final ch = await IptvService.instance.getChannelById(chId);
+      if (ch != null) {
+        return {
+          'id': id,
+          'type': type,
+          'name': ch.name,
+          'poster': ch.logo.isNotEmpty ? ch.logo : 'https://i.imgur.com/7bK7QYI.png',
+          'background': ch.logo.isNotEmpty ? ch.logo : 'https://i.imgur.com/7bK7QYI.png',
+          'description': 'Live TV broadcast: ${ch.name} (${ch.category} - ${ch.country})',
+          'genres': [ch.category, ch.country],
+        };
+      }
+    }
+
     if (id.startsWith('yt:')) {
       final vId = id.replaceFirst('yt:', '');
       String title = 'YouTube Video';

@@ -8,6 +8,7 @@ import 'package:playtorrio_nuvio_addon/scraper_engine.dart';
 import 'package:playtorrio_nuvio_addon/web_ui.dart';
 import 'package:playtorrio_nuvio_addon/catalog_service.dart';
 import 'package:playtorrio_nuvio_addon/torbox_service.dart';
+import 'package:playtorrio_nuvio_addon/iptv_service.dart';
 import 'package:playtorrio_nuvio_addon/doh_resolver.dart';
 import 'package:playtorrio_nuvio_addon/key_validator.dart';
 
@@ -305,9 +306,9 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
 
         print('[Server] Received stream request: type=$type, id=$idWithExt');
 
-        // Check custom video streams (YouTube, Vimeo, Archive.org, Dailymotion)
+        // Check custom video streams (YouTube, Vimeo, Archive.org, Dailymotion, IPTV)
         // Also scrape all other hoster/torrent sources for this title & year, sorting own links FIRST!
-        if (idWithExt.startsWith('yt:') || idWithExt.startsWith('vimeo:') || idWithExt.startsWith('archive:') || idWithExt.startsWith('dm:')) {
+        if (idWithExt.startsWith('yt:') || idWithExt.startsWith('vimeo:') || idWithExt.startsWith('archive:') || idWithExt.startsWith('dm:') || idWithExt.startsWith('iptv:')) {
           final customStreamsFuture = CatalogService.instance.resolveCustomStreams(
             type, 
             idWithExt,
@@ -717,11 +718,22 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
     // ── 5d2. API: Live TorBox Caching Queue: GET /api/torbox/queue ──────────
     if (path == '/api/torbox/queue' && method == 'GET') {
       final apiKey = AddonConfig.instance.torboxApiKey.trim();
-      final items = await TorboxService.instance.getLiveCacheQueue(apiKey);
+      final filterParam = request.uri.queryParameters['filter'] ?? 'hostreamio';
+      final hostreamioOnly = filterParam != 'all';
+
+      final allItems = await TorboxService.instance.getLiveCacheQueue(apiKey, hostreamioOnly: false);
+      final hostreamioCount = allItems.where((i) => i['isHostreamio'] == true).length;
+      final totalCount = allItems.length;
+
+      final items = hostreamioOnly ? allItems.where((i) => i['isHostreamio'] == true).toList() : allItems;
+
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({
         'success': true,
         'hasKey': apiKey.isNotEmpty,
+        'filter': filterParam,
+        'hostreamioCount': hostreamioCount,
+        'totalCount': totalCount,
         'items': items,
       }));
       await request.response.close();
@@ -738,6 +750,36 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       final ok = await TorboxService.instance.deleteQueueItem(id, type, apiKey);
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'success': ok}));
+      await request.response.close();
+      return;
+    }
+
+    // ── 5d4. API: Live IPTV Channels: GET /api/iptv/channels ────────────────
+    if (path == '/api/iptv/channels' && method == 'GET') {
+      final country = request.uri.queryParameters['country'];
+      final category = request.uri.queryParameters['category'];
+      final search = request.uri.queryParameters['search'];
+      final limit = int.tryParse(request.uri.queryParameters['limit'] ?? '') ?? 500;
+      final skip = int.tryParse(request.uri.queryParameters['skip'] ?? '') ?? 0;
+
+      await IptvService.instance.loadChannels();
+      final filtered = IptvService.instance.filterChannels(
+        country: (country != null && country.isNotEmpty && country != 'All') ? country : null,
+        category: (category != null && category.isNotEmpty && category != 'All') ? category : null,
+        search: (search != null && search.isNotEmpty) ? search : null,
+      );
+
+      final total = filtered.length;
+      final paged = filtered.skip(skip).take(limit).toList();
+
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': true,
+        'total': total,
+        'skip': skip,
+        'limit': limit,
+        'channels': paged.map((c) => c.toJson()).toList(),
+      }));
       await request.response.close();
       return;
     }

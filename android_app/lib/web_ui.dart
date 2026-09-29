@@ -1816,9 +1816,20 @@ class WebUI {
       </div>
 
       <!-- Quick Upload Input inside Caching Tab -->
-      <div class="url-box" style="margin-bottom:16px;">
+      <div class="url-box" style="margin-bottom:14px;">
         <input class="url-input" id="cachingTabUploadUrl" placeholder="Paste any stream or cloud link (HubCloud, PixelDrain, GoFile, etc.) to start caching...">
         <button class="btn btn-success" onclick="uploadLinkFromCachingTab()">☁️⬆️ Start Caching</button>
+      </div>
+
+      <!-- Queue Filter Toggle Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; gap:6px; background:#161b22; padding:3px; border-radius:8px; border:1px solid var(--border);">
+          <button id="btnFilterHostreamio" class="btn btn-sm btn-primary" onclick="setCacheQueueFilter('hostreamio')">⚡ Hostreamio Caches (<span id="queueHostreamioCount">0</span>)</button>
+          <button id="btnFilterAll" class="btn btn-sm" style="background:transparent; border:none; color:var(--text-muted);" onclick="setCacheQueueFilter('all')">🌐 All TorBox Cloud (<span id="queueAllCount">0</span>)</button>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">
+          <span>Showing: <strong id="queueCurrentFilterLabel" style="color:#58a6ff;">Hostreamio Initiated</strong></span>
+        </div>
       </div>
 
       <!-- Queue Items Container -->
@@ -2039,30 +2050,197 @@ class WebUI {
     });
 
     // ════════════════════════════════════════════════════════════
+    //  GLOBAL VIDEO PLAYER & EXTERNAL APP LAUNCHER
+    // ════════════════════════════════════════════════════════════
+    function playStream(url, titleText) {
+      if (!url) return;
+      const modal = document.getElementById('playerModal');
+      const title = document.getElementById('playerStreamTitle');
+      const video = document.getElementById('previewVideoPlayer');
+
+      if (title) title.innerText = titleText || 'Hostreamio Stream';
+      if (modal) modal.style.display = 'flex';
+
+      if (currentHls) {
+        currentHls.destroy();
+        currentHls = null;
+      }
+
+      const streamUrl = url;
+      const isHls = streamUrl.includes('.m3u8') || streamUrl.includes('/proxy');
+
+      if (isHls && typeof Hls !== 'undefined' && Hls.isSupported()) {
+        currentHls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        currentHls.loadSource(streamUrl);
+        currentHls.attachMedia(video);
+        currentHls.on(Hls.Events.MANIFEST_PARSED, function() {
+          video.play().catch(() => {});
+        });
+        currentHls.on(Hls.Events.ERROR, function(event, data) {
+          if (data.fatal) {
+            video.src = streamUrl;
+            video.play().catch(() => {});
+          }
+        });
+      } else {
+        video.src = streamUrl;
+        video.play().catch(() => {});
+      }
+    }
+
+    function openWithModal(url, titleText) {
+      if (!url) return;
+      const modal = document.getElementById('openWithModal');
+      const title = document.getElementById('openWithStreamTitle');
+      const sub = document.getElementById('openWithStreamSub');
+      const urlPreview = document.getElementById('openWithUrlPreview');
+
+      if (title) title.innerText = '🚀 Open With: ' + (titleText || 'Stream');
+      if (sub) sub.innerText = titleText || 'Hostreamio Media Stream';
+      if (urlPreview) urlPreview.innerText = url;
+
+      const streamUrl = url;
+      const cleanName = titleText || 'Hostreamio Stream';
+
+      // VLC (1-Click Desktop Launcher)
+      const vlcBtn = document.getElementById('openWithVlc');
+      if (vlcBtn) {
+        vlcBtn.onclick = async (e) => {
+          e.preventDefault();
+          showToast('🚀 Launching VLC Media Player...');
+          try {
+            const res = await fetch('/api/player/launch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ player: 'vlc', url: streamUrl })
+            });
+            const json = await res.json();
+            if (json.success) {
+              showToast('✅ ' + json.message);
+              closeOpenWithModal();
+              return;
+            }
+          } catch (_) {}
+          window.location.href = 'vlc://' + streamUrl;
+        };
+      }
+
+      // PotPlayer (1-Click Desktop Launcher)
+      const potBtn = document.getElementById('openWithPotPlayer');
+      if (potBtn) {
+        potBtn.onclick = async (e) => {
+          e.preventDefault();
+          showToast('🚀 Launching PotPlayer...');
+          try {
+            const res = await fetch('/api/player/launch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ player: 'potplayer', url: streamUrl })
+            });
+            const json = await res.json();
+            if (json.success) {
+              showToast('✅ ' + json.message);
+              closeOpenWithModal();
+              return;
+            }
+          } catch (_) {}
+          window.location.href = 'potplayer://' + streamUrl;
+        };
+      }
+
+      // MPV (1-Click Desktop Launcher)
+      const mpvBtn = document.getElementById('openWithMpv');
+      if (mpvBtn) {
+        mpvBtn.onclick = async (e) => {
+          e.preventDefault();
+          showToast('🚀 Launching MPV Player...');
+          try {
+            const res = await fetch('/api/player/launch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ player: 'mpv', url: streamUrl })
+            });
+            const json = await res.json();
+            if (json.success) {
+              showToast('✅ ' + json.message);
+              closeOpenWithModal();
+              return;
+            }
+          } catch (_) {}
+          navigator.clipboard.writeText('mpv "' + streamUrl + '"');
+          showToast('📋 MPV command copied! Launching mpv://...');
+          window.location.href = 'mpv://' + streamUrl;
+        };
+      }
+
+      // IINA
+      const iinaBtn = document.getElementById('openWithIina');
+      if (iinaBtn) {
+        iinaBtn.onclick = (e) => {
+          e.preventDefault();
+          window.location.href = 'iina://weblink?url=' + encodeURIComponent(streamUrl);
+          showToast('🚀 Launching IINA...');
+        };
+      }
+
+      // Mobile
+      const mobileBtn = document.getElementById('openWithMobile');
+      if (mobileBtn) {
+        mobileBtn.onclick = (e) => {
+          e.preventDefault();
+          window.location.href = 'intent:' + streamUrl + '#Intent;type=video/*;scheme=https;end';
+          showToast('🚀 Launching Android Video Player...');
+        };
+      }
+
+      if (modal) modal.style.display = 'flex';
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  LIVE IPTV (IPTV-ORG)
     // ════════════════════════════════════════════════════════════
     let allIptvChannels = [];
-    let displayedIptvCount = 30;
+    let displayedIptvCount = 48;
     let selectedIptvCategory = 'All';
+    let iptvFetchPromise = null;
+    let _currentFilteredIptv = [];
 
-    async function loadIptvChannels() {
-      if (allIptvChannels.length > 0) return;
-      const grid = document.getElementById('iptvGrid');
-      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px 0; color:var(--text-muted);">⏳ Fetching global IPTV catalog...</div>';
-      try {
-        const res = await fetch('/catalog/tv/iptv_global.json');
-        if (res.ok) {
-          const data = await res.json();
-          allIptvChannels = data.metas || [];
-          const countBadge = document.getElementById('iptvChannelCountBadge');
-          if (countBadge) countBadge.textContent = allIptvChannels.length + ' Channels Online';
-          renderIptvGrid();
-        } else {
-          grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#f85149;">Failed to load IPTV catalog.</div>';
-        }
-      } catch (e) {
-        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#f85149;">Error connecting to IPTV: ' + e + '</div>';
+    async function loadIptvChannels(force = false) {
+      if (allIptvChannels.length > 0 && !force) {
+        renderIptvGrid();
+        return;
       }
+      if (iptvFetchPromise) return iptvFetchPromise;
+
+      const grid = document.getElementById('iptvGrid');
+      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:50px 0; color:var(--text-muted);"><div style="font-size:2rem; margin-bottom:12px;">⏳</div>Fetching live global broadcast directory from IPTV-org (8,000+ streams & 730+ Indian regional channels)...</div>';
+
+      iptvFetchPromise = (async () => {
+        try {
+          const res = await fetch('/api/iptv/channels?limit=10000');
+          if (res.ok) {
+            const data = await res.json();
+            allIptvChannels = data.channels || [];
+            const countBadge = document.getElementById('iptvChannelCountBadge');
+            if (countBadge) {
+              const inCount = allIptvChannels.filter(c => c.country === 'IN').length;
+              countBadge.textContent = allIptvChannels.length.toLocaleString() + ' Channels Online (' + inCount + ' India)';
+            }
+            renderIptvGrid();
+          } else {
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#f85149; padding:40px 0;">Failed to load IPTV catalog from server.</div>';
+          }
+        } catch (e) {
+          grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#f85149; padding:40px 0;">Error connecting to IPTV: ' + escapeHtml(String(e)) + '</div>';
+        } finally {
+          iptvFetchPromise = null;
+        }
+      })();
+
+      return iptvFetchPromise;
     }
 
     function selectIptvCategory(cat) {
@@ -2070,93 +2248,105 @@ class WebUI {
       document.querySelectorAll('[id^="iptv-cat-"]').forEach(btn => {
         btn.classList.toggle('active', btn.id === 'iptv-cat-' + cat.toLowerCase());
       });
-      displayedIptvCount = 30;
+      displayedIptvCount = 48;
       renderIptvGrid();
     }
 
     function filterIptvChannels() {
-      displayedIptvCount = 30;
+      displayedIptvCount = 48;
       renderIptvGrid();
     }
 
     function renderIptvGrid() {
       const grid = document.getElementById('iptvGrid');
       const query = (document.getElementById('iptvSearchInput').value || '').toLowerCase().trim();
-      const country = document.getElementById('iptvCountryFilter').value;
+      const country = (document.getElementById('iptvCountryFilter').value || 'All').toUpperCase();
 
-      const filtered = allIptvChannels.filter(ch => {
-        if (query && !ch.name.toLowerCase().includes(query) && !(ch.description || '').toLowerCase().includes(query)) return false;
-        if (country !== 'All' && !(ch.description || '').includes(country)) return false;
-        if (selectedIptvCategory !== 'All' && !(ch.genres || []).includes(selectedIptvCategory)) return false;
+      _currentFilteredIptv = allIptvChannels.filter(ch => {
+        if (country !== 'ALL' && (ch.country || '').toUpperCase() !== country) return false;
+        if (selectedIptvCategory !== 'All' && !(ch.category || '').toLowerCase().includes(selectedIptvCategory.toLowerCase())) return false;
+        if (query) {
+          const matchName = (ch.name || '').toLowerCase().includes(query);
+          const matchCat = (ch.category || '').toLowerCase().includes(query);
+          const matchCtry = (ch.country || '').toLowerCase().includes(query);
+          if (!matchName && !matchCat && !matchCtry) return false;
+        }
         return true;
       });
 
-      if (filtered.length === 0) {
-        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px 0; color:var(--text-muted);">No channels matching filters.</div>';
+      if (_currentFilteredIptv.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text-muted);">' +
+          '<div style="font-size:2.5rem; margin-bottom:10px;">📡</div>' +
+          '<strong style="font-size:1.1rem; color:var(--text);">No Broadcast Channels Found</strong>' +
+          '<p style="font-size:0.85rem; margin-top:6px;">Try adjusting your search query, country dropdown, or category filters.</p>' +
+          '</div>';
         document.getElementById('btnIptvLoadMore').style.display = 'none';
         return;
       }
 
-      const visible = filtered.slice(0, displayedIptvCount);
-      grid.innerHTML = visible.map(ch => {
-        const logo = ch.poster || '';
-        const id = encodeURIComponent(ch.id);
-        const name = encodeURIComponent(ch.name);
-        return `
-          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
-            <div style="display:flex; align-items:center; gap:10px;">
-              \${logo ? `<img src="\${logo}" style="width:40px; height:40px; object-fit:contain; border-radius:6px; background:#161b22;" onerror="this.style.display='none'">` : `<div style="width:40px; height:40px; border-radius:6px; background:#161b22; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">📺</div>`}
-              <div style="overflow:hidden;">
-                <div style="font-weight:700; font-size:0.9rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${ch.name}</div>
-                <div style="font-size:0.75rem; color:var(--text-muted);">\${(ch.genres || []).join(' • ') || 'Live TV'}</div>
-              </div>
-            </div>
-            <div style="display:flex; gap:6px;">
-              <button class="btn btn-sm btn-primary" style="flex:1; justify-content:center; padding:6px 8px; font-size:0.78rem;" onclick="playIptvChannel('\${id}', '\${name}')">▶ Play</button>
-              <button class="btn btn-sm btn-open-with" style="padding:6px 8px; font-size:0.78rem;" onclick="openWithIptvChannel('\${id}', '\${name}')">🚀 With...</button>
-            </div>
-          </div>
-        `;
-      }).join('');
+      const visible = _currentFilteredIptv.slice(0, displayedIptvCount);
+      let html = '';
 
-      document.getElementById('btnIptvLoadMore').style.display = (filtered.length > displayedIptvCount) ? 'inline-block' : 'none';
+      visible.forEach((ch, idx) => {
+        const logo = ch.logo || '';
+        const name = ch.name || 'Live Channel';
+        const cat = ch.category || 'General';
+        const ctry = ch.country || 'Global';
+        const flag = ctry === 'IN' ? '🇮🇳' : ctry === 'US' ? '🇺🇸' : ctry === 'UK' ? '🇬🇧' : ctry === 'CA' ? '🇨🇦' : ctry === 'DE' ? '🇩🇪' : ctry === 'FR' ? '🇫🇷' : ctry === 'JP' ? '🇯🇵' : ctry === 'AU' ? '🇦🇺' : ctry === 'IT' ? '🇮🇹' : ctry === 'ES' ? '🇪🇸' : ctry === 'BR' ? '🇧🇷' : '🌐';
+
+        html += '<div style="background:#0d1117; border:1px solid var(--border); border-radius:12px; padding:14px; display:flex; flex-direction:column; justify-content:space-between; gap:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); transition:transform 0.15s ease, border-color 0.15s ease;" onmouseenter="this.style.borderColor=&apos;#38bdf8&apos;" onmouseleave="this.style.borderColor=&apos;var(--border)&apos;">' +
+          // Header with Prominent 72x72px Logo
+          '<div style="display:flex; align-items:center; gap:14px;">' +
+            '<div style="width:72px; height:72px; min-width:72px; min-height:72px; border-radius:10px; background:#161b22; border:1px solid #30363d; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:6px; box-sizing:border-box;">' +
+              (logo ? '<img src="' + escapeHtml(logo) + '" alt="' + escapeHtml(name) + '" style="width:100%; height:100%; object-fit:contain;" onerror="this.onerror=null; this.parentElement.innerHTML=&apos;📺&apos;; this.parentElement.style.fontSize=&apos;2rem&apos;;">' : '<span style="font-size:2rem;">📺</span>') +
+            '</div>' +
+            '<div style="overflow:hidden; flex:1; min-width:0;">' +
+              '<div style="font-weight:700; font-size:0.95rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>' +
+              '<div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">' +
+                '<span class="badge" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.3); font-size:0.7rem; padding:1px 6px;">' + flag + ' ' + escapeHtml(ctry) + '</span>' +
+                '<span class="badge" style="background:#161b22; color:var(--text-muted); font-size:0.7rem; padding:1px 6px;">' + escapeHtml(cat) + '</span>' +
+              '</div>' +
+              '<div style="display:flex; align-items:center; gap:5px; margin-top:5px; font-size:0.72rem; color:#3fb950; font-weight:600;">' +
+                '<span style="display:inline-block; width:6px; height:6px; background:#3fb950; border-radius:50%; box-shadow:0 0 6px #3fb950;"></span> LIVE STREAM' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          // Action Buttons
+          '<div style="display:flex; gap:6px; margin-top:auto;">' +
+            '<button class="btn btn-sm btn-primary" style="flex:1; justify-content:center; padding:7px 10px; font-size:0.8rem; font-weight:600;" onclick="playIptvIndex(' + idx + ')">▶ Play</button>' +
+            '<button class="btn btn-sm btn-open-with" style="padding:7px 10px; font-size:0.8rem;" onclick="openWithIptvIndex(' + idx + ')">🚀 With...</button>' +
+            '<button class="btn btn-sm" style="padding:7px 10px; font-size:0.8rem; background:#161b22; color:var(--text-muted);" onclick="copyIptvUrl(' + idx + ')" title="Copy Direct Stream URL">📋</button>' +
+          '</div>' +
+        '</div>';
+      });
+
+      grid.innerHTML = html;
+      document.getElementById('btnIptvLoadMore').style.display = (_currentFilteredIptv.length > displayedIptvCount) ? 'inline-block' : 'none';
     }
 
     function loadMoreIptv() {
-      displayedIptvCount += 30;
+      displayedIptvCount += 48;
       renderIptvGrid();
     }
 
-    async function playIptvChannel(channelId, channelName) {
-      try {
-        const res = await fetch('/stream/tv/' + channelId + '.json');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.streams && data.streams.length > 0) {
-            playStream(data.streams[0].url, decodeURIComponent(channelName));
-          } else {
-            alert('Channel stream temporarily offline.');
-          }
-        }
-      } catch (e) {
-        alert('Error loading channel stream: ' + e);
-      }
+    function playIptvIndex(idx) {
+      const ch = (_currentFilteredIptv || [])[idx];
+      if (!ch || !ch.url) return;
+      playStream(ch.url, ch.name);
     }
 
-    async function openWithIptvChannel(channelId, channelName) {
-      try {
-        const res = await fetch('/stream/tv/' + channelId + '.json');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.streams && data.streams.length > 0) {
-            openWithModal(data.streams[0].url, decodeURIComponent(channelName));
-          } else {
-            alert('Channel stream temporarily offline.');
-          }
-        }
-      } catch (e) {
-        alert('Error loading channel stream: ' + e);
-      }
+    function openWithIptvIndex(idx) {
+      const ch = (_currentFilteredIptv || [])[idx];
+      if (!ch || !ch.url) return;
+      openWithModal(ch.url, ch.name);
+    }
+
+    function copyIptvUrl(idx) {
+      const ch = (_currentFilteredIptv || [])[idx];
+      if (!ch || !ch.url) return;
+      navigator.clipboard.writeText(ch.url).then(() => {
+        showToast('📋 Stream URL for "' + ch.name + '" copied to clipboard!');
+      });
     }
 
     // ════════════════════════════════════════════════════════════
@@ -2164,6 +2354,7 @@ class WebUI {
     // ════════════════════════════════════════════════════════════
     let queuePollTimer = null;
     let isQueuePollingActive = true;
+    let cacheQueueFilter = 'hostreamio'; // 'hostreamio' or 'all'
 
     function startQueueBackgroundPolling() {
       loadCacheQueue(false);
@@ -2180,12 +2371,57 @@ class WebUI {
       if (enabled) loadCacheQueue(false);
     }
 
+    function setCacheQueueFilter(filter) {
+      cacheQueueFilter = filter;
+      const btnHostreamio = document.getElementById('btnFilterHostreamio');
+      const btnAll = document.getElementById('btnFilterAll');
+      const label = document.getElementById('queueCurrentFilterLabel');
+
+      if (filter === 'hostreamio') {
+        if (btnHostreamio) {
+          btnHostreamio.className = 'btn btn-sm btn-primary';
+          btnHostreamio.style.background = '';
+          btnHostreamio.style.color = '';
+        }
+        if (btnAll) {
+          btnAll.className = 'btn btn-sm';
+          btnAll.style.background = 'transparent';
+          btnAll.style.border = 'none';
+          btnAll.style.color = 'var(--text-muted)';
+        }
+        if (label) label.textContent = 'Hostreamio Initiated';
+      } else {
+        if (btnHostreamio) {
+          btnHostreamio.className = 'btn btn-sm';
+          btnHostreamio.style.background = 'transparent';
+          btnHostreamio.style.border = 'none';
+          btnHostreamio.style.color = 'var(--text-muted)';
+        }
+        if (btnAll) {
+          btnAll.className = 'btn btn-sm btn-primary';
+          btnAll.style.background = '';
+          btnAll.style.color = '';
+        }
+        if (label) label.textContent = 'All TorBox Cloud';
+      }
+      loadCacheQueue(false);
+    }
+
     async function loadCacheQueue(showToastNotice = false) {
       try {
-        const res = await fetch('/api/torbox/queue');
+        const res = await fetch('/api/torbox/queue?filter=' + cacheQueueFilter);
         if (!res.ok) return;
         const data = await res.json();
         const items = data.items || [];
+
+        // Update counts
+        const hostreamioCount = data.hostreamioCount != null ? data.hostreamioCount : items.length;
+        const totalCount = data.totalCount != null ? data.totalCount : items.length;
+
+        const elH = document.getElementById('queueHostreamioCount');
+        const elA = document.getElementById('queueAllCount');
+        if (elH) elH.textContent = hostreamioCount;
+        if (elA) elA.textContent = totalCount;
 
         // Update badges
         const badge = document.getElementById('sidebarQueueBadge');
@@ -2193,8 +2429,8 @@ class WebUI {
         const activeCount = items.filter(it => it.status === 'caching' || it.status === 'queued').length;
 
         if (badge) {
-          badge.textContent = items.length;
-          badge.style.display = items.length > 0 ? 'inline-block' : 'none';
+          badge.textContent = hostreamioCount;
+          badge.style.display = hostreamioCount > 0 ? 'inline-block' : 'none';
         }
         if (countBadge) {
           countBadge.textContent = items.length + ' Item' + (items.length === 1 ? '' : 's') + (activeCount > 0 ? ' (' + activeCount + ' Caching)' : '');
@@ -2222,11 +2458,12 @@ class WebUI {
       }
 
       if (!items || items.length === 0) {
+        const isHFilter = cacheQueueFilter === 'hostreamio';
         container.innerHTML = '<div style="text-align:center; padding:40px 20px; color:var(--text-muted);">' +
           '<div style="font-size:2.5rem; margin-bottom:10px;">⚡</div>' +
-          '<strong style="color:var(--text); font-size:1.05rem;">Cache Queue is Empty</strong>' +
+          '<strong style="color:var(--text); font-size:1.05rem;">' + (isHFilter ? 'No Hostreamio Caches Active' : 'Cache Queue is Empty') + '</strong>' +
           '<p style="font-size:0.85rem; max-width:480px; margin:8px auto 0 auto; line-height:1.5;">' +
-          'When you click <strong>"Cache to TorBox"</strong> on an uncached stream, or attempt to stream an uncached link, it will appear here with live progress, speed, ETA, and 1-tap playback controls.' +
+          (isHFilter ? 'When you stream uncached links or click "Cache to TorBox" in Hostreamio, they will track here. Switch to <strong>"All TorBox Cloud"</strong> to see downloads started elsewhere.' : 'When you start caching a torrent or web stream, it will appear here with live progress, speed, ETA, and 1-tap playback controls.') +
           '</p>' +
           '</div>';
         return;
@@ -2237,7 +2474,6 @@ class WebUI {
       items.forEach((it, idx) => {
         const isDone = it.status === 'completed';
         const isFailed = it.status === 'failed';
-        const isCaching = it.status === 'caching';
         const pct = it.progressPercent || Math.round((it.progress || 0) * 100);
 
         let badgeBg = 'rgba(88, 166, 255, 0.15)';
@@ -2263,35 +2499,50 @@ class WebUI {
         }
 
         const playUrl = it.rawUrl ? ('/torbox/play?url=' + encodeURIComponent(it.rawUrl)) : '';
+        const poster = it.poster || '';
+        const cleanTitle = it.cleanTitle || it.movieTitle || it.name;
+        const showRawName = cleanTitle !== it.name && it.name.length > 0;
+        const badges = (it.qualityBadges || []).map(b => '<span class="badge" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8; font-size:0.7rem; padding:1px 6px;">' + escapeHtml(b) + '</span>').join('');
 
-        html += '<div style="background:#0d1117; border:1px solid ' + (isDone ? '#238636' : '#21262d') + '; border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:10px;">' +
-          '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">' +
-            '<div style="flex:1; min-width:200px;">' +
-              '<div style="font-weight:700; font-size:0.95rem; color:var(--text); word-break:break-all;">' + escapeHtml(it.name) + '</div>' +
-              '<div style="display:flex; gap:10px; align-items:center; margin-top:4px; font-size:0.75rem; color:var(--text-muted);">' +
-                '<span>📦 ' + escapeHtml(it.size || '--') + '</span>' +
-                '<span>⚡ ' + escapeHtml(it.speed || '--') + '</span>' +
-                '<span>⏱️ ' + escapeHtml(it.eta || '--') + '</span>' +
-                '<span class="badge" style="background:#161b22; color:var(--text-muted); padding:1px 6px; font-size:0.7rem;">' + (it.type === 'torrent' ? 'Torrent' : 'WebDL') + '</span>' +
+        html += '<div style="background:#0d1117; border:1px solid ' + (isDone ? '#238636' : '#21262d') + '; border-radius:12px; padding:14px 16px; display:flex; gap:16px; align-items:flex-start; box-shadow:0 4px 16px rgba(0,0,0,0.25);">' +
+          // Vertical Poster Thumbnail
+          '<div style="width:52px; height:74px; min-width:52px; min-height:74px; border-radius:8px; background:#161b22; border:1px solid #30363d; overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0;">' +
+            (poster ? '<img src="' + escapeHtml(poster) + '" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.parentElement.innerHTML=&apos;🎬&apos;;">' : '<span style="font-size:1.6rem;">🎬</span>') +
+          '</div>' +
+
+          // Main Information
+          '<div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:8px;">' +
+            '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">' +
+              '<div style="flex:1; min-width:180px;">' +
+                '<div style="font-weight:700; font-size:1.02rem; color:#fff; line-height:1.3;">' + escapeHtml(cleanTitle) + '</div>' +
+                (showRawName ? ('<div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace; margin-top:2px; word-break:break-all;">📁 ' + escapeHtml(it.name) + '</div>') : '') +
+                '<div style="display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap;">' +
+                  badges +
+                  '<span class="badge" style="background:#161b22; color:var(--text-muted); padding:1px 6px; font-size:0.7rem;">' + (it.type === 'torrent' ? 'Torrent' : 'WebDL') + '</span>' +
+                  (it.isHostreamio ? '<span class="badge" style="background:rgba(255, 12, 130, 0.15); color:#ff0c82; padding:1px 6px; font-size:0.7rem;">⚡ Hostreamio</span>' : '') +
+                  '<span style="font-size:0.75rem; color:var(--text-muted);">📦 ' + escapeHtml(it.size || '--') + '</span>' +
+                  '<span style="font-size:0.75rem; color:var(--text-muted);">⚡ ' + escapeHtml(it.speed || '--') + '</span>' +
+                  '<span style="font-size:0.75rem; color:var(--text-muted);">⏱️ ' + escapeHtml(it.eta || '--') + '</span>' +
+                '</div>' +
               '</div>' +
+              '<span class="badge" style="background:' + badgeBg + '; color:' + badgeColor + '; border:1px solid ' + badgeBorder + '; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">' + badgeText + '</span>' +
             '</div>' +
-            '<span class="badge" style="background:' + badgeBg + '; color:' + badgeColor + '; border:1px solid ' + badgeBorder + '; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">' + badgeText + '</span>' +
-          '</div>' +
 
-          // Progress Bar
-          '<div style="background:#161b22; border-radius:6px; height:8px; width:100%; overflow:hidden; position:relative;">' +
-            '<div style="background:' + (isDone ? '#3fb950' : 'linear-gradient(90deg, #195feb, #ff0c82)') + '; height:100%; width:' + pct + '%; transition:width 0.4s ease;"></div>' +
-          '</div>' +
+            // Progress Bar
+            '<div style="background:#161b22; border-radius:6px; height:7px; width:100%; overflow:hidden; margin-top:2px;">' +
+              '<div style="background:' + (isDone ? '#3fb950' : 'linear-gradient(90deg, #195feb, #ff0c82)') + '; height:100%; width:' + pct + '%; transition:width 0.4s ease;"></div>' +
+            '</div>' +
 
-          // Actions Row
-          '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:2px;">' +
-            '<div style="font-size:0.75rem; color:var(--text-muted);">' + (isDone ? '✨ Stream ready at unlimited speed on TorBox CDN' : 'Downloading to cloud storage…') + '</div>' +
-            '<div style="display:flex; gap:8px;">' +
-              (isDone && playUrl ? (
-                '<button class="btn btn-sm btn-success" onclick="playQueueIndex(' + idx + ')">▶ Stream</button>' +
-                '<button class="btn btn-sm" onclick="openWithQueueIndex(' + idx + ')">🚀 Play With</button>'
-              ) : '') +
-              '<button class="btn btn-sm btn-danger" onclick="deleteQueueIndex(' + idx + ')" title="Remove from queue">🗑️</button>' +
+            // Actions Row
+            '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:4px;">' +
+              '<div style="font-size:0.75rem; color:var(--text-muted);">' + (isDone ? '✨ Stream ready at unlimited speed on TorBox CDN' : 'Downloading to cloud CDN…') + '</div>' +
+              '<div style="display:flex; gap:8px;">' +
+                (isDone && playUrl ? (
+                  '<button class="btn btn-sm btn-success" style="padding:6px 12px; font-size:0.8rem; font-weight:600;" onclick="playQueueIndex(' + idx + ')">▶ Stream</button>' +
+                  '<button class="btn btn-sm" style="padding:6px 12px; font-size:0.8rem;" onclick="openWithQueueIndex(' + idx + ')">🚀 Play With</button>'
+                ) : '') +
+                '<button class="btn btn-sm btn-danger" style="padding:6px 10px; font-size:0.8rem;" onclick="deleteQueueIndex(' + idx + ')" title="Remove from TorBox Cloud">🗑️</button>' +
+              '</div>' +
             '</div>' +
           '</div>' +
         '</div>';
@@ -2304,14 +2555,14 @@ class WebUI {
       const it = (window._cacheQueueItems || [])[idx];
       if (!it) return;
       const playUrl = it.rawUrl ? ('/torbox/play?url=' + encodeURIComponent(it.rawUrl)) : '';
-      if (playUrl) playStream(playUrl, it.name);
+      if (playUrl) playStream(playUrl, it.cleanTitle || it.name);
     }
 
     function openWithQueueIndex(idx) {
       const it = (window._cacheQueueItems || [])[idx];
       if (!it) return;
       const playUrl = it.rawUrl ? ('/torbox/play?url=' + encodeURIComponent(it.rawUrl)) : '';
-      if (playUrl) openWithModal(playUrl, it.name);
+      if (playUrl) openWithModal(playUrl, it.cleanTitle || it.name);
     }
 
     function deleteQueueIndex(idx) {
@@ -3347,42 +3598,7 @@ class WebUI {
       const s = currentStreams[idx];
       if (!s || !s.url) return;
       currentPlayingIndex = idx;
-
-      const modal = document.getElementById('playerModal');
-      const title = document.getElementById('playerStreamTitle');
-      const video = document.getElementById('previewVideoPlayer');
-
-      title.innerText = (s.mediaTitle ? s.mediaTitle + ' • ' : '') + s.name;
-      modal.style.display = 'flex';
-
-      if (currentHls) {
-        currentHls.destroy();
-        currentHls = null;
-      }
-
-      const streamUrl = s.url;
-      const isHls = streamUrl.includes('.m3u8') || streamUrl.includes('/proxy');
-
-      if (isHls && Hls.isSupported()) {
-        currentHls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-        });
-        currentHls.loadSource(streamUrl);
-        currentHls.attachMedia(video);
-        currentHls.on(Hls.Events.MANIFEST_PARSED, function() {
-          video.play().catch(() => {});
-        });
-        currentHls.on(Hls.Events.ERROR, function(event, data) {
-          if (data.fatal) {
-            video.src = streamUrl;
-            video.play().catch(() => {});
-          }
-        });
-      } else {
-        video.src = streamUrl;
-        video.play().catch(() => {});
-      }
+      playStream(s.url, (s.mediaTitle ? s.mediaTitle + ' • ' : '') + s.name);
     }
 
     function openWithFromPlayer() {
@@ -3403,102 +3619,7 @@ class WebUI {
       const s = currentStreams[idx];
       if (!s || !s.url) return;
       selectedStreamForOpenWith = s;
-
-      const modal = document.getElementById('openWithModal');
-      const title = document.getElementById('openWithStreamTitle');
-      const sub = document.getElementById('openWithStreamSub');
-      const urlPreview = document.getElementById('openWithUrlPreview');
-
-      title.innerText = '🚀 Open With: ' + s.name;
-      sub.innerText = (s.mediaTitle ? s.mediaTitle + ' • ' : '') + s.title.replace(/\\n/g, ' • ');
-      urlPreview.innerText = s.url;
-
-      const streamUrl = s.url;
-      const cleanName = (s.mediaTitle || 'Hostreamio') + ' - ' + s.name;
-
-      // VLC (1-Click Desktop Launcher)
-      const vlcBtn = document.getElementById('openWithVlc');
-      vlcBtn.onclick = async (e) => {
-        e.preventDefault();
-        showToast('🚀 Launching VLC Media Player on Desktop...');
-        try {
-          const res = await fetch('/api/player/launch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ player: 'vlc', url: streamUrl })
-          });
-          const json = await res.json();
-          if (json.success) {
-            showToast('✅ ' + json.message);
-            closeOpenWithModal();
-            return;
-          }
-        } catch (_) {}
-        // Fallback for non-Windows devices or custom URI protocols
-        window.location.href = 'vlc://' + streamUrl;
-      };
-
-      // PotPlayer (1-Click Desktop Launcher)
-      const potBtn = document.getElementById('openWithPotPlayer');
-      potBtn.onclick = async (e) => {
-        e.preventDefault();
-        showToast('🚀 Launching PotPlayer on Desktop...');
-        try {
-          const res = await fetch('/api/player/launch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ player: 'potplayer', url: streamUrl })
-          });
-          const json = await res.json();
-          if (json.success) {
-            showToast('✅ ' + json.message);
-            closeOpenWithModal();
-            return;
-          }
-        } catch (_) {}
-        window.location.href = 'potplayer://' + streamUrl;
-      };
-
-      // MPV (1-Click Desktop Launcher)
-      const mpvBtn = document.getElementById('openWithMpv');
-      mpvBtn.onclick = async (e) => {
-        e.preventDefault();
-        showToast('🚀 Launching MPV Player on Desktop...');
-        try {
-          const res = await fetch('/api/player/launch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ player: 'mpv', url: streamUrl })
-          });
-          const json = await res.json();
-          if (json.success) {
-            showToast('✅ ' + json.message);
-            closeOpenWithModal();
-            return;
-          }
-        } catch (_) {}
-        navigator.clipboard.writeText('mpv "' + streamUrl + '"');
-        showToast('📋 MPV command copied! Also launching mpv://...');
-        window.location.href = 'mpv://' + streamUrl;
-      };
-
-      // IINA
-      const iinaBtn = document.getElementById('openWithIina');
-      iinaBtn.onclick = (e) => {
-        e.preventDefault();
-        window.location.href = 'iina://weblink?url=' + encodeURIComponent(streamUrl);
-        showToast('🚀 Launching IINA...');
-      };
-
-      // Mobile
-      const mobileBtn = document.getElementById('openWithMobile');
-      mobileBtn.onclick = (e) => {
-        e.preventDefault();
-        window.location.href = 'intent:' + streamUrl + '#Intent;type=video/*;scheme=https;end';
-        showToast('🚀 Launching Android Video Player...');
-      };
-
-      modal.style.display = 'flex';
+      openWithModal(s.url, (s.mediaTitle ? s.mediaTitle + ' • ' : '') + s.name);
     }
 
     function closeOpenWithModal(e) {
