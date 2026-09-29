@@ -126,11 +126,11 @@ class WebUI {
       flex-direction: column;
     }
     .sidebar-brand-title {
-      font-size: 1.15rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #fff 0%, #ff0c82 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      font-size: 1.18rem;
+      font-weight: 900;
+      color: #FF0C82;
+      letter-spacing: -0.3px;
+      text-shadow: 0 0 12px rgba(255, 12, 130, 0.45);
     }
     .sidebar-brand-sub {
       font-size: 0.72rem;
@@ -294,12 +294,11 @@ class WebUI {
     }
     h1 {
       font-size: 2.2rem;
-      background: var(--accent-grad);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: #FF0C82;
       margin-bottom: 6px;
       font-weight: 900;
       letter-spacing: -0.5px;
+      text-shadow: 0 0 16px rgba(255, 12, 130, 0.4);
     }
     p.subtitle { color: var(--text-muted); font-size: 1.02rem; }
 
@@ -1149,6 +1148,11 @@ class WebUI {
           <span class="nav-icon">📺</span>
           <span>Live IPTV</span>
         </button>
+        <button id="tabBtnCaching" class="sidebar-nav-btn" onclick="switchMainTab('caching')">
+          <span class="nav-icon">⚡</span>
+          <span>Caching Queue</span>
+          <span id="sidebarQueueBadge" class="badge" style="display:none; background:#ff0c82; color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:10px; margin-left:auto; font-weight:bold;">0</span>
+        </button>
         <button id="tabBtnAbout" class="sidebar-nav-btn" onclick="switchMainTab('about')">
           <span class="nav-icon">ℹ️</span>
           <span>About &amp; Diagnostics</span>
@@ -1302,7 +1306,9 @@ class WebUI {
             <button class="btn" id="btnRefreshHosters" onclick="loadTorboxHosters()">🔄 Refresh Hosters</button>
           </div>
         </div>
-        <div id="hostersGrid" class="grid" style="max-height:240px;">
+        <div id="hostersGrid" class="grid" style="max-height:240px;"></div>
+      </div>
+
       <div style="margin-top:14px; padding:12px 14px; background:#090d13; border:1px solid rgba(255, 12, 130, 0.35); border-radius:8px;">
         <label style="display:flex; align-items:flex-start; gap:12px; cursor:pointer;">
           <input type="checkbox" id="enableTorboxCachedTorrents" style="margin-top:4px;" $enableTorboxCachedTorrentsChecked onchange="saveTorboxCachedToggle(this.checked)">
@@ -1787,7 +1793,48 @@ class WebUI {
     </div>
   </div> <!-- End of tabContentIptv -->
 
-  <!-- TAB 4: ABOUT & SYSTEM DIAGNOSTICS -->
+  <!-- TAB 4: TORBOX CLOUD CACHING QUEUE -->
+  <div id="tabContentCaching" style="display:none;">
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0; display:flex; align-items:center; gap:8px;">
+            <span>⚡ TorBox Cloud Caching Queue</span>
+            <span id="queueItemsCountBadge" class="badge" style="background:rgba(255, 12, 130, 0.15); color:#ff0c82; border:1px solid rgba(255, 12, 130, 0.3); font-size:0.8rem; padding:3px 8px;">0 Downloads</span>
+          </h2>
+          <p style="margin:4px 0 0 0; font-size:0.85rem; color:var(--text-muted);">
+            Real-time status of hoster streams &amp; torrents currently downloading to high-speed cloud CDN. Stream instantly once completed.
+          </p>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; color:var(--text); cursor:pointer;">
+            <input type="checkbox" id="queueAutoPoll" checked onchange="toggleQueueAutoPoll(this.checked)">
+            <span>Live Polling (3s)</span>
+          </label>
+          <button class="btn btn-sm" onclick="loadCacheQueue(true)" title="Force Refresh Queue">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <!-- Quick Upload Input inside Caching Tab -->
+      <div class="url-box" style="margin-bottom:16px;">
+        <input class="url-input" id="cachingTabUploadUrl" placeholder="Paste any stream or cloud link (HubCloud, PixelDrain, GoFile, etc.) to start caching...">
+        <button class="btn btn-success" onclick="uploadLinkFromCachingTab()">☁️⬆️ Start Caching</button>
+      </div>
+
+      <!-- Queue Items Container -->
+      <div id="cacheQueueContainer" style="display:flex; flex-direction:column; gap:12px; min-height:160px;">
+        <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
+          <div style="font-size:2.5rem; margin-bottom:10px;">⚡</div>
+          <strong style="color:var(--text); font-size:1.05rem;">Cache Queue is Empty</strong>
+          <p style="font-size:0.85rem; max-width:480px; margin:8px auto 0 auto; line-height:1.5;">
+            When you click <strong>"Cache to TorBox"</strong> on an uncached stream, or attempt to stream an uncached link, it will appear here with live progress, speed, ETA, and 1-tap playback controls.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div> <!-- End of tabContentCaching -->
+
+  <!-- TAB 5: ABOUT & SYSTEM DIAGNOSTICS -->
   <div id="tabContentAbout" style="display:none;">
     <header>
       <div class="brand-logo-wrap">
@@ -1953,7 +2000,7 @@ class WebUI {
     let currentHls = null;
 
     function switchMainTab(tab) {
-      const tabs = ['server', 'streaming', 'iptv', 'about'];
+      const tabs = ['server', 'streaming', 'iptv', 'caching', 'about'];
       tabs.forEach(t => {
         const content = document.getElementById('tabContent' + t.charAt(0).toUpperCase() + t.slice(1));
         const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -1970,6 +2017,8 @@ class WebUI {
         }
       } else if (tab === 'iptv') {
         loadIptvChannels();
+      } else if (tab === 'caching') {
+        loadCacheQueue(true);
       }
     }
 
@@ -1977,13 +2026,16 @@ class WebUI {
     window.addEventListener('DOMContentLoaded', () => {
       const hash = window.location.hash.replace('#', '');
       const savedTab = localStorage.getItem('hostreamio_active_tab');
-      if (hash && ['server', 'streaming', 'iptv', 'about'].includes(hash)) {
+      if (hash && ['server', 'streaming', 'iptv', 'caching', 'about'].includes(hash)) {
         switchMainTab(hash);
-      } else if (savedTab && ['server', 'streaming', 'iptv', 'about'].includes(savedTab)) {
+      } else if (savedTab && ['server', 'streaming', 'iptv', 'caching', 'about'].includes(savedTab)) {
         switchMainTab(savedTab);
       } else {
         switchMainTab('server');
       }
+
+      // Start background polling for caching queue badge & queue status
+      startQueueBackgroundPolling();
     });
 
     // ════════════════════════════════════════════════════════════
@@ -2104,6 +2156,189 @@ class WebUI {
         }
       } catch (e) {
         alert('Error loading channel stream: ' + e);
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LIVE TORBOX CLOUD CACHING QUEUE
+    // ════════════════════════════════════════════════════════════
+    let queuePollTimer = null;
+    let isQueuePollingActive = true;
+
+    function startQueueBackgroundPolling() {
+      loadCacheQueue(false);
+      if (queuePollTimer) clearInterval(queuePollTimer);
+      queuePollTimer = setInterval(() => {
+        if (isQueuePollingActive) {
+          loadCacheQueue(false);
+        }
+      }, 3500);
+    }
+
+    function toggleQueueAutoPoll(enabled) {
+      isQueuePollingActive = !!enabled;
+      if (enabled) loadCacheQueue(false);
+    }
+
+    async function loadCacheQueue(showToastNotice = false) {
+      try {
+        const res = await fetch('/api/torbox/queue');
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = data.items || [];
+
+        // Update badges
+        const badge = document.getElementById('sidebarQueueBadge');
+        const countBadge = document.getElementById('queueItemsCountBadge');
+        const activeCount = items.filter(it => it.status === 'caching' || it.status === 'queued').length;
+
+        if (badge) {
+          badge.textContent = items.length;
+          badge.style.display = items.length > 0 ? 'inline-block' : 'none';
+        }
+        if (countBadge) {
+          countBadge.textContent = items.length + ' Item' + (items.length === 1 ? '' : 's') + (activeCount > 0 ? ' (' + activeCount + ' Caching)' : '');
+        }
+
+        renderCacheQueue(items, data.hasKey);
+        if (showToastNotice) showToast('Caching queue refreshed');
+      } catch (err) {
+        console.error('Error fetching cache queue:', err);
+      }
+    }
+
+    function renderCacheQueue(items, hasKey) {
+      const container = document.getElementById('cacheQueueContainer');
+      if (!container) return;
+
+      if (!hasKey) {
+        container.innerHTML = '<div style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:24px; text-align:center;">' +
+          '<div style="font-size:2rem; margin-bottom:8px;">🔑</div>' +
+          '<strong style="color:var(--text); font-size:1rem;">TorBox API Key Not Configured</strong>' +
+          '<p style="color:var(--text-muted); font-size:0.85rem; margin:8px 0 16px 0;">Configure your TorBox API key in Server &amp; Addon tab to activate cloud caching &amp; instant CDN streaming.</p>' +
+          '<button class="btn btn-primary btn-sm" onclick="switchMainTab(\'server\')">⚙️ Configure TorBox</button>' +
+          '</div>';
+        return;
+      }
+
+      if (!items || items.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:40px 20px; color:var(--text-muted);">' +
+          '<div style="font-size:2.5rem; margin-bottom:10px;">⚡</div>' +
+          '<strong style="color:var(--text); font-size:1.05rem;">Cache Queue is Empty</strong>' +
+          '<p style="font-size:0.85rem; max-width:480px; margin:8px auto 0 auto; line-height:1.5;">' +
+          'When you click <strong>"Cache to TorBox"</strong> on an uncached stream, or attempt to stream an uncached link, it will appear here with live progress, speed, ETA, and 1-tap playback controls.' +
+          '</p>' +
+          '</div>';
+        return;
+      }
+
+      let html = '';
+      items.forEach(it => {
+        const isDone = it.status === 'completed';
+        const isFailed = it.status === 'failed';
+        const isCaching = it.status === 'caching';
+        const pct = it.progressPercent || Math.round((it.progress || 0) * 100);
+
+        let badgeBg = 'rgba(88, 166, 255, 0.15)';
+        let badgeColor = '#58a6ff';
+        let badgeBorder = 'rgba(88, 166, 255, 0.3)';
+        let badgeText = '⚡ CACHING (' + pct + '%)';
+
+        if (isDone) {
+          badgeBg = 'rgba(63, 185, 80, 0.15)';
+          badgeColor = '#3fb950';
+          badgeBorder = 'rgba(63, 185, 80, 0.3)';
+          badgeText = '✅ READY TO STREAM';
+        } else if (isFailed) {
+          badgeBg = 'rgba(248, 81, 73, 0.15)';
+          badgeColor = '#f85149';
+          badgeBorder = 'rgba(248, 81, 73, 0.3)';
+          badgeText = '❌ FAILED';
+        } else if (it.status === 'queued') {
+          badgeBg = 'rgba(227, 179, 65, 0.15)';
+          badgeColor = '#e3b341';
+          badgeBorder = 'rgba(227, 179, 65, 0.3)';
+          badgeText = '⏳ QUEUED';
+        }
+
+        const playUrl = it.rawUrl ? ('/torbox/play?url=' + encodeURIComponent(it.rawUrl)) : '';
+
+        html += '<div style="background:#0d1117; border:1px solid ' + (isDone ? '#238636' : '#21262d') + '; border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:10px;">' +
+          '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">' +
+            '<div style="flex:1; min-width:200px;">' +
+              '<div style="font-weight:700; font-size:0.95rem; color:var(--text); word-break:break-all;">' + escapeHtml(it.name) + '</div>' +
+              '<div style="display:flex; gap:10px; align-items:center; margin-top:4px; font-size:0.75rem; color:var(--text-muted);">' +
+                '<span>📦 ' + escapeHtml(it.size || '--') + '</span>' +
+                '<span>⚡ ' + escapeHtml(it.speed || '--') + '</span>' +
+                '<span>⏱️ ' + escapeHtml(it.eta || '--') + '</span>' +
+                '<span class="badge" style="background:#161b22; color:var(--text-muted); padding:1px 6px; font-size:0.7rem;">' + (it.type === 'torrent' ? 'Torrent' : 'WebDL') + '</span>' +
+              '</div>' +
+            '</div>' +
+            '<span class="badge" style="background:' + badgeBg + '; color:' + badgeColor + '; border:1px solid ' + badgeBorder + '; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">' + badgeText + '</span>' +
+          '</div>' +
+
+          // Progress Bar
+          '<div style="background:#161b22; border-radius:6px; height:8px; width:100%; overflow:hidden; position:relative;">' +
+            '<div style="background:' + (isDone ? '#3fb950' : 'linear-gradient(90deg, #195feb, #ff0c82)') + '; height:100%; width:' + pct + '%; transition:width 0.4s ease;"></div>' +
+          '</div>' +
+
+          // Actions Row
+          '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:2px;">' +
+            '<div style="font-size:0.75rem; color:var(--text-muted);">' + (isDone ? '✨ Stream ready at unlimited speed on TorBox CDN' : 'Downloading to cloud storage…') + '</div>' +
+            '<div style="display:flex; gap:8px;">' +
+              (isDone && playUrl ? (
+                '<button class="btn btn-sm btn-success" onclick="playStream(\'' + playUrl + '\', \'' + encodeURIComponent(it.name) + '\')">▶ Stream</button>' +
+                '<button class="btn btn-sm" onclick="openWithModal(\'' + playUrl + '\', \'' + encodeURIComponent(it.name) + '\')">🚀 Play With</button>'
+              ) : '') +
+              '<button class="btn btn-sm btn-danger" onclick="deleteQueueDownload(\'' + it.id + '\', \'' + it.type + '\')" title="Remove from queue">🗑️</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      });
+
+      container.innerHTML = html;
+    }
+
+    async function deleteQueueDownload(id, type) {
+      if (!confirm('Remove this download from your TorBox cloud queue?')) return;
+      try {
+        const res = await fetch('/api/torbox/queue/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id, type: type })
+        });
+        if (res.ok) {
+          showToast('Item removed from queue');
+          loadCacheQueue(false);
+        }
+      } catch (e) {
+        alert('Failed to delete item: ' + e);
+      }
+    }
+
+    async function uploadLinkFromCachingTab() {
+      const input = document.getElementById('cachingTabUploadUrl');
+      const url = input ? input.value.trim() : '';
+      if (!url) {
+        alert('Please enter or paste a valid stream URL.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/torbox/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('☁️ Link queued to TorBox Caching!');
+          if (input) input.value = '';
+          loadCacheQueue(false);
+        } else {
+          alert('Upload failed: ' + (data.message || 'Could not queue link'));
+        }
+      } catch (e) {
+        alert('Error queuing link: ' + e);
       }
     }
 

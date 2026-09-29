@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'assets/caching_video.dart';
 
 /// TorboxService: Integrates TorBox API (v1) for cloud caching,
 /// live hosters list, cache checks, and debriding web/hoster links.
@@ -395,6 +397,230 @@ class TorboxService {
       lastDebridError = 'TorBox connection error: $e';
     }
     return null;
+  }
+
+  // Local map of active caching jobs initiated from Hostreamio
+  final Map<String, Map<String, dynamic>> _locallyInitiatedJobs = {};
+
+  /// Tracks a caching job initiated in Hostreamio
+  void trackCachingJob({
+    required String url,
+    String? name,
+    String? type,
+    dynamic id,
+    String? status,
+  }) {
+    final key = (id != null) ? id.toString() : url;
+    _locallyInitiatedJobs[key] = {
+      'id': id ?? key.hashCode.abs().toString(),
+      'name': name ?? _extractFileNameFromUrl(url),
+      'type': type ?? (url.startsWith('magnet:') ? 'torrent' : 'webdl'),
+      'status': status ?? 'caching',
+      'progress': 0.05,
+      'progressPercent': 5,
+      'speed': 'Connecting...',
+      'eta': 'Calculating...',
+      'size': 'Calculating...',
+      'rawUrl': url,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+  }
+
+  /// Returns the embedded/cached in-progress video notification MP4 bytes
+  Uint8List getCachingVideoBytes() {
+    return CachingVideoAsset.bytes;
+  }
+
+  static String _extractFileNameFromUrl(String url) {
+    if (url.startsWith('magnet:')) {
+      final dn = RegExp(r'dn=([^&]+)').firstMatch(url);
+      if (dn != null) return Uri.decodeComponent(dn.group(1)!);
+      return 'Torrent Download';
+    }
+    try {
+      final uri = Uri.parse(url);
+      final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+      if (segs.isNotEmpty) return Uri.decodeComponent(segs.last);
+    } catch (_) {}
+    return url.length > 45 ? url.substring(0, 45) + '...' : url;
+  }
+
+  static String _formatBytes(dynamic bytes) {
+    if (bytes == null) return '0 B';
+    final num b = (bytes is num) ? bytes : (num.tryParse(bytes.toString()) ?? 0);
+    if (b <= 0) return '0 B';
+    if (b < 1024) return '$b B';
+    if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(1)} KB';
+    if (b < 1024 * 1024 * 1024) return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(b / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  static String _formatSpeed(dynamic bytesPerSec) {
+    if (bytesPerSec == null) return '0 KB/s';
+    final num b = (bytesPerSec is num) ? bytesPerSec : (num.tryParse(bytesPerSec.toString()) ?? 0);
+    if (b <= 0) return '0 KB/s';
+    if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(1)} KB/s';
+    return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  }
+
+  static String _formatEta(dynamic etaSeconds) {
+    if (etaSeconds == null) return '--';
+    final num s = (etaSeconds is num) ? etaSeconds : (num.tryParse(etaSeconds.toString()) ?? 0);
+    if (s <= 0) return 'Ready';
+    if (s < 60) return '${s.round()}s';
+    if (s < 3600) return '${(s / 60).floor()}m ${(s % 60).round()}s';
+    return '${(s / 3600).floor()}h ${((s % 3600) / 60).floor()}m';
+  }
+
+  /// Retrieves the unified live TorBox caching queue (WebDL + Torrents)
+  Future<List<Map<String, dynamic>>> getLiveCacheQueue(String apiKey) async {
+    final cleanKey = apiKey.trim();
+    final items = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    if (cleanKey.isNotEmpty) {
+      // 1. Fetch Web Downloads
+      try {
+        final webdlUri = Uri.parse('$_apiBase/webdl/mylist?bypass_cache=true');
+        final res = await http.get(webdlUri, headers: _headers(cleanKey)).timeout(const Duration(seconds: 6));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data is Map && data['data'] is List) {
+            for (final d in data['data']) {
+              if (d is! Map) continue;
+              final id = d['id']?.toString() ?? '';
+              if (id.isEmpty) continue;
+              seenIds.add(id);
+
+              final rawState = (d['download_state'] ?? d['download_status'] ?? '').toString().toLowerCase();
+              final isFinished = d['download_finished'] == true || rawState == 'completed' || rawState == 'cached';
+              final isFailed = rawState.contains('fail') || rawState.contains('error');
+
+              String status = isFinished ? 'completed' : (isFailed ? 'failed' : 'caching');
+              double rawProgress = 0.0;
+              if (d['progress'] is num) {
+                final num p = d['progress'];
+                rawProgress = p > 1.0 ? p / 100.0 : p.toDouble();
+              }
+              if (isFinished) rawProgress = 1.0;
+
+              final name = d['name']?.toString() ?? d['url']?.toString() ?? 'Web Download';
+              final rawUrl = d['url']?.toString() ?? '';
+
+              items.add({
+                'id': id,
+                'name': name,
+                'type': 'webdl',
+                'status': status,
+                'progress': rawProgress.clamp(0.0, 1.0),
+                'progressPercent': (rawProgress * 100).round().clamp(0, 100),
+                'speed': _formatSpeed(d['download_speed']),
+                'eta': isFinished ? 'Ready' : _formatEta(d['eta']),
+                'size': _formatBytes(d['size']),
+                'rawUrl': rawUrl,
+                'createdAt': d['created_at']?.toString() ?? '',
+                'updatedAt': d['updated_at']?.toString() ?? '',
+              });
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 2. Fetch Torrents if any exist on the user's account
+      try {
+        final torrentUri = Uri.parse('$_apiBase/torrents/mylist?bypass_cache=true');
+        final res = await http.get(torrentUri, headers: _headers(cleanKey)).timeout(const Duration(seconds: 6));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data is Map && data['data'] is List) {
+            for (final d in data['data']) {
+              if (d is! Map) continue;
+              final id = d['id']?.toString() ?? '';
+              if (id.isEmpty) continue;
+              seenIds.add(id);
+
+              final rawState = (d['download_state'] ?? '').toString().toLowerCase();
+              final isFinished = d['download_finished'] == true || rawState == 'completed' || rawState == 'cached';
+              final isFailed = rawState.contains('fail') || rawState.contains('error');
+
+              String status = isFinished ? 'completed' : (isFailed ? 'failed' : 'caching');
+              double rawProgress = 0.0;
+              if (d['progress'] is num) {
+                final num p = d['progress'];
+                rawProgress = p > 1.0 ? p / 100.0 : p.toDouble();
+              }
+              if (isFinished) rawProgress = 1.0;
+
+              final name = d['name']?.toString() ?? 'Torrent Release';
+              final hash = d['hash']?.toString() ?? '';
+
+              items.add({
+                'id': id,
+                'name': name,
+                'type': 'torrent',
+                'status': status,
+                'progress': rawProgress.clamp(0.0, 1.0),
+                'progressPercent': (rawProgress * 100).round().clamp(0, 100),
+                'speed': _formatSpeed(d['download_speed']),
+                'eta': isFinished ? 'Ready' : _formatEta(d['eta']),
+                'size': _formatBytes(d['size']),
+                'hash': hash,
+                'rawUrl': hash.isNotEmpty ? 'magnet:?xt=urn:btih:$hash' : '',
+                'createdAt': d['created_at']?.toString() ?? '',
+                'updatedAt': d['updated_at']?.toString() ?? '',
+              });
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Merge locally initiated jobs that haven't shown up in TorBox API yet
+    for (final entry in _locallyInitiatedJobs.entries) {
+      final local = entry.value;
+      final localId = local['id']?.toString();
+      if (localId != null && !seenIds.contains(localId)) {
+        items.insert(0, Map<String, dynamic>.from(local));
+      }
+    }
+
+    return items;
+  }
+
+  /// Deletes a web download or torrent item from TorBox cloud
+  Future<bool> deleteQueueItem(String id, String type, String apiKey) async {
+    final cleanKey = apiKey.trim();
+    _locallyInitiatedJobs.remove(id);
+
+    if (cleanKey.isEmpty || id.isEmpty) return true;
+
+    try {
+      if (type == 'torrent') {
+        final uri = Uri.parse('$_apiBase/torrents/controltorrent');
+        final res = await http.post(
+          uri,
+          headers: _headers(cleanKey),
+          body: jsonEncode({
+            'torrent_id': int.tryParse(id) ?? id,
+            'operation': 'delete',
+          }),
+        ).timeout(const Duration(seconds: 8));
+        return res.statusCode == 200;
+      } else {
+        final uri = Uri.parse('$_apiBase/webdl/controlwebdownload');
+        final res = await http.post(
+          uri,
+          headers: _headers(cleanKey),
+          body: jsonEncode({
+            'webdownload_id': int.tryParse(id) ?? id,
+            'operation': 'delete',
+          }),
+        ).timeout(const Duration(seconds: 8));
+        return res.statusCode == 200;
+      }
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Returns true if the hoster is supported by TorBox

@@ -56,11 +56,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   static const MethodChannel _playerChannel = MethodChannel('com.playtorrio.nuvio.addon/player');
 
   // Tab Navigation State
-  int _selectedTabIndex = 0; // 0 = Server, 1 = Streaming, 2 = Live IPTV, 3 = About
+  int _selectedTabIndex = 0; // 0 = Server, 1 = Streaming, 2 = Live IPTV, 3 = Caching, 4 = About
   final FocusNode _serverTabFocus = FocusNode();
   final FocusNode _streamingTabFocus = FocusNode();
   final FocusNode _iptvTabFocus = FocusNode();
+  final FocusNode _cachingTabFocus = FocusNode();
   final FocusNode _aboutTabFocus = FocusNode();
+
+  // TorBox Cloud Caching Queue State
+  List<Map<String, dynamic>> _cacheQueueItems = [];
+  bool _isLoadingCacheQueue = false;
+  Timer? _cacheQueueTimer;
 
   // Nuvio-style Media Detail View state
   bool _isInDetailView = false;
@@ -246,6 +252,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
     // Preload default catalog
     _loadCatalog(reset: true);
+    _startCacheQueuePolling();
   }
 
   @override
@@ -253,7 +260,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     _serverTabFocus.dispose();
     _streamingTabFocus.dispose();
     _iptvTabFocus.dispose();
+    _cachingTabFocus.dispose();
     _aboutTabFocus.dispose();
+    _cacheQueueTimer?.cancel();
     _iptvSearchController.dispose();
     _proxyResolverController.dispose();
     _startStopFocus.dispose();
@@ -415,8 +424,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                                 ] else if (_selectedTabIndex == 2) ...[
                                   // TAB 2: Global Live IPTV Broadcasts
                                   _buildIptvView(isWide: true),
+                                ] else if (_selectedTabIndex == 3) ...[
+                                  // TAB 3: TorBox Cloud Caching Queue
+                                  _buildCachingView(isWide: true),
                                 ] else ...[
-                                  // TAB 3: Dedicated About & System Diagnostics
+                                  // TAB 4: Dedicated About & System Diagnostics
                                   _buildAboutView(isWide: true),
                                 ],
                               ],
@@ -458,8 +470,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                             ] else if (_selectedTabIndex == 2) ...[
                               // TAB 2: Live IPTV
                               _buildIptvView(isWide: false),
+                            ] else if (_selectedTabIndex == 3) ...[
+                              // TAB 3: Caching Queue
+                              _buildCachingView(isWide: false),
                             ] else ...[
-                              // TAB 3: About & Diagnostics
+                              // TAB 4: About & Diagnostics
                               _buildAboutView(isWide: false),
                             ],
                           ],
@@ -615,17 +630,59 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           ),
           const SizedBox(width: 6),
 
-          // Tab 3: Dedicated About & System Diagnostics
+          // Tab 3: TorBox Cloud Caching Queue
           Expanded(
             child: _TvFocusableButton(
-              focusNode: _aboutTabFocus,
+              focusNode: _cachingTabFocus,
               onPressed: () {
                 setState(() => _selectedTabIndex = 3);
+                _loadCacheQueue(showFeedback: true);
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                 decoration: BoxDecoration(
                   gradient: _selectedTabIndex == 3
+                      ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.bolt_rounded, size: 16, color: Colors.white),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        'Caching',
+                        style: TextStyle(
+                          fontSize: isWide ? 14 : 12,
+                          fontWeight: FontWeight.bold,
+                          color: _selectedTabIndex == 3 ? Colors.white : Colors.grey.shade400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Tab 4: Dedicated About & System Diagnostics
+          Expanded(
+            child: _TvFocusableButton(
+              focusNode: _aboutTabFocus,
+              onPressed: () {
+                setState(() => _selectedTabIndex = 4);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                decoration: BoxDecoration(
+                  gradient: _selectedTabIndex == 4
                       ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
                       : null,
                   borderRadius: BorderRadius.circular(10),
@@ -643,7 +700,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         style: TextStyle(
                           fontSize: isWide ? 14 : 12,
                           fontWeight: FontWeight.bold,
-                          color: _selectedTabIndex == 3 ? Colors.white : Colors.grey.shade400,
+                          color: _selectedTabIndex == 4 ? Colors.white : Colors.grey.shade400,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -708,7 +765,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Hostreamio', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Colors.white)),
+                        Text('Hostreamio', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFFFF0C82))),
                         Text('Direct & Debrid', style: TextStyle(fontSize: 11, color: Colors.grey)),
                       ],
                     ),
@@ -721,14 +778,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           const Divider(color: Color(0xFF1F2432), height: 1),
           const SizedBox(height: 18),
 
-          // 4 Menu Buttons on Side Pane
+          // 5 Menu Buttons on Side Pane
           _buildSidebarNavButton(0, Icons.dns_rounded, 'Server & Addon', _serverTabFocus),
           const SizedBox(height: 8),
           _buildSidebarNavButton(1, Icons.movie_filter_rounded, 'Cinema & Series', _streamingTabFocus),
           const SizedBox(height: 8),
           _buildSidebarNavButton(2, Icons.live_tv_rounded, 'Live IPTV', _iptvTabFocus),
           const SizedBox(height: 8),
-          _buildSidebarNavButton(3, Icons.info_outline_rounded, 'About & System', _aboutTabFocus),
+          _buildSidebarNavButton(3, Icons.bolt_rounded, 'Caching Queue', _cachingTabFocus),
+          const SizedBox(height: 8),
+          _buildSidebarNavButton(4, Icons.info_outline_rounded, 'About & Diagnostics', _aboutTabFocus),
 
           const Spacer(),
           // Running status indicator
@@ -776,6 +835,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         setState(() => _selectedTabIndex = index);
         if (index == 2 && _iptvChannels.isEmpty && !_isLoadingIptv) {
           _loadIptvChannels(reset: true);
+        } else if (index == 3) {
+          _loadCacheQueue(showFeedback: false);
         }
       },
       child: Container(
@@ -800,9 +861,427 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 ),
               ),
             ),
+            if (index == 3 && _cacheQueueItems.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF0C82),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${_cacheQueueItems.length}',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  TORBOX CLOUD CACHING QUEUE LOGIC & UI (ANDROID)
+  // ════════════════════════════════════════════════════════════
+
+  final TextEditingController _cachingUploadInputController = TextEditingController();
+
+  void _startCacheQueuePolling() {
+    _cacheQueueTimer?.cancel();
+    _cacheQueueTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (_selectedTabIndex == 3 && mounted) {
+        _loadCacheQueue(showFeedback: false);
+      }
+    });
+  }
+
+  Future<void> _loadCacheQueue({bool showFeedback = false}) async {
+    final apiKey = AddonConfig.instance.torboxApiKey.trim();
+    if (apiKey.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _cacheQueueItems = [];
+          _isLoadingCacheQueue = false;
+        });
+      }
+      return;
+    }
+    setState(() => _isLoadingCacheQueue = true);
+    try {
+      final items = await TorboxService.instance.getLiveCacheQueue(apiKey);
+      if (mounted) {
+        setState(() {
+          _cacheQueueItems = items;
+          _isLoadingCacheQueue = false;
+        });
+        if (showFeedback) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚡ Caching queue refreshed!'),
+              backgroundColor: Color(0xFF195FEB),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingCacheQueue = false);
+    }
+  }
+
+  Future<void> _deleteCacheQueueItem(String id, String type) async {
+    final apiKey = AddonConfig.instance.torboxApiKey.trim();
+    final ok = await TorboxService.instance.deleteQueueItem(id, type, apiKey);
+    if (ok && mounted) {
+      _loadCacheQueue(showFeedback: false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🗑️ Removed from TorBox cloud queue'),
+          backgroundColor: Color(0xFF238636),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  Future<void> _uploadFromCachingInput() async {
+    final url = _cachingUploadInputController.text.trim();
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please paste a valid stream or hoster URL'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    final apiKey = AddonConfig.instance.torboxApiKey.trim();
+    if (apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please configure your TorBox API key first'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    final res = await TorboxService.instance.uploadToTorbox(url, apiKey);
+    if (res['success'] == true && mounted) {
+      _cachingUploadInputController.clear();
+      _loadCacheQueue(showFeedback: false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('☁️ Link queued to TorBox Caching!'), backgroundColor: Color(0xFF238636)),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res['message']?.toString() ?? 'Upload failed'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Widget _buildCachingView({bool isWide = false}) {
+    final hasKey = AddonConfig.instance.torboxApiKey.trim().isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header Card
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF161B22),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF30363D)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.bolt_rounded, color: Color(0xFFFF0C82), size: 26),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'TorBox Cloud Caching Queue',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                  if (_isLoadingCacheQueue)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF0C82)),
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, color: Color(0xFF38BDF8), size: 22),
+                      tooltip: 'Refresh Queue',
+                      onPressed: () => _loadCacheQueue(showFeedback: true),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Real-time status of hoster streams & torrents currently downloading to high-speed cloud CDN.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              ),
+              const SizedBox(height: 14),
+              // Paste Link Input Box
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1117),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF30363D)),
+                      ),
+                      child: TextField(
+                        controller: _cachingUploadInputController,
+                        style: const TextStyle(fontSize: 13, color: Colors.white),
+                        decoration: const InputDecoration(
+                          hintText: 'Paste hoster or magnet link to cache (HubCloud, PixelDrain, GoFile)...',
+                          hintStyle: TextStyle(color: Color(0xFF484F58), fontSize: 12),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _uploadFromCachingInput,
+                    icon: const Icon(Icons.cloud_upload_rounded, size: 16),
+                    label: const Text('Start Caching', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF238636),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // If no TorBox key configured
+        if (!hasKey) ...[
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161B22),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF30363D)),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.vpn_key_rounded, size: 42, color: Color(0xFF818CF8)),
+                const SizedBox(height: 12),
+                const Text(
+                  'TorBox API Key Not Configured',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Enter your TorBox API key in the Server tab to activate cloud caching and track live download progress.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                ),
+                const SizedBox(height: 14),
+                ElevatedButton(
+                  onPressed: () => setState(() => _selectedTabIndex = 0),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF195FEB),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Go to Server Settings'),
+                ),
+              ],
+            ),
+          ),
+        ] else if (_cacheQueueItems.isEmpty) ...[
+          // Empty state
+          Container(
+            padding: const EdgeInsets.all(36),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161B22),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF30363D)),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.bolt_rounded, size: 48, color: Color(0xFF484F58)),
+                const SizedBox(height: 12),
+                const Text(
+                  'Cache Queue is Empty',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'When you click "Cache to TorBox" on an uncached stream, or attempt to stream an uncached link, it will appear here with live speed, ETA, and progress.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade400, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          // Active Queue List
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _cacheQueueItems.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final it = _cacheQueueItems[index];
+              final isDone = it['status'] == 'completed';
+              final isFailed = it['status'] == 'failed';
+              final pct = it['progressPercent'] ?? ((it['progress'] ?? 0.0) * 100).round();
+              final name = it['name']?.toString() ?? 'Stream Download';
+              final size = it['size']?.toString() ?? '--';
+              final speed = it['speed']?.toString() ?? '--';
+              final eta = it['eta']?.toString() ?? '--';
+              final type = it['type'] == 'torrent' ? 'Torrent' : 'WebDL';
+              final rawUrl = it['rawUrl']?.toString() ?? '';
+              final playUrl = 'http://localhost:7002/torbox/play?url=${Uri.encodeComponent(rawUrl)}';
+
+              Color badgeColor = const Color(0xFF58A6FF);
+              String badgeText = '⚡ CACHING ($pct%)';
+              if (isDone) {
+                badgeColor = const Color(0xFF3FB950);
+                badgeText = '✅ READY';
+              } else if (isFailed) {
+                badgeColor = const Color(0xFFF85149);
+                badgeText = '❌ FAILED';
+              } else if (it['status'] == 'queued') {
+                badgeColor = const Color(0xFFE3B341);
+                badgeText = '⏳ QUEUED';
+              }
+
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1117),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: isDone ? const Color(0xFF238636) : const Color(0xFF21262D), width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF161B22),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(type, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text('📦 $size', style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                                  const SizedBox(width: 8),
+                                  Text('⚡ $speed', style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                                  const SizedBox(width: 8),
+                                  Text('⏱️ $eta', style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: badgeColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: badgeColor, width: 1),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Progress Bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: (it['progress'] is num) ? (it['progress'] as num).toDouble() : 0.0,
+                        backgroundColor: const Color(0xFF161B22),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          isDone ? const Color(0xFF3FB950) : const Color(0xFFFF0C82),
+                        ),
+                        minHeight: 6,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Action buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isDone ? '✨ Ready to stream from TorBox CDN' : 'Downloading to cloud drive…',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                        ),
+                        Row(
+                          children: [
+                            if (isDone && rawUrl.isNotEmpty) ...[
+                              ElevatedButton.icon(
+                                onPressed: () => _playDirectStream(playUrl, name),
+                                icon: const Icon(Icons.play_arrow_rounded, size: 14),
+                                label: const Text('Play', style: TextStyle(fontSize: 11)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF238636),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              ElevatedButton.icon(
+                                onPressed: () => _showExternalPlayerChooser(playUrl, name),
+                                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                                label: const Text('Play With', style: TextStyle(fontSize: 11)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF195FEB),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                              tooltip: 'Remove',
+                              onPressed: () => _deleteCacheQueueItem(it['id'].toString(), it['type'].toString()),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ],
     );
   }
 
@@ -849,7 +1328,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: Color(0xFFFF0C82),
                   letterSpacing: -0.5,
                 ),
               ),

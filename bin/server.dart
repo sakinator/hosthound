@@ -103,6 +103,7 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       path.startsWith('/subtitles') ||
       path.startsWith('/proxy') ||
       path.startsWith('/torbox/play') ||
+      path.startsWith('/video') ||
       path == '/logo.png' ||
       path == '/favicon.png' ||
       path == '/favicon.ico' ||
@@ -421,67 +422,77 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
         await request.response.redirect(Uri.parse(debridedUrl), status: HttpStatus.found);
         return;
       }
-      // Fallback: if debrid failed on an unplayable hoster landing page, do NOT redirect video player to an HTML page!
-      if (!ScraperEngine.isDirectPlayableUrl(targetUrl)) {
-        final errReason = TorboxService.instance.lastDebridError ??
-            'TorBox could not unrestrict this hoster link. The file may be offline, deleted, or hoster is temporarily unavailable.';
-        print('[Torbox] Debrid failure for $targetUrl: $errReason');
+      // Fallback: If debrid is in progress or file is downloading to TorBox:
+      // Track caching job in live queue and redirect video player to notification video!
+      TorboxService.instance.trackCachingJob(url: targetUrl);
 
-        final accept = request.headers.value('accept') ?? '';
-        if (accept.contains('text/html')) {
-          request.response.statusCode = HttpStatus.badGateway;
-          request.response.headers.contentType = ContentType.html;
-          request.response.write('''
+      final accept = request.headers.value('accept') ?? '';
+      if (accept.contains('text/html')) {
+        final errReason = TorboxService.instance.lastDebridError ??
+            'This stream is currently being cached to TorBox Cloud CDN. You can monitor progress in the Caching Queue tab.';
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.contentType = ContentType.html;
+        request.response.write('''
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>TorBox Debrid Notice - Hostreamio</title>
+  <title>TorBox Caching in Progress - Hostreamio</title>
   <style>
     body { background:#0a0d14; color:#e6edf3; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
     .card { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:32px; max-width:540px; box-shadow:0 12px 32px rgba(0,0,0,0.5); text-align:center; }
-    h2 { color:#f85149; margin-top:0; }
+    h2 { color:#38bdf8; margin-top:0; }
     p { color:#8b949e; line-height:1.6; font-size:0.95rem; }
-    .err-box { background:#21262d; border:1px solid #30363d; padding:12px; border-radius:8px; font-family:monospace; font-size:0.85rem; color:#ff7b72; margin:16px 0; word-break:break-all; }
+    .err-box { background:#21262d; border:1px solid #38bdf8; padding:12px; border-radius:8px; font-family:monospace; font-size:0.85rem; color:#7ee787; margin:16px 0; word-break:break-all; }
     .btn-group { display:flex; gap:12px; justify-content:center; margin-top:24px; }
     .btn { padding:10px 18px; border-radius:6px; font-weight:600; text-decoration:none; font-size:0.9rem; cursor:pointer; }
-    .btn-primary { background:#1f6feb; color:#fff; border:none; }
+    .btn-primary { background:#ff0c82; color:#fff; border:none; }
     .btn-secondary { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>⚠️ TorBox Cloud Debrid Notice</h2>
-    <p>TorBox was unable to unrestrict and stream this hoster file into your cloud drive.</p>
+    <h2>⚡ TorBox Cloud Caching in Progress</h2>
+    <p>Your requested stream is currently downloading to TorBox's high-speed cloud CDN.</p>
     <div class="err-box">${htmlEscape.convert(errReason)}</div>
     <div class="btn-group">
-      <a href="/configure" class="btn btn-primary">⬅️ Back to Dashboard</a>
+      <a href="/configure#caching" class="btn btn-primary">⚡ Open Caching Queue</a>
       <a href="${htmlEscape.convert(targetUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">🔗 Open Hoster Web Page</a>
     </div>
   </div>
 </body>
 </html>
 ''');
-          await request.response.close();
-          return;
-        }
-
-        request.response.statusCode = HttpStatus.badGateway;
-        request.response.headers.contentType = ContentType.json;
-        request.response.write(jsonEncode({
-          'success': false,
-          'error': errReason,
-          'targetUrl': targetUrl,
-        }));
         await request.response.close();
         return;
       }
+
+      // If requested from a media player (Nuvio, Stremio, VLC, MPV), stream the caching video notice!
+      if (!ScraperEngine.isDirectPlayableUrl(targetUrl)) {
+        print('[Torbox] File in progress for $targetUrl. Redirecting player to video notice: $localBaseUrl/video/caching.mp4');
+        await request.response.redirect(Uri.parse('$localBaseUrl/video/caching.mp4'), status: HttpStatus.found);
+        return;
+      }
+
       if (headersParam != null && headersParam.isNotEmpty) {
         final proxyUrl = '$localBaseUrl/proxy?url=${Uri.encodeComponent(targetUrl)}&headers=${Uri.encodeComponent(headersParam)}';
         await request.response.redirect(Uri.parse(proxyUrl), status: HttpStatus.found);
         return;
       }
       await request.response.redirect(Uri.parse(targetUrl), status: HttpStatus.found);
+      return;
+    }
+
+    // ── 4c. Video Caching Notice Endpoint: /video/caching.mp4 ────────────────
+    if (path == '/video/caching.mp4') {
+      final bytes = TorboxService.instance.getCachingVideoBytes();
+      request.response.statusCode = HttpStatus.ok;
+      request.response.headers.contentType = ContentType('video', 'mp4');
+      request.response.headers.set('Content-Length', bytes.length.toString());
+      request.response.headers.set('Accept-Ranges', 'bytes');
+      request.response.headers.set('Cache-Control', 'public, max-age=86400');
+      request.response.add(bytes);
+      await request.response.close();
       return;
     }
 
@@ -693,8 +704,40 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       }
       final apiKey = AddonConfig.instance.torboxApiKey.trim();
       final uploadRes = await TorboxService.instance.uploadToTorbox(url, apiKey);
+      if (uploadRes['success'] == true) {
+        final webId = uploadRes['data']?['webdownload_id'] ?? uploadRes['data']?['id'];
+        TorboxService.instance.trackCachingJob(url: url, id: webId);
+      }
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode(uploadRes));
+      await request.response.close();
+      return;
+    }
+
+    // ── 5d2. API: Live TorBox Caching Queue: GET /api/torbox/queue ──────────
+    if (path == '/api/torbox/queue' && method == 'GET') {
+      final apiKey = AddonConfig.instance.torboxApiKey.trim();
+      final items = await TorboxService.instance.getLiveCacheQueue(apiKey);
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': true,
+        'hasKey': apiKey.isNotEmpty,
+        'items': items,
+      }));
+      await request.response.close();
+      return;
+    }
+
+    // ── 5d3. API: Delete TorBox Queue Item: POST /api/torbox/queue/delete ───
+    if (path == '/api/torbox/queue/delete' && method == 'POST') {
+      final bodyStr = await utf8.decodeStream(request);
+      final bodyJson = _safeParseJsonMap(bodyStr) ?? {};
+      final id = bodyJson['id']?.toString() ?? '';
+      final type = bodyJson['type']?.toString() ?? 'webdl';
+      final apiKey = AddonConfig.instance.torboxApiKey.trim();
+      final ok = await TorboxService.instance.deleteQueueItem(id, type, apiKey);
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({'success': ok}));
       await request.response.close();
       return;
     }

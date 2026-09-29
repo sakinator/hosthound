@@ -40,4 +40,12 @@ if (Test-Path $srcScrapers) {
     Write-Host "  -> Synced upstream scraper directory recursively" -ForegroundColor Green
 }
 
+$srcAssets = Join-Path $libDir "assets"
+$dstAssets = Join-Path $androidLibDir "assets"
+if (Test-Path $srcAssets) {
+    if (-not (Test-Path $dstAssets)) { New-Item -ItemType Directory -Path $dstAssets -Force | Out-Null }
+    Copy-Item -Path "$srcAssets\*" -Destination $dstAssets -Recurse -Force
+    Write-Host "  -> Synced assets directory recursively" -ForegroundColor Green
+}
+
 Write-Host "Sync complete!" -ForegroundColor Cyan

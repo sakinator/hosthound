@@ -116,17 +116,20 @@ D:\hostreamio\
 │   ├── metadata_service.dart   # Fallback metadata fetching (Cinemeta, TMDB, TVMaze)
 │   ├── opensubtitles_service.dart # OpenSubtitles v3 REST API client (90+ languages, direct SRT)
 │   ├── proxy.dart              # Header-injecting streaming reverse proxy (/proxy)
+│   ├── proxy_resolver.dart     # FlareSolverr / Prowlarr captcha resolver & anti-cache client
 │   ├── scraper_engine.dart     # Concurrency manager, deduping, dead-link filter, TorBox cache injection
-│   ├── scraper_registry.dart   # Registry of all 63 active PlayTorrio scrapers
-│   ├── torbox_service.dart     # TorBox v1 API client (caching, checking, hosters)
+│   ├── scraper_registry.dart   # Registry of all 70 active PlayTorrio scrapers
+│   ├── torbox_service.dart     # TorBox v1 API client (caching, checking, hosters, live cache queue)
 │   ├── tvdb_service.dart       # TheTVDB alternate episode numbering resolver
 │   ├── web_ui.dart             # Web Dashboard HTML/CSS/JS generator (/configure)
+│   ├── assets/
+│   │   └── caching_video.dart  # Embedded Base64 MP4 in-video caching notification slate
 │   └── upstream/               # PlayTorrio scraper site extractors (63 files)
 ├── android_app/                # Flutter Android TV, Fire TV & Mobile client
 │   ├── lib/
-│   │   ├── main.dart           # 3-Tab dashboard (Server, Cinema & Series, Live IPTV) with Nuvio detail view
+│   │   ├── main.dart           # 5-Tab dashboard (Server, Cinema, IPTV, Caching, About) with Nuvio detail view
 │   │   ├── server_service.dart # Embedded foreground server manager
-│   │   └── [mirrored files]    # (web_ui.dart, catalog_service.dart, iptv_service.dart, etc.)
+│   │   └── [mirrored files]    # (web_ui.dart, catalog_service.dart, torbox_service.dart, assets/, etc.)
 ├── tool/
 │   ├── rcedit.exe              # Windows PE icon injector tool
 │   └── update.dart             # Automated compilation and upgrade script
@@ -247,10 +250,13 @@ Whenever updating the version number, you **MUST** update all 4 locations in loc
 | `/stream/tv/iptv:*.json` | `GET` | Stream resolver for live broadcast TV channels. |
 | `/api/torbox/hosters` | `GET` | Returns list of 160+ active TorBox supported cloud hosters. |
 | `/api/torbox/cache-link` | `POST` | Submits a URL to TorBox's WebDL queue for 1-click cloud caching. |
+| `/api/torbox/queue` | `GET` | Returns live cloud caching queue status, progress, speed, ETA, and size. |
+| `/api/torbox/queue/delete` | `POST` | Deletes or cancels a download from TorBox cloud storage. |
+| `/video/caching.mp4` | `GET` | Serves embedded MP4 video notification displayed when caching is in progress. |
 | `/api/key/validate` | `POST` | Tests and validates user API keys against TorBox, OMDb, TMDB, TVDB, or Fanart. |
 | `/badges.json` | `GET` | Nuvio Fusion Badge configuration with visual quality & Indian OTT logos. |
 | `/proxy?url=...` | `GET` | Reverse proxy that injects Referer/Origin headers for protected HLS streams. |
-| `/torbox/play?url=...` | `GET` | Proxied gateway for TorBox streaming links. |
+| `/torbox/play?url=...` | `GET` | Proxied gateway for TorBox streaming links (redirects to caching.mp4 if uncached). |
 
 ---
 

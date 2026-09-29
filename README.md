@@ -36,10 +36,14 @@ A high-performance local Stremio & Nuvio-compatible addon server featuring **70 
 - **Direct Subtitle APIs (OpenSubtitles v3):** Integrated official zero-rate-limit OpenSubtitles v3 REST API delivering subtitles in 90+ languages with direct `.srt` downloads and a user-facing toggle in settings (`enableOpenSubtitles`).
 - **Expanded DDL Hosters (Direct & TorBox):** Direct streaming and TorBox cloud caching across **PixelDrain, GoFile, Buzzheavier, Qiwi, MultiUp, Krakenfiles, Mixdrop, Voe, Filemoon, Doodstream, Streamtape**, and **HubCloud**.
 - **Free Global Live IPTV Broadcasts (`iptv-org`):** Over 8,000+ free broadcast channels with live Search, Category filters (*News, Sports, Movies, Animation, Music, Entertainment, Documentary*), and Country filters (*Global, US, UK, IN, CA, FR, DE, ES, IT, AU, JP, BR*). Available both in the native Android app and as the Stremio addon catalog `iptv_global`.
-- **Nuvio Side Navigation Rail & Dedicated About Menu (Windows & Android):**
-  - **4-Tab Navigation:** 🖥️ **Server & Addon**, 🎬 **Cinema & Series Theater**, 📺 **Free Global Live IPTV**, ℹ️ **About & Diagnostics**.
+- **Nuvio Side Navigation Rail & Dedicated Menus (Windows & Android):**
+  - **5-Tab Navigation:** 🖥️ **Server & Addon**, 🎬 **Cinema & Series Theater**, 📺 **Free Global Live IPTV**, ⚡ **Caching Queue**, ℹ️ **About & Diagnostics**.
   - Left navigation rail on wide screens (desktop, TV, tablet) and responsive tab selector on mobile.
   - Header and footer cleanly organized into a dedicated About menu to maintain focused, distraction-free playback views.
+- **Live TorBox Cloud Caching Queue & In-Video Notice:**
+  - Real-time caching status monitor tracking progress bars, download speed, ETA, file size, and state (`⏳ QUEUED`, `⚡ CACHING (xx%)`, `✅ READY TO STREAM`, `❌ FAILED`) with live auto-refresh polling.
+  - In-Video Player Notification (`/video/caching.mp4`): When uncached or in-progress streams are launched from players like Nuvio, Stremio, or VLC, rather than terminating with an HTTP error, a sleek animated in-video notification streams cleanly to alert the user that the file is downloading to TorBox cloud storage.
+  - 1-tap playback (`▶ Stream`, `🚀 Play With...`) and cloud item deletion right from the queue.
 - **Nuvio-Style Dedicated Media Detail Screen:** Selecting any movie, TV series, or search suggestion transitions into a dedicated Hero Detail screen with large backdrop/poster, IMDb rating badge ⭐, year, genres, plot overview, interactive Season & Episode picker (for series), and focused stream list with instant "← Back to Catalog" navigation.
 - **External Player Chooser ("Play With..."):** Native Android Intent chooser enabling 1-tap playback in **VLC for Android**, **Just Player**, **MPV**, **MX Player**, or any system-installed media player alongside native in-app playback.
 - **TorBox Debrid Integration:**
