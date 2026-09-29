@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -51,6 +52,8 @@ class MainDashboardScreen extends StatefulWidget {
 }
 
 class _MainDashboardScreenState extends State<MainDashboardScreen> {
+  static const MethodChannel _playerChannel = MethodChannel('com.playtorrio.nuvio.addon/player');
+
   // Tab Navigation State
   int _selectedTabIndex = 0; // 0 = Server, 1 = Streaming
   final FocusNode _serverTabFocus = FocusNode();
@@ -2771,6 +2774,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          side: const BorderSide(color: Color(0xFF388BFD)),
+                          backgroundColor: const Color(0xFF161B22),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.playlist_play_rounded, size: 16, color: Color(0xFF58A6FF)),
+                        label: const Text('Play With...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF58A6FF))),
+                        onPressed: () => _showPlayWithDialog(s),
+                      ),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           side: const BorderSide(color: Color(0xFF30363D)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
@@ -3028,49 +3042,78 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }
   }
 
-  Future<void> _playStream(dynamic streamTarget) async {
-    try {
-      String playUrl = '';
-      if (streamTarget is Map) {
-        final rawUrl = streamTarget['finalUrl']?.toString() ?? streamTarget['url']?.toString() ?? '';
-        final bh = streamTarget['behaviorHints'] is Map ? streamTarget['behaviorHints'] as Map : null;
-        final headersMap = <String, String>{};
-        if (bh != null && bh['proxyHeaders'] is Map && bh['proxyHeaders']['request'] is Map) {
-          (bh['proxyHeaders']['request'] as Map).forEach((k, v) {
-            if (k != null && v != null) headersMap[k.toString()] = v.toString();
-          });
-        }
-
-        final port = AddonConfig.instance.port;
-        if (rawUrl.contains('/proxy') || rawUrl.contains('/torbox/play')) {
-          final uri = Uri.tryParse(rawUrl);
-          if (uri != null) {
-            playUrl = 'http://127.0.0.1:$port${uri.path}${uri.hasQuery ? '?${uri.query}' : ''}';
-          } else {
-            playUrl = rawUrl;
-          }
-        } else if (headersMap.isNotEmpty) {
-          final headersJson = jsonEncode(headersMap);
-          playUrl = 'http://127.0.0.1:$port/proxy?url=${Uri.encodeComponent(rawUrl)}&headers=${Uri.encodeComponent(headersJson)}';
-        } else {
-          playUrl = rawUrl;
-        }
-      } else if (streamTarget is String) {
-        final port = AddonConfig.instance.port;
-        if (streamTarget.contains('/proxy') || streamTarget.contains('/torbox/play')) {
-          final uri = Uri.tryParse(streamTarget);
-          if (uri != null) {
-            playUrl = 'http://127.0.0.1:$port${uri.path}${uri.hasQuery ? '?${uri.query}' : ''}';
-          } else {
-            playUrl = streamTarget;
-          }
-        } else {
-          playUrl = streamTarget;
-        }
+  String _resolvePlayUrl(dynamic streamTarget) {
+    if (streamTarget is Map) {
+      final rawUrl = streamTarget['finalUrl']?.toString() ?? streamTarget['url']?.toString() ?? '';
+      final bh = streamTarget['behaviorHints'] is Map ? streamTarget['behaviorHints'] as Map : null;
+      final headersMap = <String, String>{};
+      if (bh != null && bh['proxyHeaders'] is Map && bh['proxyHeaders']['request'] is Map) {
+        (bh['proxyHeaders']['request'] as Map).forEach((k, v) {
+          if (k != null && v != null) headersMap[k.toString()] = v.toString();
+        });
       }
 
-      if (playUrl.isEmpty) return;
+      final port = AddonConfig.instance.port;
+      if (rawUrl.contains('/proxy') || rawUrl.contains('/torbox/play')) {
+        final uri = Uri.tryParse(rawUrl);
+        if (uri != null) {
+          return 'http://127.0.0.1:$port${uri.path}${uri.hasQuery ? '?${uri.query}' : ''}';
+        }
+        return rawUrl;
+      } else if (headersMap.isNotEmpty) {
+        final headersJson = jsonEncode(headersMap);
+        return 'http://127.0.0.1:$port/proxy?url=${Uri.encodeComponent(rawUrl)}&headers=${Uri.encodeComponent(headersJson)}';
+      }
+      return rawUrl;
+    } else if (streamTarget is String) {
+      final port = AddonConfig.instance.port;
+      if (streamTarget.contains('/proxy') || streamTarget.contains('/torbox/play')) {
+        final uri = Uri.tryParse(streamTarget);
+        if (uri != null) {
+          return 'http://127.0.0.1:$port${uri.path}${uri.hasQuery ? '?${uri.query}' : ''}';
+        }
+      }
+      return streamTarget;
+    }
+    return '';
+  }
 
+  Future<void> _playStream(dynamic streamTarget, {String? packageName, bool forceChooser = false}) async {
+    final playUrl = _resolvePlayUrl(streamTarget);
+    if (playUrl.isEmpty) return;
+
+    String title = '';
+    if (streamTarget is Map) {
+      title = streamTarget['cleanTitle']?.toString() ?? streamTarget['title']?.toString() ?? '';
+    }
+
+    try {
+      if (Platform.isAndroid) {
+        final success = await _playerChannel.invokeMethod<bool>('playStream', {
+          'url': playUrl,
+          'title': title,
+          'package': packageName,
+          'forceChooser': forceChooser,
+        });
+        if (success == true) return;
+      }
+    } on PlatformException catch (e) {
+      if (e.code == 'APP_NOT_INSTALLED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Selected player is not installed. Opening app chooser instead...'),
+              backgroundColor: Color(0xFFF85149),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        await _playStream(streamTarget, forceChooser: true);
+        return;
+      }
+    } catch (_) {}
+
+    try {
       final uri = Uri.parse(playUrl);
       final canLaunch = await canLaunchUrl(uri);
       if (canLaunch) {
@@ -3086,6 +3129,307 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         _copyToClipboard(fallbackUrl, 'Stream Link');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not open external player. Link copied: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showPlayWithDialog(Map<String, dynamic> s) async {
+    final playUrl = _resolvePlayUrl(s);
+    if (playUrl.isEmpty) return;
+
+    final streamTitle = s['cleanTitle']?.toString() ?? s['title']?.toString() ?? 'Stream';
+    final streamName = s['cleanName']?.toString() ?? s['name']?.toString() ?? '';
+
+    List<String> installed = [];
+    try {
+      if (Platform.isAndroid) {
+        final res = await _playerChannel.invokeMethod<List<dynamic>>('checkInstalledPlayers');
+        if (res != null) {
+          installed = res.map((e) => e.toString()).toList();
+        }
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    final players = [
+      {
+        'id': 'chooser',
+        'title': 'App Chooser (Open With...)',
+        'subtitle': 'System dialog to select any installed player on device',
+        'icon': Icons.apps_rounded,
+        'package': null,
+        'forceChooser': true,
+        'color': const Color(0xFF58A6FF),
+        'isInstalled': true,
+      },
+      {
+        'id': 'vlc',
+        'title': 'VLC for Android',
+        'subtitle': 'org.videolan.vlc',
+        'icon': Icons.play_circle_fill_rounded,
+        'package': 'org.videolan.vlc',
+        'forceChooser': false,
+        'color': const Color(0xFFFF8800),
+        'isInstalled': installed.contains('org.videolan.vlc'),
+      },
+      {
+        'id': 'just_player',
+        'title': 'Just Player',
+        'subtitle': 'com.brouken.player • ExoPlayer',
+        'icon': Icons.video_collection_rounded,
+        'package': 'com.brouken.player',
+        'forceChooser': false,
+        'color': const Color(0xFF3FB950),
+        'isInstalled': installed.contains('com.brouken.player'),
+      },
+      {
+        'id': 'mx_player',
+        'title': 'MX Player',
+        'subtitle': 'com.mxtech.videoplayer (Free / Pro)',
+        'icon': Icons.movie_filter_rounded,
+        'package': 'com.mxtech.videoplayer',
+        'forceChooser': false,
+        'color': const Color(0xFF2196F3),
+        'isInstalled': installed.contains('com.mxtech.videoplayer.ad') || installed.contains('com.mxtech.videoplayer.pro'),
+      },
+      {
+        'id': 'mpv',
+        'title': 'MPV Player',
+        'subtitle': 'is.xyz.mpv • LibMPV core',
+        'icon': Icons.play_arrow_rounded,
+        'package': 'is.xyz.mpv',
+        'forceChooser': false,
+        'color': const Color(0xFF9C27B0),
+        'isInstalled': installed.contains('is.xyz.mpv'),
+      },
+      {
+        'id': 'nova',
+        'title': 'Nova Video Player',
+        'subtitle': 'org.courville.nova • Android TV Leanback',
+        'icon': Icons.tv_rounded,
+        'package': 'org.courville.nova',
+        'forceChooser': false,
+        'color': const Color(0xFFE91E63),
+        'isInstalled': installed.contains('org.courville.nova'),
+      },
+      {
+        'id': 'next_player',
+        'title': 'Next Player',
+        'subtitle': 'dev.anilbeesetti.nextplayer',
+        'icon': Icons.smart_display_rounded,
+        'package': 'dev.anilbeesetti.nextplayer',
+        'forceChooser': false,
+        'color': const Color(0xFF00BCD4),
+        'isInstalled': installed.contains('dev.anilbeesetti.nextplayer'),
+      },
+      {
+        'id': 'browser',
+        'title': 'Web Browser / Default',
+        'subtitle': 'Open via standard platform launcher',
+        'icon': Icons.public_rounded,
+        'package': null,
+        'forceChooser': false,
+        'color': Colors.grey,
+        'isInstalled': true,
+      },
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: const Color(0xFF0D1117),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFF30363D), width: 1.5),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 620),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF195FEB).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.playlist_play_rounded, color: Color(0xFF58A6FF), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Play With External Player',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Choose your preferred video player',
+                              style: TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.grey, size: 20),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Color(0xFF21262D)),
+
+                // Stream metadata preview
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  color: const Color(0xFF161B22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        streamName,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF58A6FF)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        streamTitle,
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Color(0xFF21262D)),
+
+                // Options list
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: players.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFF161B22)),
+                    itemBuilder: (c, idx) {
+                      final p = players[idx];
+                      final isInst = p['isInstalled'] == true;
+                      final isSystem = p['id'] == 'chooser' || p['id'] == 'browser';
+                      final color = p['color'] as Color;
+
+                      return ListTile(
+                        autofocus: (idx == 0),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: color.withOpacity(0.3), width: 1),
+                          ),
+                          child: Icon(p['icon'] as IconData, color: color, size: 20),
+                        ),
+                        title: Row(
+                          children: [
+                            Text(
+                              p['title'] as String,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                            ),
+                            const SizedBox(width: 8),
+                            if (!isSystem && isInst)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF238636).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: const Color(0xFF3FB950), width: 0.8),
+                                ),
+                                child: const Text(
+                                  'INSTALLED',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF3FB950)),
+                                ),
+                              ),
+                          ],
+                        ),
+                        subtitle: Text(
+                          p['subtitle'] as String,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 18),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          if (p['id'] == 'browser') {
+                            _launchBrowserFallback(playUrl);
+                          } else {
+                            _playStream(
+                              s,
+                              packageName: p['package'] as String?,
+                              forceChooser: p['forceChooser'] as bool,
+                            );
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                const Divider(height: 1, color: Color(0xFF21262D)),
+
+                // Footer action: copy link
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.copy_rounded, size: 14, color: Colors.grey),
+                        label: const Text('Copy Stream Link', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          _copyToClipboard(playUrl, 'Stream URL');
+                        },
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _launchBrowserFallback(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        _copyToClipboard(url, 'Stream Link');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open browser. Link copied: $e')),
         );
       }
     }
