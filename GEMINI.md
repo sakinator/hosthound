@@ -14,7 +14,7 @@ This document defines the mandatory development, UI/UX, release, and synchroniza
 
 ---
 
-## 2. Fixed Release 1 Policy ("Reddit Readiness Rule")
+## 2. Fixed Release 1 Policy ("Readiness Rule")
 - **Fixed Version:** The release version must ALWAYS remain **`v1.0.0`** (`Release v1.0.0`) until the user explicitly requests otherwise.
 - **No Premature Version Bumps:** Do not create experimental tags or releases like `v1.0.1`, `v1.5.0`, `v2.0.0`, etc.
 - **Single Release Cleanliness:** All pipeline builds and asset updates overwrite or update assets directly under `Release v1.0.0`. Never leave obsolete or orphaned release tags on GitHub.
