@@ -109,7 +109,7 @@ jobs:
     name: Publish Release (Android & Windows)
     needs: [build-android, build-windows]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
 
     steps:
       - name: Download Android Artifact
@@ -131,7 +131,8 @@ jobs:
             release-assets/hostreamio.apk
             release-assets/hostreamio-windows-x64.zip
             release-assets/hostreamio.exe
-          name: Release ${{ github.ref_name }}
+          tag_name: v1.0.0
+          name: Release v1.0.0
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false

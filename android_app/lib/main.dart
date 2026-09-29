@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'catalog_service.dart';
 import 'config.dart';
 import 'key_validator.dart';
 import 'metadata_service.dart';
@@ -105,6 +106,94 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   List<Map<String, dynamic>> _scrapedStreams = [];
   String _activeStreamFilter = 'all';
 
+  // Catalog Browser State
+  String _activeCatalogTab = 'trending-movie';
+  String _activeCatalogGenre = 'All';
+  int _catalogSkip = 0;
+  bool _isLoadingCatalog = false;
+  List<Map<String, dynamic>> _catalogItems = [];
+
+  static const Map<String, Map<String, dynamic>> _catalogDefs = {
+    'trending-movie': {
+      'label': '🔥 Trending Movies',
+      'type': 'movie',
+      'src': 'cinemeta',
+      'id': 'top',
+    },
+    'trending-series': {
+      'label': '📺 Trending Series',
+      'type': 'series',
+      'src': 'cinemeta',
+      'id': 'top',
+    },
+    'yt_indian': {
+      'label': '🎬 YouTube Indian',
+      'type': 'movie',
+      'src': 'local',
+      'id': 'yt_indian',
+      'genres': [
+        'All',
+        'Bollywood Full Movies',
+        'South Hindi Dubbed',
+        'Indian Web Series',
+        'Classic Hindi',
+        'Comedy Hindi Movies',
+      ],
+    },
+    'yt_international': {
+      'label': '🌍 YouTube Intl',
+      'type': 'movie',
+      'src': 'local',
+      'id': 'yt_international',
+      'genres': [
+        'All',
+        'Action Movies',
+        'Sci-Fi & Thriller',
+        'Documentaries',
+        'Indie Cinema',
+      ],
+    },
+    'vimeo_picks': {
+      'label': '🎥 Vimeo',
+      'type': 'movie',
+      'src': 'local',
+      'id': 'vimeo_picks',
+      'genres': [
+        'All',
+        'Staff Picks',
+        'Short of the Week',
+        'Animation',
+        'Documentaries',
+      ],
+    },
+    'archive_movies': {
+      'label': '🏛️ Archive',
+      'type': 'movie',
+      'src': 'local',
+      'id': 'archive_movies',
+      'genres': [
+        'All',
+        'Indian Classics',
+        'Golden Era Hollywood',
+        'Film Noir',
+        'Sci-Fi & Horror',
+        'Silent Era',
+      ],
+    },
+    'dm_movies': {
+      'label': '📺 Dailymotion',
+      'type': 'movie',
+      'src': 'local',
+      'id': 'dm_movies',
+      'genres': [
+        'All',
+        'Hindi Movies & Dramas',
+        'Pakistani Dramas',
+        'International Movies',
+      ],
+    },
+  };
+
   @override
   void initState() {
     super.initState();
@@ -129,6 +218,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     _excludeCams = cfg.excludeCams;
     _enableDeduplication = cfg.enableDeduplication;
     _enableDeadLinkFilter = cfg.enableDeadLinkFilter;
+
+    // Preload default catalog
+    _loadCatalog(reset: true);
   }
 
   @override
@@ -349,7 +441,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 setState(() => _selectedTabIndex = 0);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                 decoration: BoxDecoration(
                   gradient: _selectedTabIndex == 0
                       ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
@@ -359,15 +451,20 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 alignment: Alignment.center,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.dns_rounded, size: 18, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      '🖥️ Server & Addon',
-                      style: TextStyle(
-                        fontSize: isWide ? 15 : 13,
-                        fontWeight: FontWeight.bold,
-                        color: _selectedTabIndex == 0 ? Colors.white : Colors.grey.shade400,
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Server & Addon',
+                        style: TextStyle(
+                          fontSize: isWide ? 15 : 13,
+                          fontWeight: FontWeight.bold,
+                          color: _selectedTabIndex == 0 ? Colors.white : Colors.grey.shade400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -381,9 +478,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               focusNode: _streamingTabFocus,
               onPressed: () {
                 setState(() => _selectedTabIndex = 1);
+                if (_catalogItems.isEmpty && !_isLoadingCatalog) {
+                  _loadCatalog(reset: true);
+                }
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                 decoration: BoxDecoration(
                   gradient: _selectedTabIndex == 1
                       ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
@@ -393,15 +493,20 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 alignment: Alignment.center,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.movie_filter_rounded, size: 18, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      '🎬 Streaming Theater',
-                      style: TextStyle(
-                        fontSize: isWide ? 15 : 13,
-                        fontWeight: FontWeight.bold,
-                        color: _selectedTabIndex == 1 ? Colors.white : Colors.grey.shade400,
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Streaming Theater',
+                        style: TextStyle(
+                          fontSize: isWide ? 15 : 13,
+                          fontWeight: FontWeight.bold,
+                          color: _selectedTabIndex == 1 ? Colors.white : Colors.grey.shade400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -539,25 +644,31 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.router_rounded, color: Color(0xFF195FEB), size: 22),
+              const Icon(Icons.router_rounded, color: Color(0xFF195FEB), size: 20),
               const SizedBox(width: 8),
-              const Text(
-                'Nuvio Addon Manifest URL',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+              const Expanded(
+                child: Text(
+                  'Nuvio Addon Manifest URL',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               _TvFocusableButton(
                 focusNode: _refreshIpFocus,
                 onPressed: () async {
                   await ServerService.instance.updateLanIp();
                 },
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF195FEB)),
-                    SizedBox(width: 6),
-                    Text('Detect IP', style: TextStyle(color: Color(0xFF195FEB), fontSize: 13, fontWeight: FontWeight.w600)),
-                  ],
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.refresh_rounded, size: 15, color: Color(0xFF195FEB)),
+                      SizedBox(width: 4),
+                      Text('Detect IP', style: TextStyle(color: Color(0xFF195FEB), fontSize: 12, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1257,46 +1368,68 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             children: [
               Icon(Icons.speed_rounded, color: Color(0xFF818CF8), size: 22),
               SizedBox(width: 10),
-              Text(
-                'Engine & Network Optimizations',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              Expanded(
+                child: Text(
+                  'Engine & Network Optimizations',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _buildFeatureBadge(
-                icon: Icons.shield_rounded,
-                title: 'DoH DNS Fallback',
-                subtitle: 'Cloudflare & Google (Active)',
-                color: const Color(0xFF238636),
-              ),
-              _buildFeatureBadge(
-                icon: Icons.memory_rounded,
-                title: 'HLS Segment Cache',
-                subtitle: '35 MB Ring Buffer (Active)',
-                color: const Color(0xFF1F6FEB),
-              ),
-              _buildFeatureBadge(
-                icon: Icons.video_settings_rounded,
-                title: 'MPEG-DASH Transmuxer',
-                subtitle: 'Virtual HLS Converter (Ready)',
-                color: const Color(0xFF7928CA),
-              ),
-              _buildFeatureBadge(
-                icon: Icons.electric_bolt_rounded,
-                title: 'Auto Circuit Breaker',
-                subtitle: '56 Providers Monitored',
-                color: const Color(0xFFD29922),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isTwoColumn = constraints.maxWidth >= 500;
+              final itemWidth = isTwoColumn ? (constraints.maxWidth - 12) / 2 : double.infinity;
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildFeatureBadge(
+                      icon: Icons.shield_rounded,
+                      title: 'DoH DNS Fallback',
+                      subtitle: 'Cloudflare & Google (Active)',
+                      color: const Color(0xFF238636),
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildFeatureBadge(
+                      icon: Icons.memory_rounded,
+                      title: 'HLS Segment Cache',
+                      subtitle: '35 MB Ring Buffer (Active)',
+                      color: const Color(0xFF1F6FEB),
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildFeatureBadge(
+                      icon: Icons.video_settings_rounded,
+                      title: 'MPEG-DASH Transmuxer',
+                      subtitle: 'Virtual HLS Converter (Ready)',
+                      color: const Color(0xFF7928CA),
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildFeatureBadge(
+                      icon: Icons.electric_bolt_rounded,
+                      title: 'Auto Circuit Breaker',
+                      subtitle: '56 Providers Monitored',
+                      color: const Color(0xFFD29922),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1317,7 +1450,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         border: Border.all(color: const Color(0xFF21262D)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.all(6),
@@ -1328,27 +1460,33 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             child: Icon(icon, size: 18, color: color),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF8B949E),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF8B949E),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -1702,13 +1840,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.search_rounded, color: Color(0xFFFF0C82), size: 22),
+                  const Icon(Icons.search_rounded, color: Color(0xFFFF0C82), size: 20),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Native Search & Stream Theater',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                  Expanded(
+                    child: Text(
+                      isWide ? 'Native Search & Stream Theater' : 'Stream Theater',
+                      style: TextStyle(fontSize: isWide ? 17 : 15, fontWeight: FontWeight.bold, color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   // Media Type Toggle
                   Container(
                     decoration: BoxDecoration(
@@ -1718,9 +1859,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     ),
                     padding: const EdgeInsets.all(3),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        GestureDetector(
-                          onTap: () {
+                        _TvFocusableButton(
+                          onPressed: () {
                             setState(() {
                               _selectedMediaType = 'movie';
                               _seriesDetails = null;
@@ -1732,12 +1874,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                               color: _selectedMediaType == 'movie' ? const Color(0xFF195FEB) : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text('🎬 Movie', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                            child: const Text('🎬 Movie', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
                           ),
                         ),
                         const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: () {
+                        _TvFocusableButton(
+                          onPressed: () {
                             setState(() => _selectedMediaType = 'series');
                           },
                           child: Container(
@@ -1746,7 +1888,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                               color: _selectedMediaType == 'series' ? const Color(0xFF195FEB) : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text('📺 Series', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                            child: const Text('📺 Series', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
                           ),
                         ),
                       ],
@@ -1913,8 +2055,438 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
         // 5. Scraped Streams List
         _buildStreamsSection(),
+        const SizedBox(height: 18),
+
+        // 6. Browse & Discover Catalogs (Mobile & TV Adaptable)
+        _buildCatalogBrowser(isWide: isWide),
       ],
     );
+  }
+
+  Widget _buildCatalogBrowser({bool isWide = false}) {
+    final currentDef = _catalogDefs[_activeCatalogTab];
+    final genres = currentDef != null && currentDef.containsKey('genres') ? currentDef['genres'] as List<String>? : null;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF11141C),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF1F2432), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.video_library_rounded, color: Color(0xFFFF0C82), size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Browse Catalogs',
+                  style: TextStyle(
+                    fontSize: isWide ? 18 : 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Text(
+                'Tap any title to stream',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Catalog Tabs Row
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _catalogDefs.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final key = _catalogDefs.keys.elementAt(index);
+                final def = _catalogDefs[key]!;
+                final isActive = (key == _activeCatalogTab);
+                final label = def['label'] as String;
+
+                return _TvFocusableButton(
+                  onPressed: () {
+                    if (_activeCatalogTab != key) {
+                      setState(() {
+                        _activeCatalogTab = key;
+                        _activeCatalogGenre = 'All';
+                      });
+                      _loadCatalog(reset: true);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isActive ? const Color(0xFF195FEB) : const Color(0xFF090D13),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: isActive ? const Color(0xFF195FEB) : const Color(0xFF1F2432)),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isActive ? Colors.white : Colors.grey.shade400,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Genre Filter Chips Row (if applicable)
+          if (genres != null && genres.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 32,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: genres.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (context, index) {
+                  final g = genres[index];
+                  final isActive = (g == _activeCatalogGenre);
+                  return GestureDetector(
+                    onTap: () {
+                      if (_activeCatalogGenre != g) {
+                        setState(() => _activeCatalogGenre = g);
+                        _loadCatalog(reset: true);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isActive ? const Color(0xFF238636) : const Color(0xFF090D13),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: isActive ? const Color(0xFF238636) : const Color(0xFF1F2432)),
+                      ),
+                      child: Text(
+                        g,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isActive ? Colors.white : Colors.grey.shade400,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+
+          // Catalog Content (Loading, Empty, or Posters Grid)
+          if (_isLoadingCatalog && _catalogItems.isEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              alignment: Alignment.center,
+              child: const Column(
+                children: [
+                  CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFFF0C82)),
+                  SizedBox(height: 12),
+                  Text('Loading catalog titles...', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                ],
+              ),
+            ),
+          ] else if (_catalogItems.isEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 36),
+              alignment: Alignment.center,
+              child: Column(
+                children: [
+                  Icon(Icons.inbox_rounded, size: 36, color: Colors.grey.shade600),
+                  const SizedBox(height: 8),
+                  Text('No titles found for this category.', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: () => _loadCatalog(reset: true),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF195FEB)),
+                    child: const Text('Retry', style: TextStyle(fontSize: 12, color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final cols = isWide
+                    ? (width >= 900 ? 6 : 5)
+                    : (width >= 550 ? 4 : (width < 340 ? 2 : 3));
+
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.58,
+                  ),
+                  itemCount: _catalogItems.length,
+                  itemBuilder: (context, index) {
+                    final item = _catalogItems[index];
+                    return _buildCatalogCard(item, isWide: isWide);
+                  },
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+            // Load More Button
+            Center(
+              child: _TvFocusableButton(
+                onPressed: _isLoadingCatalog ? () {} : () => _loadCatalog(reset: false),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isLoadingCatalog)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      else
+                        const Icon(Icons.arrow_downward_rounded, size: 16, color: Colors.white),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Load More Titles',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCatalogCard(Map<String, dynamic> item, {bool isWide = false}) {
+    final id = item['id']?.toString() ?? '';
+    final name = item['name']?.toString() ?? 'Unknown';
+    final poster = item['poster']?.toString() ?? '';
+    final year = item['year']?.toString() ?? '';
+    final rating = item['rating']?.toString() ?? '';
+    final type = item['type']?.toString() ?? 'movie';
+    final isSelected = (_searchQueryController.text.trim() == id);
+
+    return _TvFocusableButton(
+      onPressed: () => _onSelectCatalogItem(item),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Poster Image
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: poster.isNotEmpty
+                      ? Image.network(
+                          poster,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFF090D13),
+                            child: const Center(
+                              child: Icon(Icons.movie_rounded, color: Colors.grey, size: 30),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: const Color(0xFF090D13),
+                          child: const Center(
+                            child: Icon(Icons.movie_rounded, color: Colors.grey, size: 30),
+                          ),
+                        ),
+                ),
+                // Rating or Type Badge
+                if (rating.isNotEmpty && rating != '0')
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFE3B341).withOpacity(0.6)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded, size: 12, color: Color(0xFFE3B341)),
+                          const SizedBox(width: 2),
+                          Text(
+                            rating,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (type == 'series')
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF195FEB).withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'SERIES',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                if (isSelected)
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFFF0C82), width: 2.5),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Title & Year Footer
+          Padding(
+            padding: const EdgeInsets.all(7),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isWide ? 12 : 11,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? const Color(0xFFFF0C82) : Colors.white,
+                  ),
+                ),
+                if (year.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    year,
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onSelectCatalogItem(Map<String, dynamic> item) {
+    final id = item['id']?.toString() ?? '';
+    final name = item['name']?.toString() ?? '';
+    final type = item['type']?.toString() ?? 'movie';
+    final poster = item['poster']?.toString();
+
+    _searchQueryController.text = id;
+    setState(() {
+      _selectedMediaType = type;
+      _selectedMediaMeta = item;
+      _scrapedStreams = [];
+    });
+
+    if (type == 'series') {
+      _loadSeriesCatalog(id, name, poster);
+    } else {
+      _scrapeStreams(id, 'movie', name);
+    }
+  }
+
+  Future<void> _loadCatalog({bool reset = false}) async {
+    if (_isLoadingCatalog) return;
+    setState(() {
+      _isLoadingCatalog = true;
+      if (reset) {
+        _catalogSkip = 0;
+        _catalogItems = [];
+      }
+    });
+
+    try {
+      final def = _catalogDefs[_activeCatalogTab];
+      if (def == null) return;
+
+      List<Map<String, dynamic>> items = [];
+      final isCinemeta = def['src'] == 'cinemeta';
+      final mediaType = def['type'] as String;
+
+      if (isCinemeta) {
+        final url = Uri.parse('https://v3-cinemeta.strem.io/catalog/$mediaType/top/skip=$_catalogSkip.json');
+        final res = await http.get(url, headers: {'Accept': 'application/json'}).timeout(const Duration(seconds: 8));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final metas = (data['metas'] as List?) ?? [];
+          items = metas.map((m) {
+            final id = m['id']?.toString() ?? '';
+            final name = m['name']?.toString() ?? m['title']?.toString() ?? 'Unknown';
+            final poster = m['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$id/img';
+            return {
+              'id': id,
+              'type': mediaType,
+              'name': name,
+              'poster': poster,
+              'year': m['year']?.toString() ?? m['releaseInfo']?.toString() ?? '',
+              'rating': m['imdbRating']?.toString() ?? '',
+              'description': m['description']?.toString() ?? '',
+            };
+          }).toList();
+        }
+      } else {
+        final catalogId = def['id'] as String;
+        final genreParam = (_activeCatalogGenre != 'All') ? _activeCatalogGenre : null;
+        items = await CatalogService.instance.getCatalogItems(
+          type: mediaType,
+          id: catalogId,
+          genre: genreParam,
+          skip: _catalogSkip,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          if (reset) {
+            _catalogItems = items;
+          } else {
+            _catalogItems.addAll(items);
+          }
+          _catalogSkip += items.length;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Catalog] Error loading catalog: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingCatalog = false);
+      }
+    }
   }
 
   Widget _buildSeriesCatalogBrowser() {
@@ -2181,7 +2753,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                   ),
                   const SizedBox(height: 10),
                   // Action buttons
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
@@ -2193,7 +2768,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         label: const Text('Play', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
                         onPressed: () => _playStream(url),
                       ),
-                      const SizedBox(width: 8),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -2204,8 +2778,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         label: const Text('Copy', style: TextStyle(fontSize: 12, color: Colors.white)),
                         onPressed: () => _copyToClipboard(url, 'Stream URL'),
                       ),
-                      if (isCachable) ...[
-                        const SizedBox(width: 8),
+                      if (isCachable)
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF238636),
@@ -2219,7 +2792,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           ),
                           onPressed: () => _startTorboxCache(underlying),
                         ),
-                      ],
                     ],
                   ),
                 ],
