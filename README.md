@@ -16,14 +16,32 @@
 > [!NOTE]
 > **✨ 100% Vibe Coded with AI:** This entire project is vibe-coded through continuous human-AI agentic collaboration, real-time feedback loops, automated regression test suites, and live self-healing pipelines. High velocity, zero bloat, pure vibes.
 
-A high-performance local Stremio & Nuvio-compatible addon server featuring **63 Direct HTTP/HLS Cloud Scrapers**, **TorBox Debrid Integration**, **Live Hoster Cloud Caching**, and rich public catalogs (**YouTube, Vimeo, Internet Archive & Dailymotion**) with automatic badge tagging, native 16:9 widescreen video posters, and embedded streaming proxy.
+A high-performance local Stremio & Nuvio-compatible addon server featuring **70 Stream & Scraper Engines**, **TorBox Debrid Integration**, **TorBox Cached Torrents Toggle (Default OFF • 0 P2P Guarantee)**, **Prowlarr Captcha Resolver & Anti-Cache**, and rich public catalogs (**YouTube, Vimeo, Internet Archive & Dailymotion**) with automatic badge tagging, native 16:9 widescreen video posters, and embedded streaming proxy.
 
 ---
 
 ## 🌟 Features
 
-- **100% Non-Torrent (Zero P2P):** No seeders, no torrent clients, and no IP seeding exposure. Streams directly from fast cloud storage and HTTP/HLS CDNs.
-- **63 Cloud Scraper Providers:** Extracts streams across 63 scrapers including *Bolly4u, DramaDay, MoviesDrive, UHDMovies, MoviesMod, MultiMovies, ToonStream, 4KHDHub, Bollyflix, HDHub4u, Vegamovies, Vadapav, HindMoviez, PlayDesi, YoMovies, RiveStream, LookMovie, VidLink, Movy, Videasy, Cinejoy, FlyStream, X-Downloader, Vuflix, FSOnline, KissKH, Megasource, Nova, Purstream*, and more.
+- **100% Non-Torrent by Default (Zero P2P Philosophy):** No seeders, no torrent clients, and no IP seeding exposure. Streams directly from fast cloud storage, regional CDNs, and HTTP/HLS broadcasts.
+- **70 Scraper Providers & Community Integrations:**
+  - **Direct Cloud & HLS Scrapers (63 engines):** Extracts streams across *Bolly4u, DramaDay, MoviesDrive, UHDMovies, MoviesMod, MultiMovies, ToonStream, 4KHDHub, Bollyflix, HDHub4u, Vegamovies, Vadapav, HindMoviez, PlayDesi, YoMovies, RiveStream, LookMovie, VidLink, Movy, Videasy, Cinejoy, FlyStream, X-Downloader, Vuflix, FSOnline, KissKH, Megasource, Nova, Purstream*, and more.
+  - **Community Torrent Scrapers (TorBox Cached Only):** *Nyaa.si* (Anime Community), *1TamilMV / TamilBlasters* (Desi & Indian Regional), *AsianDrama Torrent* (Nyaa Live Action), *YTS.mx API*, *EZTV API*, *Knaben*, and *TorrentGalaxy* (PlayTorrio).
+- **TorBox Cached Torrents Toggle (Strictly Default OFF • 0 P2P Guarantee):**
+  - Interactive toggle in Settings & Server tab. When OFF, 0 torrent scrapers are queried.
+  - When enabled, torrent hashes are checked in batch against TorBox debrid. **Only 100% cached items** are served via TorBox's global high-speed HTTPS CDN (`$localBaseUrl/torbox/play`). Uncached torrents are immediately dropped. No uploading, zero seeders needed, zero P2P leakage.
+- **Prowlarr-Style Captcha Resolver & Anti-Cache:**
+  - Automated FlareSolverr proxy bridge (`ProxyResolverService`) that solves Cloudflare Turnstile, IUAM challenges, and captures clearance cookies (`cf_clearance`).
+  - Origin-fresh cache-bypass headers (`Cache-Control: no-cache, no-store, max-age=0`, `Pragma: no-cache`, query nonces) to avoid stale or blocked ISP cache hits.
+- **Dedicated Anime Engine (Zero Bloat):** Powered by **HiAnime / Zoro** (#1 best) with **Gogoanime** (#2 fallback) featuring clean `[SUB]` and `[DUB]` tags, absolute episode resolution, and zero P2P torrent overhead.
+- **Direct Subtitle APIs (OpenSubtitles v3):** Integrated official zero-rate-limit OpenSubtitles v3 REST API delivering subtitles in 90+ languages with direct `.srt` downloads and a user-facing toggle in settings (`enableOpenSubtitles`).
+- **Expanded DDL Hosters (Direct & TorBox):** Direct streaming and TorBox cloud caching across **PixelDrain, GoFile, Buzzheavier, Qiwi, MultiUp, Krakenfiles, Mixdrop, Voe, Filemoon, Doodstream, Streamtape**, and **HubCloud**.
+- **Free Global Live IPTV Broadcasts (`iptv-org`):** Over 8,000+ free broadcast channels with live Search, Category filters (*News, Sports, Movies, Animation, Music, Entertainment, Documentary*), and Country filters (*Global, US, UK, IN, CA, FR, DE, ES, IT, AU, JP, BR*). Available both in the native Android app and as the Stremio addon catalog `iptv_global`.
+- **Nuvio Side Navigation Rail & Dedicated About Menu (Windows & Android):**
+  - **4-Tab Navigation:** 🖥️ **Server & Addon**, 🎬 **Cinema & Series Theater**, 📺 **Free Global Live IPTV**, ℹ️ **About & Diagnostics**.
+  - Left navigation rail on wide screens (desktop, TV, tablet) and responsive tab selector on mobile.
+  - Header and footer cleanly organized into a dedicated About menu to maintain focused, distraction-free playback views.
+- **Nuvio-Style Dedicated Media Detail Screen:** Selecting any movie, TV series, or search suggestion transitions into a dedicated Hero Detail screen with large backdrop/poster, IMDb rating badge ⭐, year, genres, plot overview, interactive Season & Episode picker (for series), and focused stream list with instant "← Back to Catalog" navigation.
+- **External Player Chooser ("Play With..."):** Native Android Intent chooser enabling 1-tap playback in **VLC for Android**, **Just Player**, **MPV**, **MX Player**, or any system-installed media player alongside native in-app playback.
 - **TorBox Debrid Integration:**
   - **Batch Cache Checking:** Instantly checks up to 100 links in a single API query (`/webdl/checkcached`), cutting scraper turnaround by 2-3 seconds.
   - **1-Click Cloud Caching:** Direct "⚡ Cache to TorBox" links in Nuvio and the Web Dashboard. Submits uncached links to TorBox's WebDL downloader in 1 click.
@@ -40,20 +58,16 @@ A high-performance local Stremio & Nuvio-compatible addon server featuring **63 
   - **Audio Language Prioritization:** Select your preferred audio language (`Hindi`, `English`, `Tamil`, `Telugu`, `Malayalam`, `Kannada`, `Bengali`, `Punjabi`, `Dual Audio`) to boost matching releases to the very top.
 - **Smart Stream Deduplication:** Merges identical CDN streams from multiple providers into a single card with combined tags (e.g. `HubCloud [Direct] (MoviesDrive + Vega)`).
 - **Inbuilt Native Badges & Indian Regional OTT Logos:** Native bracketed headers (`[4K] [Remux] [HDR] [Hindi]`) rendered directly as colored badge pills in Nuvio, with logos for **JioHotstar, SonyLIV, Zee5, JioCinema, SunNXT, Aha, Hoichoi, ManoramaMAX, Chaupal, Planet Marathi, MX Player, Lionsgate, Shemaroo, and Voot**.
-- **5 Rich Media Catalogs with 16:9 Landscape Posters:**
+- **6 Rich Media Catalogs with 16:9 Landscape Posters:**
+  - 📺 **Free Global Live IPTV:** 8,000+ live broadcast streams from iptv-org.
   - 🎬 **YouTube Indian Cinema:** Bollywood classics, South Indian Hindi dubbed movies, comedy, and web series.
   - 🌍 **YouTube International:** Curated action, sci-fi, thriller, documentaries, and indie films.
   - 🎥 **Vimeo Staff Picks & Shorts:** Award-winning short films, Staff Picks, animations, and documentaries in native master HLS.
   - 🏛️ **Internet Archive Classics:** Golden Era Hollywood, film noir, silent cinema, classic horror, and vintage Indian cinema.
   - 📺 **Dailymotion Indian & Global:** Hindi movies, dramas, Pakistani serials, and international titles.
 - **Embedded Streaming Proxy (`/proxy`):** Transparently forwards protected HLS (`.m3u8`) playlists and injects required `Referer`, `Origin`, and `User-Agent` headers so that Nuvio's internal player plays restricted streams without HTTP 403 errors.
-- **Dual-Tab Web Dashboard (`/configure`):**
-  - 🖥️ **Server & Addon Hub tab:** Quick Install (pill-step breadcrumbs for Stremio/Nuvio), TorBox config, provider toggle checkboxes, and Update Hub.
-  - 🎬 **Native Streaming Theater tab:**
-    - **🗂️ Catalog Browser** — Browse 7 built-in catalogs in a Netflix-style poster grid: **🔥 Trending Movies**, **📺 Trending Series** (via Cinemeta), **🎬 YouTube Indian Cinema**, **🌍 YouTube International**, **🎥 Vimeo**, **🏛️ Archive.org**, **📺 Dailymotion**. Genre sub-filters per catalog. Click any title → instantly loads streams.
-    - **🔍 Search & Stream Theater** — Search any movie or TV series by title or IMDb ID across all scrapers. Season/episode selector for series. Play in browser (Web Mode) or open directly in VLC/PotPlayer/MPV.
-    - **Smart Cache Button Logic:** `⚡ Start TorBox Cache` appears only on links that TorBox *can* cache (supported hosters). Already-cached and HLS/DASH streams never show the button. Wrapped `/torbox/play?url=…` URLs are auto-unwrapped before submission.
-- **Android TV & Mobile APK:** Native Flutter client for NVIDIA Shield, Fire TV, Google TV, and Android phones with full D-pad remote navigation and 24/7 background foreground service.
+- **4-Tab Android TV & Mobile App (Flutter):** Full D-pad remote navigation and 24/7 background foreground service across Server, Cinema, IPTV, and About screens.
+- **4-Tab Responsive Web Dashboard (`/configure`):** Modern dark UI with sidebar navigation rail, instant provider toggles, stream filtering, and live diagnostics.
 
 ---
 

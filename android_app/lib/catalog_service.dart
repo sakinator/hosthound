@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'config.dart';
 import 'omdb_service.dart';
 import 'torbox_service.dart';
+import 'iptv_service.dart';
 
 class CatalogService {
   static final CatalogService instance = CatalogService._();
@@ -131,6 +132,30 @@ class CatalogService {
           {'name': 'skip', 'isRequired': false},
         ],
       },
+      {
+        'type': 'tv',
+        'id': 'iptv_global',
+        'name': 'Free Global Live IPTV',
+        'posterShape': 'square',
+        'extra': [
+          {'name': 'search', 'isRequired': false},
+          {
+            'name': 'genre',
+            'options': [
+              'All',
+              'News',
+              'Sports',
+              'Movies',
+              'Animation',
+              'Music',
+              'Entertainment',
+              'Documentary',
+            ],
+            'isRequired': false,
+          },
+          {'name': 'skip', 'isRequired': false},
+        ],
+      },
     ];
   }
 
@@ -160,12 +185,14 @@ class CatalogService {
         items = await _fetchArchiveOrg(search: search, genre: genre, skip: skip);
       } else if (id == 'dm_movies') {
         items = await _fetchDailymotion(search: search, genre: genre, skip: skip);
+      } else if (id == 'iptv_global') {
+        items = await _fetchIptvCatalog(search: search, genre: genre, skip: skip);
       }
     } catch (e) {
       print('[CatalogService] Error fetching catalog $id: $e');
     }
 
-    if (items.isNotEmpty) {
+    if (items.isNotEmpty && id != 'iptv_global') {
       try {
         final enriched = await Future.wait(
           items.map((it) => _enrichItem(it)),
@@ -178,6 +205,28 @@ class CatalogService {
 
     _cache[cacheKey] = items;
     return items;
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchIptvCatalog({
+    String? search,
+    String? genre,
+    int skip = 0,
+  }) async {
+    await IptvService.instance.loadChannels();
+    final filtered = IptvService.instance.filterChannels(
+      search: search,
+      category: genre == 'All' ? null : genre,
+    );
+    final slice = filtered.skip(skip).take(50);
+    return slice.map((c) => {
+      'id': 'iptv:${c.id}',
+      'type': 'tv',
+      'name': c.name,
+      'poster': c.logo.isNotEmpty ? c.logo : 'https://i.imgur.com/7bK7QYI.png',
+      'genres': [c.category, c.country],
+      'description': 'Live TV broadcast: ${c.name} (${c.category} - ${c.country})',
+      'posterShape': 'square',
+    }).toList();
   }
 
   // ── YouTube Indian Fetcher ──────────────────────────────────────────────────
@@ -851,6 +900,18 @@ class CatalogService {
       // 4. Dailymotion Stream Resolver
       final vId = id.replaceFirst('dm:', '');
       streams = await _resolveDailymotionStreams(vId);
+    } else if (id.startsWith('iptv:')) {
+      // 5. Free Global Live IPTV Resolver
+      final chId = id.replaceFirst('iptv:', '');
+      final ch = await IptvService.instance.getChannelById(chId);
+      if (ch != null) {
+        streams.add({
+          'name': '📺 ${ch.name}',
+          'title': '⚡ Live HLS Stream • ${ch.category} • ${ch.country}\n🌐 Source: iptv-org Broadcast',
+          'url': ch.url,
+          'behaviorHints': const {'notWebReady': false},
+        });
+      }
     }
 
     return await _applyTorboxOptions(streams, localBaseUrl);

@@ -85,3 +85,46 @@ This document defines the mandatory development, UI/UX, release, and synchroniza
 ## 9. Zero Localhost DNS Interception (DoH Rule)
 - The DNS-over-HTTPS fallback engine (`DohResolver`) must strictly bypass `localhost`, `127.0.0.1`, and private RFC1918 subnets (`192.168.*`, `10.*`, `172.16-31.*`).
 - Local proxy requests and LAN manifest endpoints must never be routed through external DNS resolvers.
+
+---
+
+## 10. Free Global Live IPTV Integration (`iptv-org`)
+- **Dual-Surface Availability:** IPTV channels must be available both in the Android app (dedicated `Live IPTV` tab) and via the Stremio addon catalog (`iptv_global` catalog).
+- **Filtering & Search Invariant:** The IPTV view must provide instantaneous in-memory multi-attribute filtering by:
+  1. Category (`News`, `Sports`, `Movies`, `Animation`, `Music`, `Entertainment`, `Documentary`, `General`).
+  2. Country / Region (`All`, `Global`, `US`, `UK`, `IN`, `CA`, `FR`, `DE`, `ES`, `IT`, `AU`, `JP`, `BR`).
+  3. Live channel search field.
+- **Local Caching:** Channels must be cached locally in `data/iptv_cache.json` with a 12-hour background refresh cycle and fallback channels for zero-offline resilience.
+
+---
+
+## 11. Dedicated Anime Engine Policy
+- **No Torrent Bloat:** Anime scraping must strictly use direct HTTP/HLS sources: **HiAnime / Zoro** (#1 best) with **Gogoanime** (#2 fallback).
+- **Clean Labeling:** Anime streams must feature distinct `[SUB]` and `[DUB]` indicators with episode number mapping.
+
+---
+
+## 12. Direct Subtitles Engine (OpenSubtitles v3)
+- **Zero Rate Limits:** Hostreamio integrates the official OpenSubtitles v3 REST API (`https://opensubtitles-v3.strem.io/subtitles/{type}/{id}.json`) delivering 90+ languages in <2 seconds with direct `.srt` download links.
+- **User Control:** Must feature a user-facing toggle (`enableOpenSubtitles`) in Settings / Config (defaults to `true`) allowing users to disable external subtitles on demand.
+
+---
+
+## 13. Expanded Supported DDL Hosters
+- **Supported Providers:** Direct streaming and TorBox cloud debrid caching are supported across: `HubCloud`, `PixelDrain`, `GoFile`, `Buzzheavier`, `Qiwi`, `MultiUp`, `Krakenfiles`, `Mixdrop`, `Voe`, `Filemoon`, `Doodstream`, `Streamtape`, and `1Fichier`.
+
+---
+
+## 14. Nuvio-Style Dedicated Media Detail View
+- **Dedicated Viewport:** Selecting any movie, TV series, or suggestion must open a dedicated Hero Detail screen (`_isInDetailView = true`) instead of stacking episodes and streams on the catalog browse page.
+- **Hero Metadata:** Detail view must render Hero backdrop / poster, Title, Year, IMDb rating ⭐, Genres, and Overview.
+- **Series Seasons & Episodes Browser:** For series, provide an interactive Season selector tab bar and Episode cards with 1-tap stream scraping.
+- **Instant Back Navigation:** Provide a prominent "← Back to Catalog" button that returns to the previous catalog scroll position without re-loading.
+
+---
+
+## 15. External Player Integration ("Play With...")
+- **Dual Playback Modes:** Every stream card and IPTV channel card must offer both:
+  1. **▶ Play:** Launches default internal player or primary player.
+  2. **🚀 Play With...:** Displays a native Android app chooser dialog with 1-tap launching for **VLC for Android**, **Just Player**, **MPV**, **MX Player**, and system App Chooser.
+

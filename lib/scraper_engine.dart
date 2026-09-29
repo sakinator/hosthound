@@ -8,6 +8,7 @@ import 'upstream/models/stream/stream_model.dart';
 import 'upstream/services/scraper/stream_scraper.dart';
 import 'badge_service.dart';
 import 'torbox_service.dart';
+import 'opensubtitles_service.dart';
 
 class _CachedScrape {
   final List<ScrapedStream> streams;
@@ -152,7 +153,11 @@ class ScraperEngine {
   }) async {
     final allActive = activeScrapers;
     final now = DateTime.now();
+    final cfg = AddonConfig.instance;
     final scrapers = allActive.where((s) {
+      if (!cfg.enableTorboxCachedTorrents && s.isTorrent) {
+        return false;
+      }
       final tripExp = _trippedUntil[s.providerId];
       if (tripExp != null && tripExp.isAfter(now)) {
         return false;
@@ -160,7 +165,6 @@ class ScraperEngine {
       return true;
     }).toList();
 
-    final cfg = AddonConfig.instance;
     final timeout = Duration(seconds: cfg.timeoutSeconds);
 
     print('[ScraperEngine] Scraping "${meta.title}" (${meta.year ?? 'N/A'}, ${meta.type}) '
@@ -240,16 +244,28 @@ class ScraperEngine {
     // ── Batch TorBox Cache Check (Instant single query for all hoster URLs) ──
     final torboxKey = cfg.torboxApiKey.trim();
     final supportedHosterUrls = <String>[];
+    final torrentHashToSources = <String, List<StreamSource>>{};
+
     if (torboxKey.isNotEmpty) {
       for (final src in rawResults) {
-        final rawUrl = src.url ?? src.externalUrl;
-        if (rawUrl != null && rawUrl.startsWith('http') && TorboxService.instance.isSupportedHoster(rawUrl)) {
+        final rawUrl = src.url ?? src.externalUrl ?? '';
+        if (rawUrl.startsWith('http') && TorboxService.instance.isSupportedHoster(rawUrl)) {
           supportedHosterUrls.add(rawUrl);
+        } else if (cfg.enableTorboxCachedTorrents) {
+          final hash = _extractTorrentHash(rawUrl, src.infoHash);
+          if (hash != null) {
+            torrentHashToSources.putIfAbsent(hash, () => []).add(src);
+          }
         }
       }
     }
+
     final torboxCacheMap = supportedHosterUrls.isNotEmpty
         ? await TorboxService.instance.checkCachedBatch(supportedHosterUrls, torboxKey)
+        : <String, bool>{};
+
+    final torrentCacheMap = (cfg.enableTorboxCachedTorrents && torboxKey.isNotEmpty && torrentHashToSources.isNotEmpty)
+        ? await TorboxService.instance.checkCachedTorrentsBatch(torrentHashToSources.keys.toList(), torboxKey)
         : <String, bool>{};
 
     // ── Dead-Link Filter: Quick concurrent HEAD probe on direct stream URLs ──
@@ -275,13 +291,77 @@ class ScraperEngine {
       }
     }
 
+    // ── OpenSubtitles v3 Subtitles Fetching ──
+    List<Map<String, dynamic>> openSubtitlesList = [];
+    if (cfg.enableOpenSubtitles && meta.imdbId != null && meta.imdbId!.isNotEmpty) {
+      final subId = (meta.season != null && meta.episode != null)
+          ? '${meta.imdbId}:${meta.season}:${meta.episode}'
+          : meta.imdbId!;
+      try {
+        openSubtitlesList = await OpenSubtitlesService.instance.getSubtitles(
+          type: meta.type,
+          id: subId,
+        );
+      } catch (_) {}
+    }
+
     final seenUrls = <String>{};
     final streamDedupeMap = <String, ScrapedStream>{};
     final finalStreams = <ScrapedStream>[];
 
     for (final src in rawResults) {
-      final rawUrl = src.url ?? src.externalUrl;
-      if (rawUrl == null || rawUrl.isEmpty || !rawUrl.startsWith('http')) continue;
+      final rawUrl = src.url ?? src.externalUrl ?? '';
+      final torrentHash = _extractTorrentHash(rawUrl, src.infoHash);
+      final isTorrent = torrentHash != null || rawUrl.startsWith('magnet:');
+
+      if (isTorrent) {
+        // Strictly only show if TorBox cached torrents is enabled AND API key is present
+        if (!cfg.enableTorboxCachedTorrents || torboxKey.isEmpty) continue;
+        // Strictly only show if already 100% cached on TorBox CDN (Zero P2P, instant cloud streaming)
+        final isCached = torrentHash != null && torrentCacheMap[torrentHash] == true;
+        if (!isCached) continue;
+
+        final sourceName = resolveSourceName(src.providerId ?? '', src.providerName ?? src.name);
+        final q = src.quality ?? '';
+        final qLabel = q.isNotEmpty ? q : 'HD';
+        final badge = src.getAudioBadge(mediaTitle: meta.title) ?? '';
+        final torboxPlayUrl = '$localBaseUrl/torbox/play?url=${Uri.encodeComponent(rawUrl.isNotEmpty ? rawUrl : 'magnet:?xt=urn:btih:$torrentHash')}';
+
+        final cachedEnriched = BadgeService.enrichStream(
+          rawTitle: src.title ?? src.name ?? meta.title,
+          mediaTitle: meta.title,
+          year: meta.year,
+          season: meta.season,
+          episode: meta.episode,
+          quality: q,
+          codec: src.codec,
+          audioBadge: badge,
+          fileSize: src.fileSize,
+          providerName: '$sourceName (TorBox Cached)',
+          sourceName: sourceName,
+          hostName: '⚡ TorBox Cloud CDN ($sourceName)',
+          ottPlatform: meta.ottPlatform,
+          isCached: true,
+          isHls: false,
+          isProxied: false,
+        );
+
+        final cachedBadge = cachedEnriched['badgeHeader'] ?? qLabel;
+        final cachedStream = ScrapedStream(
+          name: '⚡ TorBox [Cached] • $sourceName\n$cachedBadge',
+          title: '${cachedEnriched['title']}\n⚡ Instant TorBox Cloud CDN Playback (Zero P2P)',
+          url: torboxPlayUrl,
+          behaviorHints: const {'notWebReady': false},
+          provider: '$sourceName (TorBox Cached)',
+          quality: q,
+          subtitles: openSubtitlesList,
+        );
+        finalStreams.add(cachedStream);
+        continue; // Torrent handled; never fall through to direct play
+      }
+
+      // Non-torrent: Standard Direct HTTP(S) & Hoster Link Processing
+      if (rawUrl.isEmpty || !rawUrl.startsWith('http')) continue;
       if (deadUrls.contains(rawUrl)) continue; // Filtered broken link
 
       final isSupportedHoster = torboxKey.isNotEmpty && TorboxService.instance.isSupportedHoster(rawUrl);
@@ -373,11 +453,17 @@ class ScraperEngine {
       );
 
       final qLabel = q.isNotEmpty ? q : (isHls ? 'HLS' : 'HD');
-      final subList = src.subtitles?.map((s) => {
-        'id': s.language,
-        'url': s.downloadUrl,
-        'lang': s.language,
-      }).toList();
+      final subList = <Map<String, dynamic>>[];
+      if (src.subtitles != null) {
+        subList.addAll(src.subtitles!.map((s) => {
+          'id': s.language,
+          'url': s.downloadUrl,
+          'lang': s.language,
+        }));
+      }
+      if (openSubtitlesList.isNotEmpty) {
+        subList.addAll(openSubtitlesList);
+      }
 
       if (isTorboxCached) {
         // ── 1. Link is ALREADY TorBox cached: show 2 links (Cached + Direct Play) ──
@@ -781,13 +867,6 @@ class ScraperEngine {
     return 'Direct Streaming Edge';
   }
 
-  static String? _detectHoster(String url) {
-    final host = detectStreamHost(url);
-    if (host == 'Direct CDN' || host.contains('CDN') || host.contains('Edge')) {
-      return null;
-    }
-    return host;
-  }
 
   static Future<bool> _probeDirectLink(String url) async {
     try {
@@ -857,5 +936,16 @@ class ScraperEngine {
       default:
         return 0;
     }
+  }
+
+  static String? _extractTorrentHash(String url, String? infoHash) {
+    if (infoHash != null && infoHash.isNotEmpty) return infoHash.toLowerCase();
+    if (url.startsWith('magnet:')) {
+      final m = RegExp(r'xt=urn:btih:([a-zA-Z0-9]+)', caseSensitive: false).firstMatch(url);
+      if (m != null) return m.group(1)!.toLowerCase();
+    } else if (RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(url)) {
+      return url.toLowerCase();
+    }
+    return null;
   }
 }

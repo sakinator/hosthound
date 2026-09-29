@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'catalog_service.dart';
 import 'config.dart';
+import 'iptv_service.dart';
 import 'key_validator.dart';
 import 'metadata_service.dart';
 import 'scraper_engine.dart';
@@ -55,9 +56,22 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   static const MethodChannel _playerChannel = MethodChannel('com.playtorrio.nuvio.addon/player');
 
   // Tab Navigation State
-  int _selectedTabIndex = 0; // 0 = Server, 1 = Streaming
+  int _selectedTabIndex = 0; // 0 = Server, 1 = Streaming, 2 = Live IPTV, 3 = About
   final FocusNode _serverTabFocus = FocusNode();
   final FocusNode _streamingTabFocus = FocusNode();
+  final FocusNode _iptvTabFocus = FocusNode();
+  final FocusNode _aboutTabFocus = FocusNode();
+
+  // Nuvio-style Media Detail View state
+  bool _isInDetailView = false;
+
+  // Live IPTV State (iptv-org integration)
+  final TextEditingController _iptvSearchController = TextEditingController();
+  String _selectedIptvCategory = 'All';
+  String _selectedIptvCountry = 'All';
+  List<IptvChannel> _iptvChannels = [];
+  bool _isLoadingIptv = false;
+  int _iptvDisplayLimit = 60;
 
   final FocusNode _startStopFocus = FocusNode();
   final FocusNode _oneClickInstallFocus = FocusNode();
@@ -89,6 +103,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   bool _excludeCams = true;
   bool _enableDeduplication = true;
   bool _enableDeadLinkFilter = true;
+  bool _enableOpenSubtitles = true;
+  bool _enableTorboxCachedTorrents = false;
+  bool _enableCacheBypass = true;
+  final TextEditingController _proxyResolverController = TextEditingController();
 
   // Streaming View State
   String _selectedMediaType = 'movie'; // 'movie' or 'series'
@@ -221,6 +239,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     _excludeCams = cfg.excludeCams;
     _enableDeduplication = cfg.enableDeduplication;
     _enableDeadLinkFilter = cfg.enableDeadLinkFilter;
+    _enableOpenSubtitles = cfg.enableOpenSubtitles;
+    _enableTorboxCachedTorrents = cfg.enableTorboxCachedTorrents;
+    _enableCacheBypass = cfg.enableCacheBypass;
+    _proxyResolverController.text = cfg.proxyResolverUrl;
 
     // Preload default catalog
     _loadCatalog(reset: true);
@@ -230,6 +252,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   void dispose() {
     _serverTabFocus.dispose();
     _streamingTabFocus.dispose();
+    _iptvTabFocus.dispose();
+    _aboutTabFocus.dispose();
+    _iptvSearchController.dispose();
+    _proxyResolverController.dispose();
     _startStopFocus.dispose();
     _oneClickInstallFocus.dispose();
     _copyManifestFocus.dispose();
@@ -335,68 +361,84 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 return LayoutBuilder(
                   builder: (context, constraints) {
                     final isWide = constraints.maxWidth >= 720;
-                    final horizontalPadding = isWide ? 36.0 : 16.0;
-                    final verticalPadding = isWide ? 24.0 : 16.0;
 
+                    if (isWide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left Navigation Sidebar
+                          _buildSidebarNav(running),
+                          // Right Main Content View
+                          Expanded(
+                            child: ListView(
+                              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+                              children: [
+                                if (_selectedTabIndex == 0) ...[
+                                  // TAB 0: Server Two-Column Dashboard
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        flex: 5,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            _buildStatusCard(running, ip, port, manifestUrl),
+                                            const SizedBox(height: 18),
+                                            _buildActionButtons(running, manifestUrl, dashboardUrl),
+                                            const SizedBox(height: 18),
+                                            _buildLogsCard(),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 20),
+                                      Expanded(
+                                        flex: 5,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            _buildTorboxCard(),
+                                            const SizedBox(height: 18),
+                                            _buildOtherApisCard(),
+                                            const SizedBox(height: 18),
+                                            _buildStreamFilteringCard(),
+                                            const SizedBox(height: 18),
+                                            _buildInfoRow(isWide: true),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ] else if (_selectedTabIndex == 1) ...[
+                                  // TAB 1: Cinema & Series Streaming Theater
+                                  _buildStreamingView(isWide: true),
+                                ] else if (_selectedTabIndex == 2) ...[
+                                  // TAB 2: Global Live IPTV Broadcasts
+                                  _buildIptvView(isWide: true),
+                                ] else ...[
+                                  // TAB 3: Dedicated About & System Diagnostics
+                                  _buildAboutView(isWide: true),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    // Mobile Portrait Mode
                     return Center(
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: isWide ? 1200 : 600),
+                        constraints: const BoxConstraints(maxWidth: 600),
                         child: ListView(
-                          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: verticalPadding),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                           children: [
-                            // Header
-                            _buildHeader(running, isWide: isWide),
-                            const SizedBox(height: 18),
+                            // Mobile Top Tabs Switcher
+                            _buildTabSelector(isWide: false),
+                            const SizedBox(height: 16),
 
-                            // Main Tabs Switcher: Server vs Streaming
-                            _buildTabSelector(isWide: isWide),
-                            const SizedBox(height: 18),
-
-                            if (_selectedTabIndex == 1) ...[
-                              // TAB 2: Native Streaming Theater
-                              _buildStreamingView(isWide: isWide),
-                            ] else if (isWide) ...[
-                              // TAB 1: Server (Two-column layout for Android TV, Tablet, or Wide Landscape)
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Left Column: Status, Action Buttons, Server Activity
-                                  Expanded(
-                                    flex: 5,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        _buildStatusCard(running, ip, port, manifestUrl),
-                                        const SizedBox(height: 18),
-                                        _buildActionButtons(running, manifestUrl, dashboardUrl),
-                                        const SizedBox(height: 18),
-                                        _buildLogsCard(),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  // Right Column: TorBox Debrid, Metrics, Optimizations
-                                  Expanded(
-                                    flex: 5,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        _buildTorboxCard(),
-                                        const SizedBox(height: 18),
-                                        _buildOtherApisCard(),
-                                        const SizedBox(height: 18),
-                                        _buildStreamFilteringCard(),
-                                        const SizedBox(height: 18),
-                                        _buildInfoRow(isWide: true),
-                                        const SizedBox(height: 18),
-                                        _buildEngineFeaturesCard(),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ] else ...[
-                              // TAB 1: Server (Single-column layout for Mobile Portrait)
+                            if (_selectedTabIndex == 0) ...[
+                              // TAB 0: Server
                               _buildStatusCard(running, ip, port, manifestUrl),
                               const SizedBox(height: 16),
                               _buildActionButtons(running, manifestUrl, dashboardUrl),
@@ -409,9 +451,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                               const SizedBox(height: 16),
                               _buildInfoRow(isWide: false),
                               const SizedBox(height: 16),
-                              _buildEngineFeaturesCard(),
-                              const SizedBox(height: 16),
                               _buildLogsCard(),
+                            ] else if (_selectedTabIndex == 1) ...[
+                              // TAB 1: Cinema
+                              _buildStreamingView(isWide: false),
+                            ] else if (_selectedTabIndex == 2) ...[
+                              // TAB 2: Live IPTV
+                              _buildIptvView(isWide: false),
+                            ] else ...[
+                              // TAB 3: About & Diagnostics
+                              _buildAboutView(isWide: false),
                             ],
                           ],
                         ),
@@ -437,6 +486,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       ),
       child: Row(
         children: [
+          // Tab 0: Server & Addon
           Expanded(
             child: _TvFocusableButton(
               focusNode: _serverTabFocus,
@@ -444,7 +494,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 setState(() => _selectedTabIndex = 0);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                 decoration: BoxDecoration(
                   gradient: _selectedTabIndex == 0
                       ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
@@ -456,13 +506,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.dns_rounded, size: 18, color: Colors.white),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.dns_rounded, size: 16, color: Colors.white),
+                    const SizedBox(width: 5),
                     Flexible(
                       child: Text(
-                        'Server & Addon',
+                        'Server',
                         style: TextStyle(
-                          fontSize: isWide ? 15 : 13,
+                          fontSize: isWide ? 14 : 12,
                           fontWeight: FontWeight.bold,
                           color: _selectedTabIndex == 0 ? Colors.white : Colors.grey.shade400,
                         ),
@@ -475,7 +525,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
+
+          // Tab 1: Cinema & Series Streaming
           Expanded(
             child: _TvFocusableButton(
               focusNode: _streamingTabFocus,
@@ -486,7 +538,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 }
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                 decoration: BoxDecoration(
                   gradient: _selectedTabIndex == 1
                       ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
@@ -498,15 +550,100 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.movie_filter_rounded, size: 18, color: Colors.white),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.movie_filter_rounded, size: 16, color: Colors.white),
+                    const SizedBox(width: 5),
                     Flexible(
                       child: Text(
-                        'Streaming Theater',
+                        'Cinema',
                         style: TextStyle(
-                          fontSize: isWide ? 15 : 13,
+                          fontSize: isWide ? 14 : 12,
                           fontWeight: FontWeight.bold,
                           color: _selectedTabIndex == 1 ? Colors.white : Colors.grey.shade400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Tab 2: Free Global Live IPTV
+          Expanded(
+            child: _TvFocusableButton(
+              focusNode: _iptvTabFocus,
+              onPressed: () {
+                setState(() => _selectedTabIndex = 2);
+                if (_iptvChannels.isEmpty && !_isLoadingIptv) {
+                  _loadIptvChannels(reset: true);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                decoration: BoxDecoration(
+                  gradient: _selectedTabIndex == 2
+                      ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.live_tv_rounded, size: 16, color: Colors.white),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        'Live IPTV',
+                        style: TextStyle(
+                          fontSize: isWide ? 14 : 12,
+                          fontWeight: FontWeight.bold,
+                          color: _selectedTabIndex == 2 ? Colors.white : Colors.grey.shade400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Tab 3: Dedicated About & System Diagnostics
+          Expanded(
+            child: _TvFocusableButton(
+              focusNode: _aboutTabFocus,
+              onPressed: () {
+                setState(() => _selectedTabIndex = 3);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                decoration: BoxDecoration(
+                  gradient: _selectedTabIndex == 3
+                      ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)])
+                      : null,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 16, color: Colors.white),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        'About',
+                        style: TextStyle(
+                          fontSize: isWide ? 14 : 12,
+                          fontWeight: FontWeight.bold,
+                          color: _selectedTabIndex == 3 ? Colors.white : Colors.grey.shade400,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -522,98 +659,326 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  Widget _buildHeader(bool running, {bool isWide = false}) {
-    return Row(
-      children: [
-        Container(
-          width: isWide ? 58 : 50,
-          height: isWide ? 58 : 50,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF0C82).withOpacity(0.45),
-                blurRadius: 18,
-                spreadRadius: 1,
+  Widget _buildSidebarNav(bool running) {
+    return Container(
+      width: 240,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        color: Color(0xFF0D1117),
+        border: Border(right: BorderSide(color: Color(0xFF1F2432))),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Brand Logo & Title
+          InkWell(
+            onTap: () => setState(() => _selectedTabIndex = 3),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(6.0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF0C82).withOpacity(0.4),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/images/hostreamio_logo.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFF195FEB),
+                          child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 22),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Hostreamio', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Colors.white)),
+                        Text('Direct & Debrid', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              BoxShadow(
-                color: const Color(0xFF195FEB).withOpacity(0.3),
-                blurRadius: 10,
-                spreadRadius: 0,
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Divider(color: Color(0xFF1F2432), height: 1),
+          const SizedBox(height: 18),
+
+          // 4 Menu Buttons on Side Pane
+          _buildSidebarNavButton(0, Icons.dns_rounded, 'Server & Addon', _serverTabFocus),
+          const SizedBox(height: 8),
+          _buildSidebarNavButton(1, Icons.movie_filter_rounded, 'Cinema & Series', _streamingTabFocus),
+          const SizedBox(height: 8),
+          _buildSidebarNavButton(2, Icons.live_tv_rounded, 'Live IPTV', _iptvTabFocus),
+          const SizedBox(height: 8),
+          _buildSidebarNavButton(3, Icons.info_outline_rounded, 'About & System', _aboutTabFocus),
+
+          const Spacer(),
+          // Running status indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161B22),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF30363D)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: running ? const Color(0xFF3FB950) : const Color(0xFFF85149),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: running ? const Color(0xFF3FB950).withOpacity(0.6) : const Color(0xFFF85149).withOpacity(0.6),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  running ? 'Engine Online' : 'Engine Stopped',
+                  style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarNavButton(int index, IconData icon, String label, FocusNode focusNode) {
+    final isSelected = _selectedTabIndex == index;
+    return _TvFocusableButton(
+      focusNode: focusNode,
+      onPressed: () {
+        setState(() => _selectedTabIndex = index);
+        if (index == 2 && _iptvChannels.isEmpty && !_isLoadingIptv) {
+          _loadIptvChannels(reset: true);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: isSelected ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)]) : null,
+          color: isSelected ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isSelected ? const Color(0xFFFF0C82).withOpacity(0.5) : Colors.transparent),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: isSelected ? Colors.white : Colors.grey.shade400),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? Colors.white : Colors.grey.shade300,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutView({bool isWide = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Brand Header (Logo, title, subtitle)
+        Center(
+          child: Column(
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF0C82).withOpacity(0.5),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF195FEB).withOpacity(0.4),
+                      blurRadius: 12,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Image.asset(
+                    'assets/images/hostreamio_logo.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: const Color(0xFF195FEB),
+                      child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 40),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Hostreamio',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Direct Hosters • Streaming Links • TorBox Cloud Debrid • Smart Proxy • Instant Badges',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade400, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF238636).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF3FB950).withOpacity(0.4)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Color(0xFF3FB950), size: 16),
+                    SizedBox(width: 6),
+                    Text('Release v1.0.0 Ready (Native Android)', style: TextStyle(color: Color(0xFF7EE787), fontWeight: FontWeight.bold, fontSize: 12)),
+                  ],
+                ),
               ),
             ],
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Image.asset(
-            'assets/images/hostreamio_logo_256.png',
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Center(
-              child: Icon(Icons.play_arrow_rounded, color: const Color(0xFFFF0C82), size: isWide ? 34 : 28),
-            ),
-          ),
         ),
-        const SizedBox(width: 14),
-        Expanded(
+        const SizedBox(height: 24),
+
+        // Engine Status & Architecture Card
+        _buildEngineFeaturesCard(),
+        const SizedBox(height: 18),
+
+        // Community Attributions & Open Source Credits Card
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF161B22),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF30363D)),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Hostreamio',
-                style: TextStyle(
-                  fontSize: isWide ? 26 : 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                  color: Colors.white,
-                ),
+              const Row(
+                children: [
+                  Icon(Icons.stars_rounded, color: Color(0xFFFFD700), size: 22),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Community Attributions & Open Source Credits',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 8),
               Text(
-                'Direct Hosters • Regional OTT • TorBox Debrid (Android TV & Mobile)',
-                style: TextStyle(
-                  fontSize: isWide ? 14 : 12,
-                  color: Colors.grey.shade400,
-                ),
+                'Hostreamio stands on the shoulders of giants. We gratefully acknowledge and credit the following pioneering open source developers, communities, and services:',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade400, height: 1.4),
               ),
+              const SizedBox(height: 14),
+              _buildCreditItem('PlayTorrio (ayman708-UX)', 'Original base Dart scraper architecture, StreamSource models, Knaben aggregator & TorrentGalaxy scrapers.', const Color(0xFF58A6FF)),
+              _buildCreditItem('Nyaa.si & Tokyo Toshokan', 'Global anime, Asian live-action drama & OST community metadata, indexing, and RSS feeds.', const Color(0xFFFF69B4)),
+              _buildCreditItem('1TamilMV & TamilBlasters Community', 'Premier regional Indian entertainment trackers for Hindi, Tamil, Telugu, Malayalam, and Kannada releases.', const Color(0xFF3FB950)),
+              _buildCreditItem('YTS.mx & EZTV APIs', 'Public community APIs for high-efficiency movie releases and global television series episodes.', const Color(0xFFF55014)),
+              _buildCreditItem('IPTV-org Community', 'Public domain worldwide live television broadcasts, logos, categories, and electronic program guides.', const Color(0xFF38BDF8)),
+              _buildCreditItem('OpenSubtitles.org v3 API', 'Direct subtitle synchronization across 50+ languages without mandatory VIP registration.', const Color(0xFFE3B341)),
             ],
           ),
         ),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: isWide ? 14 : 10, vertical: isWide ? 8 : 6),
-          decoration: BoxDecoration(
-            color: running ? const Color(0xFF238636).withOpacity(0.2) : Colors.red.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: running ? const Color(0xFF3FB950) : Colors.redAccent,
-              width: 1.5,
+        const SizedBox(height: 20),
+
+        // Legal & Vibe Coded Disclaimer Footer
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1117),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF21262D)),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: running ? const Color(0xFF3FB950) : Colors.redAccent,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF69B4).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFF69B4).withOpacity(0.3)),
+                  ),
+                  child: const Text('✨ 100% VIBE CODED WITH AI', style: TextStyle(color: Color(0xFFFF69B4), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                running ? 'ONLINE' : 'OFFLINE',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isWide ? 13 : 11,
-                  letterSpacing: 0.5,
-                  color: running ? const Color(0xFF3FB950) : Colors.redAccent,
+                const SizedBox(height: 8),
+                Text(
+                  '⚖️ GitHub & Legal Disclaimer: The author does not own, host, upload, or broadcast any media or streams. Hostreamio acts solely as a local search indexer aggregating publicly available hyperlinks from third-party websites on the internet. All media is hosted by independent third-party services. Not affiliated with Stremio, Nuvio, TorBox, or any scraped source.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500, height: 1.5),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
     );
   }
+
+  Widget _buildCreditItem(String title, String desc, Color accentColor) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF21262D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: accentColor)),
+          const SizedBox(height: 3),
+          Text(desc, style: TextStyle(fontSize: 11, color: Colors.grey.shade400, height: 1.3)),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildStepPill(String text, {bool isHighlight = false}) {
     return Container(
@@ -954,6 +1319,27 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1117),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _enableTorboxCachedTorrents ? const Color(0xFFE3B341) : const Color(0xFF21262D)),
+            ),
+            child: CheckboxListTile(
+              title: const Text('⚡ Fetch TorBox Cached Torrents (Default OFF • 0 P2P)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+              subtitle: Text('Queries community torrent scrapers (Nyaa Anime, 1TamilMV Desi, Asian Dramas, YTS, EZTV) and streams ONLY 100% cached files via TorBox CDN. Uncached torrents are discarded. Zero P2P upload.', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+              value: _enableTorboxCachedTorrents,
+              activeColor: const Color(0xFFE3B341),
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) {
+                setState(() => _enableTorboxCachedTorrents = v ?? false);
+                AddonConfig.instance.enableTorboxCachedTorrents = _enableTorboxCachedTorrents;
+                AddonConfig.instance.scheduleSave();
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -1009,11 +1395,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     cfg.excludeCams = _excludeCams;
     cfg.enableDeduplication = _enableDeduplication;
     cfg.enableDeadLinkFilter = _enableDeadLinkFilter;
+    cfg.enableOpenSubtitles = _enableOpenSubtitles;
+    cfg.enableTorboxCachedTorrents = _enableTorboxCachedTorrents;
+    cfg.enableCacheBypass = _enableCacheBypass;
+    cfg.proxyResolverUrl = _proxyResolverController.text.trim();
     await cfg.save();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Stream filtering profiles saved!'),
+          content: Text('✅ Stream filtering & resolver profiles saved!'),
           backgroundColor: Color(0xFF238636),
           duration: Duration(seconds: 2),
         ),
@@ -1350,6 +1740,54 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             activeColor: const Color(0xFF238636),
             contentPadding: EdgeInsets.zero,
             onChanged: (v) => setState(() => _enableDeadLinkFilter = v ?? true),
+          ),
+          CheckboxListTile(
+            title: const Text('OpenSubtitles v3 Subtitle Fetching', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+            subtitle: Text('Automatically fetches multi-language subtitles (.srt) for movies & TV series.', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+            value: _enableOpenSubtitles,
+            activeColor: const Color(0xFF238636),
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => setState(() => _enableOpenSubtitles = v ?? true),
+          ),
+          const Divider(color: Color(0xFF30363D), height: 24),
+          const Text('Anti-Scrape & Captcha Resolver (Prowlarr / FlareSolverr)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 6),
+          Text('Solves Cloudflare Turnstile, IUAM challenges, and bypasses ISP stale caching headers.', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1117),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF30363D)),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                const Icon(Icons.security_rounded, color: Color(0xFF38BDF8), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _proxyResolverController,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: Colors.white),
+                    decoration: const InputDecoration(
+                      hintText: 'FlareSolverr URL (e.g. http://localhost:8191/v1)',
+                      hintStyle: TextStyle(color: Color(0xFF484F58), fontSize: 12),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          CheckboxListTile(
+            title: const Text('Prowlarr Origin-Fresh Cache-Bypass', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+            subtitle: Text('Injects origin no-cache headers and query nonces to avoid stale or blocked ISP cache hits.', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+            value: _enableCacheBypass,
+            activeColor: const Color(0xFF238636),
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => setState(() => _enableCacheBypass = v ?? true),
           ),
         ],
       ),
@@ -1794,6 +2232,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   // ── Native Streaming Theater Implementation ──────────────────────────
 
   Widget _buildStreamingView({bool isWide = false}) {
+    if (_isInDetailView && _selectedMediaMeta != null) {
+      return _buildDedicatedMediaDetailView(isWide: isWide);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2050,18 +2492,258 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           const SizedBox(height: 14),
         ],
 
-        // 4. Series Catalog & Episodes Browser (if Series)
+        // 4. Browse & Discover Catalogs (Mobile & TV Adaptable)
+        _buildCatalogBrowser(isWide: isWide),
+      ],
+    );
+  }
+
+  Widget _buildDedicatedMediaDetailView({bool isWide = false}) {
+    final meta = _selectedMediaMeta ?? {};
+    final id = meta['id']?.toString() ?? '';
+    final name = meta['name']?.toString() ?? 'Media Details';
+    final poster = meta['poster']?.toString() ?? (id.isNotEmpty ? 'https://images.metahub.space/poster/medium/$id/img' : '');
+    final year = meta['year']?.toString() ?? '';
+    final rating = meta['rating']?.toString() ?? meta['imdbRating']?.toString() ?? '';
+    final desc = meta['description']?.toString() ?? '';
+    final genres = meta['genres'] is List ? (meta['genres'] as List).map((e) => e.toString()).toList() : <String>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Navigation Bar: Back to Catalog
+        Row(
+          children: [
+            _TvFocusableButton(
+              onPressed: () {
+                setState(() => _isInDetailView = false);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF161B22),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF30363D)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.arrow_back_rounded, size: 16, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('Back to Catalog', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                name,
+                style: TextStyle(fontSize: isWide ? 18 : 15, fontWeight: FontWeight.bold, color: Colors.white),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (id.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.copy_rounded, size: 18, color: Colors.grey),
+                tooltip: 'Copy ID',
+                onPressed: () => _copyToClipboard(id, 'Media ID'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // Hero Metadata Card (Nuvio-style)
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF11141C),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF1F2432), width: 1.5),
+          ),
+          child: isWide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: poster.isNotEmpty
+                          ? Image.network(
+                              poster,
+                              width: 140,
+                              height: 210,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 140,
+                                height: 210,
+                                color: const Color(0xFF090D13),
+                                child: const Icon(Icons.movie_rounded, color: Colors.grey, size: 40),
+                              ),
+                            )
+                          : Container(
+                              width: 140,
+                              height: 210,
+                              color: const Color(0xFF090D13),
+                              child: const Icon(Icons.movie_rounded, color: Colors.grey, size: 40),
+                            ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: _selectedMediaType == 'series' ? const Color(0xFF195FEB) : const Color(0xFFFF0C82),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _selectedMediaType.toUpperCase(),
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ),
+                              if (year.isNotEmpty)
+                                Text(year, style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.bold)),
+                              if (rating.isNotEmpty && rating != '0')
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.star_rounded, size: 16, color: Color(0xFFE3B341)),
+                                    const SizedBox(width: 4),
+                                    Text(rating, style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ...genres.map((g) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1F2432),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(g, style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                                  )),
+                            ],
+                          ),
+                          if (desc.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              desc,
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade300, height: 1.4),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: poster.isNotEmpty
+                              ? Image.network(
+                                  poster,
+                                  width: 90,
+                                  height: 135,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 90,
+                                    height: 135,
+                                    color: const Color(0xFF090D13),
+                                    child: const Icon(Icons.movie_rounded, color: Colors.grey, size: 30),
+                                  ),
+                                )
+                              : Container(
+                                  width: 90,
+                                  height: 135,
+                                  color: const Color(0xFF090D13),
+                                  child: const Icon(Icons.movie_rounded, color: Colors.grey, size: 30),
+                                ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _selectedMediaType == 'series' ? const Color(0xFF195FEB) : const Color(0xFFFF0C82),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Text(
+                                      _selectedMediaType.toUpperCase(),
+                                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
+                                  ),
+                                  if (year.isNotEmpty)
+                                    Text(year, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                  if (rating.isNotEmpty && rating != '0')
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.star_rounded, size: 14, color: Color(0xFFE3B341)),
+                                        const SizedBox(width: 2),
+                                        Text(rating, style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (desc.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        desc,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400, height: 1.3),
+                      ),
+                    ],
+                  ],
+                ),
+        ),
+        const SizedBox(height: 16),
+
+        // Series Seasons & Episode browser (if series)
         if (_selectedMediaType == 'series' && _seriesDetails != null) ...[
           _buildSeriesCatalogBrowser(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
         ],
 
-        // 5. Scraped Streams List
+        // Scraped Streams Section
         _buildStreamsSection(),
-        const SizedBox(height: 18),
-
-        // 6. Browse & Discover Catalogs (Mobile & TV Adaptable)
-        _buildCatalogBrowser(isWide: isWide),
       ],
     );
   }
@@ -2413,6 +3095,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     setState(() {
       _selectedMediaType = type;
       _selectedMediaMeta = item;
+      _isInDetailView = true;
       _scrapedStreams = [];
     });
 
@@ -2854,6 +3537,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
     try {
       if (query.startsWith('tt') || query.startsWith('tmdb:')) {
+        setState(() {
+          _selectedMediaMeta = {
+            'id': query,
+            'name': query,
+            'type': _selectedMediaType,
+            'poster': 'https://images.metahub.space/poster/medium/$query/img',
+          };
+          _isInDetailView = true;
+        });
         if (_selectedMediaType == 'series') {
           await _loadSeriesCatalog(query, query, null);
         } else {
@@ -2871,6 +3563,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           final top = results.first;
           _onSelectSuggestion(top);
         } else {
+          setState(() {
+            _selectedMediaMeta = {
+              'id': query,
+              'name': query,
+              'type': _selectedMediaType,
+              'poster': '',
+            };
+            _isInDetailView = true;
+          });
           _scrapeStreams(query, _selectedMediaType, query);
         }
       }
@@ -2895,6 +3596,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     setState(() {
       _selectedMediaType = type;
       _selectedMediaMeta = m;
+      _isInDetailView = true;
     });
 
     if (type == 'series') {
@@ -2978,7 +3680,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             isCachableTag ||
             lower.endsWith('.mp4') || lower.endsWith('.mkv') || lower.endsWith('.avi') || lower.endsWith('.webm') || lower.endsWith('.ts') ||
             lower.contains('hubcloud') || lower.contains('hubdrive') || lower.contains('driveseed') ||
-            lower.contains('pixeldrain') || lower.contains('1fichier') || lower.contains('rapidgator') ||
+            lower.contains('pixeldrain') || lower.contains('gofile') || lower.contains('buzzheavier') || lower.contains('qiwi') || lower.contains('multiup') || lower.contains('1fichier') || lower.contains('rapidgator') ||
             lower.contains('mega.nz') || lower.contains('mediafire') || lower.contains('ddownload') ||
             lower.contains('drive.google.com') || lower.contains('workers.dev') || lower.contains('vcloud')
           );
@@ -3433,6 +4135,473 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         );
       }
     }
+  }
+
+  // ── Live IPTV Implementation (iptv-org integration) ───────────────────
+
+  Future<void> _loadIptvChannels({bool reset = false}) async {
+    if (_isLoadingIptv) return;
+    setState(() => _isLoadingIptv = true);
+    try {
+      await IptvService.instance.loadChannels(forceRefresh: reset);
+      final filtered = IptvService.instance.filterChannels(
+        search: _iptvSearchController.text.trim(),
+        category: _selectedIptvCategory == 'All' ? null : _selectedIptvCategory,
+        country: _selectedIptvCountry == 'All' ? null : _selectedIptvCountry,
+      );
+      if (mounted) {
+        setState(() {
+          _iptvChannels = filtered;
+        });
+      }
+    } catch (e) {
+      debugPrint('[IPTV] Error loading channels: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingIptv = false);
+      }
+    }
+  }
+
+  void _onFilterIptv() {
+    final filtered = IptvService.instance.filterChannels(
+      search: _iptvSearchController.text.trim(),
+      category: _selectedIptvCategory == 'All' ? null : _selectedIptvCategory,
+      country: _selectedIptvCountry == 'All' ? null : _selectedIptvCountry,
+    );
+    setState(() {
+      _iptvChannels = filtered;
+    });
+  }
+
+  Widget _buildIptvView({bool isWide = false}) {
+    const categories = [
+      'All',
+      'News',
+      'Sports',
+      'Movies',
+      'Animation',
+      'Music',
+      'Entertainment',
+      'Documentary',
+      'General'
+    ];
+
+    const countries = [
+      'All',
+      'Global',
+      'US',
+      'UK',
+      'IN',
+      'CA',
+      'FR',
+      'DE',
+      'ES',
+      'IT',
+      'AU',
+      'JP',
+      'BR'
+    ];
+
+    final displayedChannels = _iptvChannels.take(_iptvDisplayLimit).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Philosophy Banner
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF195FEB).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF195FEB).withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.live_tv_rounded, color: Color(0xFF58A6FF), size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Free Global Live IPTV Broadcasts',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF58A6FF)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '• 8,000+ free broadcast channels powered by iptv-org open-source index.\n'
+                '• Filter by Category, Country, and Search channel names in real time.\n'
+                '• Dual-Rail Playback: Stream in app or use "Play With..." to cast to VLC, Just Player, or MPV.',
+                style: TextStyle(fontSize: 13, height: 1.4, color: Colors.grey.shade300),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Search & Filters Card
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF11141C),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF1F2432), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Search Input Row
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _iptvSearchController,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0xFF08090C),
+                        hintText: 'Search channel name (e.g. Sky, BBC, NDTV, Red Bull)...',
+                        hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFFF0C82), size: 20),
+                        suffixIcon: _iptvSearchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 18, color: Colors.grey),
+                                onPressed: () {
+                                  _iptvSearchController.clear();
+                                  _onFilterIptv();
+                                },
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2432))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2432))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFFF0C82))),
+                      ),
+                      onChanged: (_) => _onFilterIptv(),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _TvFocusableButton(
+                    onPressed: () => _loadIptvChannels(reset: true),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161B22),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF30363D)),
+                      ),
+                      child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Categories Row
+              const Text('Category:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 32,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: categories.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (context, index) {
+                    final cat = categories[index];
+                    final isActive = (_selectedIptvCategory == cat);
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedIptvCategory = cat);
+                        _onFilterIptv();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isActive ? const Color(0xFF195FEB) : const Color(0xFF090D13),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: isActive ? const Color(0xFF195FEB) : const Color(0xFF1F2432)),
+                        ),
+                        child: Text(
+                          cat,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isActive ? Colors.white : Colors.grey.shade400,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Countries Row
+              const Text('Country / Region:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 32,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: countries.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (context, index) {
+                    final ctry = countries[index];
+                    final isActive = (_selectedIptvCountry == ctry);
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedIptvCountry = ctry);
+                        _onFilterIptv();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isActive ? const Color(0xFF238636) : const Color(0xFF090D13),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: isActive ? const Color(0xFF238636) : const Color(0xFF1F2432)),
+                        ),
+                        child: Text(
+                          ctry,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isActive ? Colors.white : Colors.grey.shade400,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Channels Grid or Empty / Loading
+        if (_isLoadingIptv && _iptvChannels.isEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            alignment: Alignment.center,
+            child: const Column(
+              children: [
+                CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFFF0C82)),
+                SizedBox(height: 12),
+                Text('Loading global IPTV channels...', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              ],
+            ),
+          ),
+        ] else if (_iptvChannels.isEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 36),
+            alignment: Alignment.center,
+            child: Column(
+              children: [
+                Icon(Icons.tv_off_rounded, size: 36, color: Colors.grey.shade600),
+                const SizedBox(height: 8),
+                Text('No channels found matching current filters.', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => _loadIptvChannels(reset: true),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF195FEB)),
+                  child: const Text('Refresh Channels', style: TextStyle(fontSize: 12, color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Available Channels (${_iptvChannels.length})',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              if (_iptvChannels.length > _iptvDisplayLimit)
+                Text(
+                  'Showing top $_iptvDisplayLimit',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final cols = isWide
+                  ? (width >= 900 ? 3 : 2)
+                  : (width >= 550 ? 2 : 1);
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: cols == 1 ? 2.8 : 2.4,
+                ),
+                itemCount: displayedChannels.length,
+                itemBuilder: (context, index) {
+                  final ch = displayedChannels[index];
+                  return _buildIptvChannelCard(ch);
+                },
+              );
+            },
+          ),
+          if (_iptvChannels.length > _iptvDisplayLimit) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: _TvFocusableButton(
+                onPressed: () {
+                  setState(() {
+                    _iptvDisplayLimit += 60;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161B22),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF30363D)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.arrow_downward_rounded, size: 16, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('Load More Channels', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildIptvChannelCard(IptvChannel ch) {
+    final streamData = {
+      'url': ch.url,
+      'title': ch.name,
+      'cleanTitle': ch.name,
+      'name': '📺 ${ch.category}',
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF11141C),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1F2432)),
+      ),
+      child: Row(
+        children: [
+          // Logo or fallback TV icon
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFF090D13),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF1F2432)),
+            ),
+            child: ch.logo.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: Image.network(
+                      ch.logo,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.live_tv_rounded, color: Colors.grey, size: 24),
+                    ),
+                  )
+                : const Icon(Icons.live_tv_rounded, color: Colors.grey, size: 24),
+          ),
+          const SizedBox(width: 10),
+
+          // Name and Badges
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  ch.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF195FEB).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFF195FEB), width: 0.8),
+                      ),
+                      child: Text(
+                        ch.category.toUpperCase(),
+                        style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF58A6FF)),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF238636).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFF238636), width: 0.8),
+                      ),
+                      child: Text(
+                        ch.country,
+                        style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF3FB950)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Action Buttons
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () => _playStream(streamData),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF195FEB),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                child: const Text('Play', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+              const SizedBox(height: 4),
+              OutlinedButton(
+                onPressed: () => _showPlayWithDialog(streamData),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF388BFD), width: 0.8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                child: const Text('Play With...', style: TextStyle(fontSize: 9.5, color: Color(0xFF58A6FF))),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -22,6 +22,10 @@ class WebUI {
     final deadLinkChecked = cfg.enableDeadLinkFilter ? 'checked' : '';
     final maxRes = cfg.maxResolution;
     final prefLang = cfg.preferredLanguage;
+    final enableTorboxCachedTorrentsChecked = cfg.enableTorboxCachedTorrents ? 'checked' : '';
+    final enableCacheBypassChecked = cfg.enableCacheBypass ? 'checked' : '';
+    final proxyResolverUrl = cfg.proxyResolverUrl;
+    final enableOpenSubtitlesChecked = cfg.enableOpenSubtitles ? 'checked' : '';
 
     final providerCheckboxes = providers.map((p) {
       final id = p['id'].toString();
@@ -82,9 +86,119 @@ class WebUI {
       background: var(--bg);
       color: var(--text);
       line-height: 1.5;
-      padding: 24px;
     }
-    .container { max-width: 1080px; margin: 0 auto; }
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 250px;
+      background: #0d1117;
+      border-right: 1px solid var(--border);
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      box-sizing: border-box;
+      z-index: 100;
+    }
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 10px 18px 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+      cursor: pointer;
+    }
+    .sidebar-brand-logo {
+      width: 40px;
+      height: 40px;
+      filter: drop-shadow(0 0 10px rgba(255, 12, 130, 0.45));
+    }
+    .sidebar-brand-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-brand-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 0%, #ff0c82 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .sidebar-brand-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .sidebar-nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .sidebar-nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .sidebar-nav-btn .nav-icon {
+      font-size: 1.15rem;
+      flex-shrink: 0;
+    }
+    .sidebar-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+    }
+    .sidebar-nav-btn.active {
+      background: linear-gradient(135deg, rgba(25, 95, 235, 0.35) 0%, rgba(255, 12, 130, 0.3) 100%);
+      border-color: rgba(255, 12, 130, 0.45);
+      color: #fff;
+      box-shadow: 0 0 14px rgba(255, 12, 130, 0.2);
+    }
+    .sidebar-footer {
+      padding: 14px 10px 4px 10px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+    .sidebar-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green-light);
+      box-shadow: 0 0 8px var(--green-light);
+    }
+    .main-content {
+      flex: 1;
+      padding: 24px 32px;
+      max-width: 1120px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    .container { width: 100%; }
     header {
       text-align: center;
       padding: 24px 0 18px;
@@ -844,7 +958,40 @@ class WebUI {
 
     /* Mobile & Small Screen Responsive Enhancements */
     @media (max-width: 768px) {
-      body {
+      .app-layout {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 12px 14px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .sidebar-brand {
+        border-bottom: none;
+        padding: 0;
+        margin-bottom: 0;
+      }
+      .sidebar-nav-group {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .sidebar-nav-btn {
+        width: auto;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+      }
+      .sidebar-footer {
+        display: none;
+      }
+      .main-content {
         padding: 14px 10px;
       }
       .container {
@@ -979,35 +1126,43 @@ class WebUI {
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="brand-logo-wrap">
-        <img src="/logo.png" alt="Hostreamio" class="brand-logo" />
+  <div class="app-layout">
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand" onclick="switchMainTab('about')" title="About Hostreamio">
+        <img src="/logo.png" alt="Hostreamio" class="sidebar-brand-logo" />
+        <div class="sidebar-brand-text">
+          <span class="sidebar-brand-title">Hostreamio</span>
+          <span class="sidebar-brand-sub">Direct &amp; Debrid Engine</span>
+        </div>
       </div>
-      <h1>Hostreamio</h1>
-      <p class="subtitle">Direct Hosters • Streaming Links • TorBox Cloud Debrid • Smart Proxy • Instant Badges</p>
-    </header>
+      <div class="sidebar-nav-group">
+        <button id="tabBtnServer" class="sidebar-nav-btn active" onclick="switchMainTab('server')">
+          <span class="nav-icon">🖥️</span>
+          <span>Server &amp; Addon</span>
+        </button>
+        <button id="tabBtnStreaming" class="sidebar-nav-btn" onclick="switchMainTab('streaming')">
+          <span class="nav-icon">🎬</span>
+          <span>Cinema &amp; Series</span>
+        </button>
+        <button id="tabBtnIptv" class="sidebar-nav-btn" onclick="switchMainTab('iptv')">
+          <span class="nav-icon">📺</span>
+          <span>Live IPTV</span>
+        </button>
+        <button id="tabBtnAbout" class="sidebar-nav-btn" onclick="switchMainTab('about')">
+          <span class="nav-icon">ℹ️</span>
+          <span>About &amp; Diagnostics</span>
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <div class="sidebar-status-dot"></div>
+        <span>v1.0.0 Ready</span>
+      </div>
+    </aside>
 
-    <!-- Architecture & Engine Status Pills -->
-    <div class="status-banner">
-      <div class="status-chip"><span class="status-dot"></span> <strong>DNS-over-HTTPS:</strong> Cloudflare & Google Fallback (Active)</div>
-      <div class="status-chip"><span class="status-dot"></span> <strong>HLS Segment Cache:</strong> 35MB RAM Ring Buffer (Active)</div>
-      <div class="status-chip"><span class="status-dot"></span> <strong>DASH to HLS:</strong> Virtual Transmuxer Ready</div>
-      <div class="status-chip"><span class="status-dot"></span> <strong>Circuit Breaker:</strong> 56 Providers Monitored</div>
-    </div>
-
-    <!-- Main Top Tabs Switcher -->
-    <div class="main-tabs-nav">
-      <button id="tabBtnServer" class="main-tab-btn active" onclick="switchMainTab('server')">
-        🖥️ Server &amp; Addon Setup
-      </button>
-      <button id="tabBtnStreaming" class="main-tab-btn" onclick="switchMainTab('streaming')">
-        🎬 Streaming Theater
-      </button>
-    </div>
-
-    <!-- TAB 1: SERVER & ADDON HUB -->
-    <div id="tabContentServer">
+    <main class="main-content">
+      <!-- TAB 1: SERVER & ADDON HUB -->
+      <div id="tabContentServer">
       <!-- Quick Install & Manifest Card -->
       <div class="card" style="background: linear-gradient(180deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.95) 100%);">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
@@ -1148,8 +1303,38 @@ class WebUI {
           </div>
         </div>
         <div id="hostersGrid" class="grid" style="max-height:240px;">
-          <div style="color:var(--text-muted); padding:8px;">Click "Refresh Hosters" to view active debrid hosters.</div>
-        </div>
+      <div style="margin-top:14px; padding:12px 14px; background:#090d13; border:1px solid rgba(255, 12, 130, 0.35); border-radius:8px;">
+        <label style="display:flex; align-items:flex-start; gap:12px; cursor:pointer;">
+          <input type="checkbox" id="enableTorboxCachedTorrents" style="margin-top:4px;" $enableTorboxCachedTorrentsChecked onchange="saveTorboxCachedToggle(this.checked)">
+          <div>
+            <strong style="color:var(--text); font-size:0.92rem;">⚡ Fetch TorBox Cached Torrents (Default OFF • Strictly 0 P2P)</strong>
+            <p style="margin:4px 0 0 0; font-size:0.8rem; color:var(--text-muted); line-height:1.4;">
+              Queries high-speed torrent providers (YTS, EZTV, Nyaa Anime, 1TamilMV Desi, Knaben, TorrentGalaxy) <em>strictly and only</em> if the file is already 100% cached on TorBox Cloud CDN. Uncached torrents are completely discarded with zero P2P seeding, zero peer connections, and instant gigabit cloud playback.
+            </p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Prowlarr Captcha Resolver & Cache-Bypass -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <h2>🧩 Prowlarr Captcha Resolver &amp; Anti-Cache</h2>
+        <span class="badge" style="background:rgba(88, 166, 255, 0.15); color:var(--blue); border:1px solid rgba(88, 166, 255, 0.3); font-size:0.8rem; padding:4px 10px;">FlareSolverr Ready</span>
+      </div>
+      <p style="color:var(--text-muted); font-size:0.88rem; margin-bottom:14px;">
+        Prowlarr-style automated proxy bridge to solve Cloudflare Turnstile, IUAM challenges, and bypass stale ISP/CDN cached pages:
+      </p>
+      <div class="url-box" style="margin-bottom:12px;">
+        <label style="min-width:140px; font-weight:600;">FlareSolverr URL:</label>
+        <input class="url-input" id="proxyResolverUrl" value="$proxyResolverUrl" placeholder="http://localhost:8191/v1 (optional)">
+        <button class="btn btn-primary" onclick="saveProxyResolverSettings()">💾 Save Proxy</button>
+      </div>
+      <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:12px 14px;">
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.86rem; color:var(--text);">
+          <input type="checkbox" id="enableCacheBypass" $enableCacheBypassChecked onchange="saveCacheBypassToggle(this.checked)">
+          <span><strong>Prowlarr Origin-Fresh Cache-Bypass:</strong> Injects no-cache origin headers &amp; query nonces to avoid stale/broken ISP cache hits.</span>
+        </label>
       </div>
     </div>
 
@@ -1216,6 +1401,14 @@ class WebUI {
           <div>
             <strong style="color:var(--text);">Ultra-Fast Dead-Link Filter</strong>
             <div style="color:var(--text-muted); font-size:0.8rem;">Runs a rapid 1200ms parallel HEAD probe on direct stream links to eliminate 404/broken file hosters.</div>
+          </div>
+        </label>
+
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+          <input type="checkbox" id="chkOpenSubtitles" $enableOpenSubtitlesChecked style="width:18px; height:18px;">
+          <div>
+            <strong style="color:var(--text);">Direct OpenSubtitles v3 Subtitles</strong>
+            <div style="color:var(--text-muted); font-size:0.8rem;">Injects matched multilingual subtitles directly via OpenSubtitles REST API without registration.</div>
           </div>
         </label>
       </div>
@@ -1534,14 +1727,129 @@ class WebUI {
     </div>
   </div> <!-- End of tabContentStreaming -->
 
+  <!-- TAB 3: LIVE IPTV BROADCASTS -->
+  <div id="tabContentIptv" style="display:none;">
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+        <div>
+          <h2 style="margin:0;">📺 Global Live IPTV &amp; Electronic Program Guide (EPG)</h2>
+          <p style="margin:4px 0 0 0; font-size:0.85rem; color:var(--text-muted);">
+            Over 8,000+ free live television channels aggregated from IPTV-org. Zero peer dependency, 100% direct HTTP/HLS streaming.
+          </p>
+        </div>
+        <span class="badge" id="iptvChannelCountBadge" style="background:rgba(63, 185, 80, 0.15); color:#3fb950; border:1px solid rgba(63, 185, 80, 0.3); font-size:0.8rem; padding:4px 10px;">
+          8,000+ Channels Ready
+        </span>
+      </div>
+
+      <!-- IPTV Filter Bar -->
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+        <input type="text" id="iptvSearchInput" placeholder="🔍 Search channels by name or language (e.g. BBC, NASA, Aaj Tak, Bloomberg)..." oninput="filterIptvChannels()" style="flex:1; min-width:240px; padding:10px 14px; background:#090d13; border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.88rem;">
+        <select id="iptvCountryFilter" onchange="filterIptvChannels()" style="padding:10px 14px; background:#090d13; border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.88rem;">
+          <option value="All">🌍 All Countries</option>
+          <option value="US">🇺🇸 United States</option>
+          <option value="IN">🇮🇳 India</option>
+          <option value="UK">🇬🇧 United Kingdom</option>
+          <option value="CA">🇨🇦 Canada</option>
+          <option value="DE">🇩🇪 Germany</option>
+          <option value="FR">🇫🇷 France</option>
+          <option value="JP">🇯🇵 Japan</option>
+          <option value="AU">🇦🇺 Australia</option>
+          <option value="IT">🇮🇹 Italy</option>
+          <option value="ES">🇪🇸 Spain</option>
+          <option value="BR">🇧🇷 Brazil</option>
+        </select>
+      </div>
+
+      <!-- Category Filter Chips -->
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+        <button class="stream-filter-chip active" id="iptv-cat-all" onclick="selectIptvCategory('All')">🌐 All</button>
+        <button class="stream-filter-chip" id="iptv-cat-news" onclick="selectIptvCategory('News')">📰 News</button>
+        <button class="stream-filter-chip" id="iptv-cat-general" onclick="selectIptvCategory('General')">📺 General</button>
+        <button class="stream-filter-chip" id="iptv-cat-movies" onclick="selectIptvCategory('Movies')">🎬 Movies</button>
+        <button class="stream-filter-chip" id="iptv-cat-series" onclick="selectIptvCategory('Series')">🍿 Series</button>
+        <button class="stream-filter-chip" id="iptv-cat-sports" onclick="selectIptvCategory('Sports')">⚽ Sports</button>
+        <button class="stream-filter-chip" id="iptv-cat-music" onclick="selectIptvCategory('Music')">🎵 Music</button>
+        <button class="stream-filter-chip" id="iptv-cat-animation" onclick="selectIptvCategory('Animation')">✨ Animation</button>
+        <button class="stream-filter-chip" id="iptv-cat-documentary" onclick="selectIptvCategory('Documentary')">🌿 Documentary</button>
+        <button class="stream-filter-chip" id="iptv-cat-kids" onclick="selectIptvCategory('Kids')">👶 Kids</button>
+      </div>
+
+      <!-- Channels Grid -->
+      <div id="iptvGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:12px; min-height:200px;">
+        <div style="grid-column:1/-1; color:var(--text-muted); text-align:center; padding:40px 0; font-size:0.9rem;">⏳ Loading live IPTV broadcasts…</div>
+      </div>
+
+      <!-- Load More IPTV -->
+      <div style="text-align:center; margin-top:16px;">
+        <button class="btn btn-sm" id="btnIptvLoadMore" onclick="loadMoreIptv()" style="display:none;">⬇️ Load More Channels</button>
+      </div>
+    </div>
+  </div> <!-- End of tabContentIptv -->
+
+  <!-- TAB 4: ABOUT & SYSTEM DIAGNOSTICS -->
+  <div id="tabContentAbout" style="display:none;">
+    <header>
+      <div class="brand-logo-wrap">
+        <img src="/logo.png" alt="Hostreamio" class="brand-logo" />
+      </div>
+      <h1>Hostreamio</h1>
+      <p class="subtitle">Direct Hosters • Streaming Links • TorBox Cloud Debrid • Smart Proxy • Instant Badges</p>
+    </header>
+
+    <!-- Architecture & Engine Status Pills -->
+    <div class="status-banner">
+      <div class="status-chip"><span class="status-dot"></span> <strong>DNS-over-HTTPS:</strong> Cloudflare &amp; Google Fallback (Active)</div>
+      <div class="status-chip"><span class="status-dot"></span> <strong>HLS Segment Cache:</strong> 35MB RAM Ring Buffer (Active)</div>
+      <div class="status-chip"><span class="status-dot"></span> <strong>DASH to HLS:</strong> Virtual Transmuxer Ready</div>
+      <div class="status-chip"><span class="status-dot"></span> <strong>Circuit Breaker:</strong> Monitored Scrapers Active</div>
+      <div class="status-chip"><span class="status-dot"></span> <strong>Prowlarr Captcha:</strong> FlareSolverr Ready</div>
+    </div>
+
+    <!-- Community Attributions & Open Source Credits Card -->
+    <div class="card" style="margin-top: 20px;">
+      <h2>🌟 Community Attributions &amp; Open Source Credits</h2>
+      <p style="color:var(--text-muted); font-size:0.88rem; margin-bottom:16px; line-height:1.5;">
+        Hostreamio stands on the shoulders of giants. We gratefully acknowledge and credit the following pioneering open source developers, communities, and services:
+      </p>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:var(--blue); font-size:0.95rem;">PlayTorrio (ayman708-UX)</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Original base Dart scraper architecture, StreamSource models, Knaben aggregator &amp; TorrentGalaxy scrapers.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#ff69b4; font-size:0.95rem;">Nyaa.si &amp; Tokyo Toshokan</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Global anime, Asian live-action drama &amp; OST community metadata, indexing, and RSS feeds.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#3fb950; font-size:0.95rem;">1TamilMV &amp; TamilBlasters Community</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Premier regional Indian entertainment trackers for Hindi, Tamil, Telugu, Malayalam, and Kannada releases.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#f55014; font-size:0.95rem;">YTS.mx &amp; EZTV APIs</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Public community APIs for high-efficiency movie releases and global television series episodes.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#58a6ff; font-size:0.95rem;">IPTV-org Community</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Public domain worldwide live television broadcasts, logos, categories, and electronic program guides.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#e3b341; font-size:0.95rem;">OpenSubtitles.org v3 API</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Direct subtitle synchronization across 50+ languages without mandatory VIP registration.</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Legal & Vibe Coded Disclaimer Footer -->
     <div style="text-align:center; padding:24px 14px 14px; color:var(--text-muted); font-size:0.8rem; border-top:1px solid var(--border); margin-top:24px; line-height:1.6;">
       <div style="margin-bottom:8px;">
         <span style="display:inline-block; background:rgba(255,105,180,0.15); color:#ff69b4; border:1px solid rgba(255,105,180,0.3); border-radius:12px; padding:2px 10px; font-weight:600; font-size:0.75rem; letter-spacing:0.5px;">✨ 100% VIBE CODED WITH AI</span>
       </div>
-      <strong>⚖️ GitHub & Legal Disclaimer:</strong> The author does not own, host, upload, or broadcast any media or streams. Hostreamio acts solely as a local search indexer aggregating publicly available hyperlinks from third-party websites on the internet. All media is hosted by independent third-party services. Not affiliated with Stremio, Nuvio, TorBox, or any scraped source.
+      <strong>⚖️ GitHub &amp; Legal Disclaimer:</strong> The author does not own, host, upload, or broadcast any media or streams. Hostreamio acts solely as a local search indexer aggregating publicly available hyperlinks from third-party websites on the internet. All media is hosted by independent third-party services. Not affiliated with Stremio, Nuvio, TorBox, or any scraped source.
     </div>
-  </div>
+  </div> <!-- End of tabContentAbout -->
+  </main>
+  </div> <!-- End of app-layout -->
 
   <!-- Inline Stream Player Modal -->
   <div id="playerModal" class="player-modal" onclick="closePlayerModal(event)">
@@ -1645,41 +1953,205 @@ class WebUI {
     let currentHls = null;
 
     function switchMainTab(tab) {
-      const serverTab = document.getElementById('tabContentServer');
-      const streamingTab = document.getElementById('tabContentStreaming');
-      const btnServer = document.getElementById('tabBtnServer');
-      const btnStreaming = document.getElementById('tabBtnStreaming');
-
+      const tabs = ['server', 'streaming', 'iptv', 'about'];
+      tabs.forEach(t => {
+        const content = document.getElementById('tabContent' + t.charAt(0).toUpperCase() + t.slice(1));
+        const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (content) content.style.display = (t === tab) ? 'block' : 'none';
+        if (btn) {
+          if (t === tab) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+      });
+      try { localStorage.setItem('hostreamio_active_tab', tab); } catch (_) {}
       if (tab === 'streaming') {
-        if (serverTab) serverTab.style.display = 'none';
-        if (streamingTab) streamingTab.style.display = 'block';
-        if (btnServer) btnServer.classList.remove('active');
-        if (btnStreaming) btnStreaming.classList.add('active');
-        try { localStorage.setItem('hostreamio_active_tab', 'streaming'); } catch (_) {}
         if (typeof _catalogItems !== 'undefined' && _catalogItems.length === 0) {
           initCatalogBrowser();
         }
-      } else {
-        if (serverTab) serverTab.style.display = 'block';
-        if (streamingTab) streamingTab.style.display = 'none';
-        if (btnServer) btnServer.classList.add('active');
-        if (btnStreaming) btnStreaming.classList.remove('active');
-        try { localStorage.setItem('hostreamio_active_tab', 'server'); } catch (_) {}
+      } else if (tab === 'iptv') {
+        loadIptvChannels();
       }
     }
 
     // Auto-restore previous tab or hash, then init catalog
     window.addEventListener('DOMContentLoaded', () => {
-      const hash = window.location.hash;
+      const hash = window.location.hash.replace('#', '');
       const savedTab = localStorage.getItem('hostreamio_active_tab');
-      if (hash === '#streaming' || (savedTab === 'streaming' && hash !== '#server')) {
-        switchMainTab('streaming');
+      if (hash && ['server', 'streaming', 'iptv', 'about'].includes(hash)) {
+        switchMainTab(hash);
+      } else if (savedTab && ['server', 'streaming', 'iptv', 'about'].includes(savedTab)) {
+        switchMainTab(savedTab);
       } else {
         switchMainTab('server');
       }
-      // Init catalog browser on first load
-      initCatalogBrowser();
     });
+
+    // ════════════════════════════════════════════════════════════
+    //  LIVE IPTV (IPTV-ORG)
+    // ════════════════════════════════════════════════════════════
+    let allIptvChannels = [];
+    let displayedIptvCount = 30;
+    let selectedIptvCategory = 'All';
+
+    async function loadIptvChannels() {
+      if (allIptvChannels.length > 0) return;
+      const grid = document.getElementById('iptvGrid');
+      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px 0; color:var(--text-muted);">⏳ Fetching global IPTV catalog...</div>';
+      try {
+        const res = await fetch('/catalog/tv/iptv_global.json');
+        if (res.ok) {
+          const data = await res.json();
+          allIptvChannels = data.metas || [];
+          const countBadge = document.getElementById('iptvChannelCountBadge');
+          if (countBadge) countBadge.textContent = allIptvChannels.length + ' Channels Online';
+          renderIptvGrid();
+        } else {
+          grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#f85149;">Failed to load IPTV catalog.</div>';
+        }
+      } catch (e) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#f85149;">Error connecting to IPTV: ' + e + '</div>';
+      }
+    }
+
+    function selectIptvCategory(cat) {
+      selectedIptvCategory = cat;
+      document.querySelectorAll('[id^="iptv-cat-"]').forEach(btn => {
+        btn.classList.toggle('active', btn.id === 'iptv-cat-' + cat.toLowerCase());
+      });
+      displayedIptvCount = 30;
+      renderIptvGrid();
+    }
+
+    function filterIptvChannels() {
+      displayedIptvCount = 30;
+      renderIptvGrid();
+    }
+
+    function renderIptvGrid() {
+      const grid = document.getElementById('iptvGrid');
+      const query = (document.getElementById('iptvSearchInput').value || '').toLowerCase().trim();
+      const country = document.getElementById('iptvCountryFilter').value;
+
+      const filtered = allIptvChannels.filter(ch => {
+        if (query && !ch.name.toLowerCase().includes(query) && !(ch.description || '').toLowerCase().includes(query)) return false;
+        if (country !== 'All' && !(ch.description || '').includes(country)) return false;
+        if (selectedIptvCategory !== 'All' && !(ch.genres || []).includes(selectedIptvCategory)) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px 0; color:var(--text-muted);">No channels matching filters.</div>';
+        document.getElementById('btnIptvLoadMore').style.display = 'none';
+        return;
+      }
+
+      const visible = filtered.slice(0, displayedIptvCount);
+      grid.innerHTML = visible.map(ch => {
+        const logo = ch.poster || '';
+        const id = encodeURIComponent(ch.id);
+        const name = encodeURIComponent(ch.name);
+        return `
+          <div style="background:#090d13; border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              \${logo ? `<img src="\${logo}" style="width:40px; height:40px; object-fit:contain; border-radius:6px; background:#161b22;" onerror="this.style.display='none'">` : `<div style="width:40px; height:40px; border-radius:6px; background:#161b22; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">📺</div>`}
+              <div style="overflow:hidden;">
+                <div style="font-weight:700; font-size:0.9rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${ch.name}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">\${(ch.genres || []).join(' • ') || 'Live TV'}</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-sm btn-primary" style="flex:1; justify-content:center; padding:6px 8px; font-size:0.78rem;" onclick="playIptvChannel('\${id}', '\${name}')">▶ Play</button>
+              <button class="btn btn-sm btn-open-with" style="padding:6px 8px; font-size:0.78rem;" onclick="openWithIptvChannel('\${id}', '\${name}')">🚀 With...</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('btnIptvLoadMore').style.display = (filtered.length > displayedIptvCount) ? 'inline-block' : 'none';
+    }
+
+    function loadMoreIptv() {
+      displayedIptvCount += 30;
+      renderIptvGrid();
+    }
+
+    async function playIptvChannel(channelId, channelName) {
+      try {
+        const res = await fetch('/stream/tv/' + channelId + '.json');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.streams && data.streams.length > 0) {
+            playStream(data.streams[0].url, decodeURIComponent(channelName));
+          } else {
+            alert('Channel stream temporarily offline.');
+          }
+        }
+      } catch (e) {
+        alert('Error loading channel stream: ' + e);
+      }
+    }
+
+    async function openWithIptvChannel(channelId, channelName) {
+      try {
+        const res = await fetch('/stream/tv/' + channelId + '.json');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.streams && data.streams.length > 0) {
+            openWithModal(data.streams[0].url, decodeURIComponent(channelName));
+          } else {
+            alert('Channel stream temporarily offline.');
+          }
+        }
+      } catch (e) {
+        alert('Error loading channel stream: ' + e);
+      }
+    }
+
+    async function saveTorboxCachedToggle(checked) {
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ enableTorboxCachedTorrents: checked })
+        });
+        if (res.ok) {
+          showToast(checked ? 'TorBox Cached Torrents Enabled (0 P2P)' : 'TorBox Cached Torrents Disabled');
+        }
+      } catch (e) {
+        showToast('Error saving setting: ' + e);
+      }
+    }
+
+    async function saveCacheBypassToggle(checked) {
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ enableCacheBypass: checked })
+        });
+        if (res.ok) {
+          showToast(checked ? 'Prowlarr Cache-Bypass Enabled' : 'Prowlarr Cache-Bypass Disabled');
+        }
+      } catch (e) {
+        showToast('Error saving setting: ' + e);
+      }
+    }
+
+    async function saveProxyResolverSettings() {
+      const url = document.getElementById('proxyResolverUrl').value.trim();
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ proxyResolverUrl: url })
+        });
+        if (res.ok) {
+          showToast('FlareSolverr Proxy URL Saved');
+        }
+      } catch (e) {
+        showToast('Error saving proxy setting: ' + e);
+      }
+    }
 
     // ════════════════════════════════════════════════════════════
     //  CATALOG BROWSER
@@ -2077,6 +2549,7 @@ class WebUI {
             preferredLanguage: document.getElementById('prefLangSelect').value,
             enableDeduplication: document.getElementById('chkDedupe').checked,
             enableDeadLinkFilter: document.getElementById('chkDeadLink').checked,
+            enableOpenSubtitles: document.getElementById('chkOpenSubtitles') ? document.getElementById('chkOpenSubtitles').checked : true,
             showRatingsInStreams: false,
             omdbApiKey: document.getElementById('omdbApiKey').value.trim(),
             fanartApiKey: document.getElementById('fanartApiKey').value.trim(),

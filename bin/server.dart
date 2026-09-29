@@ -733,6 +733,18 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       if (bodyJson.containsKey('tmdbApiKey')) {
         AddonConfig.instance.tmdbApiKey = bodyJson['tmdbApiKey'].toString().trim();
       }
+      if (bodyJson.containsKey('enableTorboxCachedTorrents')) {
+        AddonConfig.instance.enableTorboxCachedTorrents = bodyJson['enableTorboxCachedTorrents'] == true;
+      }
+      if (bodyJson.containsKey('enableCacheBypass')) {
+        AddonConfig.instance.enableCacheBypass = bodyJson['enableCacheBypass'] == true;
+      }
+      if (bodyJson.containsKey('proxyResolverUrl')) {
+        AddonConfig.instance.proxyResolverUrl = bodyJson['proxyResolverUrl'].toString().trim();
+      }
+      if (bodyJson.containsKey('enableOpenSubtitles')) {
+        AddonConfig.instance.enableOpenSubtitles = bodyJson['enableOpenSubtitles'] == true;
+      }
       await AddonConfig.instance.save();
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'success': true}));

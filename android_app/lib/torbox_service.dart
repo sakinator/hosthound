@@ -181,6 +181,116 @@ class TorboxService {
     return results;
   }
 
+  /// Checks whether a list of torrent info hashes are cached on TorBox cloud CDN
+  Future<Map<String, bool>> checkCachedTorrentsBatch(List<String> infoHashes, String apiKey) async {
+    final cleanKey = apiKey.trim();
+    if (cleanKey.isEmpty || infoHashes.isEmpty) return {};
+
+    final results = <String, bool>{};
+    final now = DateTime.now();
+    final uncached = <String>[];
+
+    for (final h in infoHashes) {
+      final cleanH = h.trim().toLowerCase();
+      if (cleanH.isEmpty) continue;
+      final cachedEntry = _cacheLookup['t_$cleanH'];
+      if (cachedEntry != null && now.isBefore(cachedEntry.expiry)) {
+        results[cleanH] = cachedEntry.isCached;
+      } else {
+        uncached.add(cleanH);
+      }
+    }
+
+    if (uncached.isNotEmpty) {
+      const chunkSize = 50;
+      for (var i = 0; i < uncached.length; i += chunkSize) {
+        final chunk = uncached.skip(i).take(chunkSize).toList();
+        final hashParam = chunk.join(',');
+        try {
+          final uri = Uri.parse('$_apiBase/torrents/checkcached?hash=$hashParam&format=object');
+          final res = await http.get(
+            uri,
+            headers: _headers(cleanKey),
+          ).timeout(const Duration(seconds: 4));
+
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body);
+            if (data is Map && data['data'] is Map) {
+              final dataMap = data['data'] as Map;
+              for (final h in chunk) {
+                final val = dataMap[h];
+                final isCached = val != null && (val is Map || val == true);
+                _cacheLookup['t_$h'] = (
+                  isCached: isCached,
+                  expiry: now.add(Duration(minutes: isCached ? 15 : 2)),
+                );
+                results[h] = isCached;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    for (final h in infoHashes) {
+      results.putIfAbsent(h.trim().toLowerCase(), () => false);
+    }
+    return results;
+  }
+
+  /// Debrids or streams a cached torrent from TorBox cloud CDN
+  Future<String?> debridTorrent(String magnetOrHash, String apiKey) async {
+    lastDebridError = null;
+    final cleanKey = apiKey.trim();
+    if (cleanKey.isEmpty) {
+      lastDebridError = 'TorBox API key is not configured in settings.';
+      return null;
+    }
+    try {
+      final magnet = magnetOrHash.startsWith('magnet:')
+          ? magnetOrHash
+          : 'magnet:?xt=urn:btih:$magnetOrHash';
+
+      final createUrl = Uri.parse('$_apiBase/torrents/createtorrent');
+      final res = await http.post(
+        createUrl,
+        headers: {
+          'User-Agent': _defaultUserAgent,
+          'Authorization': 'Bearer $cleanKey',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: {
+          'magnet': magnet,
+        },
+      ).timeout(const Duration(seconds: 12));
+
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 200 && data is Map && data['success'] == true) {
+        final torrentId = data['data']?['torrent_id'] ?? data['data']?['id'];
+        if (torrentId != null) {
+          final reqUri = Uri.parse('$_apiBase/torrents/requestdl').replace(queryParameters: {
+            'token': cleanKey,
+            'torrent_id': torrentId.toString(),
+          });
+          final dlRes = await http.get(
+            reqUri,
+            headers: _headers(cleanKey),
+          ).timeout(const Duration(seconds: 5));
+
+          if (dlRes.statusCode == 200) {
+            final dlData = jsonDecode(dlRes.body);
+            if (dlData is Map && dlData['data'] is String) {
+              return dlData['data'] as String;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      lastDebridError = 'TorBox torrent debrid error: $e';
+    }
+    return null;
+  }
+
   /// Uploads / sends a web download link to Torbox to cache/download it
   Future<Map<String, dynamic>> uploadToTorbox(String url, String apiKey) async {
     final cleanKey = apiKey.trim();
@@ -239,6 +349,9 @@ class TorboxService {
       lastDebridError = 'TorBox API key is not configured in settings.';
       return null;
     }
+    if (url.startsWith('magnet:') || RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(url)) {
+      return debridTorrent(url, cleanKey);
+    }
     try {
       final res = await uploadToTorbox(url, cleanKey);
       if (res['success'] == true) {
@@ -296,8 +409,17 @@ class TorboxService {
     }
 
     final lower = url.toLowerCase();
-    // Known hosters / mirrors supported by TorBox
     if (lower.contains('pixeldrain') ||
+        lower.contains('gofile') ||
+        lower.contains('buzzheavier') ||
+        lower.contains('qiwi') ||
+        lower.contains('multiup') ||
+        lower.contains('krakenfiles') ||
+        lower.contains('mixdrop') ||
+        lower.contains('voe.sx') ||
+        lower.contains('filemoon') ||
+        lower.contains('doodstream') ||
+        lower.contains('streamtape') ||
         lower.contains('1fichier') ||
         lower.contains('rapidgator') ||
         lower.contains('mega.nz') ||

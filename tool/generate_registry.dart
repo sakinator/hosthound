@@ -19,10 +19,6 @@ void main() async {
     final match = classRegex.firstMatch(content);
     if (match != null) {
       final className = match.group(1)!;
-      // Exclude torrent scrapers
-      if (className == 'KnabenScraper' || className == 'TorrentGalaxyScraper') {
-        continue;
-      }
       scrapers.add({
         'file': fileName,
         'class': className,
@@ -30,7 +26,7 @@ void main() async {
     }
   }
 
-  print('Discovered ${scrapers.length} non-torrent HTTP scrapers.');
+  print('Discovered ${scrapers.length} stream and torrent scrapers.');
 
   final buffer = StringBuffer();
   buffer.writeln('// AUTO-GENERATED SCRAPER REGISTRY - DO NOT EDIT MANUALLY');

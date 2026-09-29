@@ -8,6 +8,7 @@ abstract class StreamScraper {
   String get name;
   String get providerId => runtimeType.toString().replaceAll('Scraper', '').toLowerCase();
   String get providerName => runtimeType.toString().replaceAll('Scraper', '');
+  bool get isTorrent => false;
 
   /// Yields sources progressively one-by-one as they are resolved.
   Stream<StreamSource> scrapeStream({

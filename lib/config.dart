@@ -34,6 +34,10 @@ class AddonConfig {
   bool enableDeduplication = true;
   bool enableDeadLinkFilter = true;
   bool showRatingsInStreams = false;
+  bool enableOpenSubtitles = true;
+  bool enableTorboxCachedTorrents = false; // By default OFF (100% direct hosters)
+  bool enableCacheBypass = true; // Prowlarr-style Cache escape (no-cache headers + query nonce)
+  String proxyResolverUrl = ''; // FlareSolverr / Proxy URL (e.g. http://localhost:8191/v1)
 
   static final File _configFile = File('data/config.json');
 
@@ -93,6 +97,18 @@ class AddonConfig {
         if (map['enableDeadLinkFilter'] is bool) {
           enableDeadLinkFilter = map['enableDeadLinkFilter'];
         }
+        if (map['enableOpenSubtitles'] is bool) {
+          enableOpenSubtitles = map['enableOpenSubtitles'];
+        }
+        if (map['enableTorboxCachedTorrents'] is bool) {
+          enableTorboxCachedTorrents = map['enableTorboxCachedTorrents'];
+        }
+        if (map['enableCacheBypass'] is bool) {
+          enableCacheBypass = map['enableCacheBypass'];
+        }
+        if (map['proxyResolverUrl'] is String) {
+          proxyResolverUrl = map['proxyResolverUrl'];
+        }
       }
     } catch (e) {
       print('[AddonConfig] Error loading config: $e');
@@ -132,6 +148,10 @@ class AddonConfig {
         'preferredLanguage': preferredLanguage,
         'enableDeduplication': enableDeduplication,
         'enableDeadLinkFilter': enableDeadLinkFilter,
+        'enableOpenSubtitles': enableOpenSubtitles,
+        'enableTorboxCachedTorrents': enableTorboxCachedTorrents,
+        'enableCacheBypass': enableCacheBypass,
+        'proxyResolverUrl': proxyResolverUrl,
       };
       final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
       final tmpFile = File('${_configFile.path}.tmp');

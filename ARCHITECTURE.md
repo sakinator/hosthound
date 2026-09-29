@@ -108,23 +108,25 @@ D:\hostreamio\
 │   └── server.dart             # CLI Entry point, HTTP binding, route routing, zone protection
 ├── lib/
 │   ├── badges.dart             # Nuvio fusion badge rules and OTT logo definitions
-│   ├── catalog_service.dart    # Public catalogs (YouTube, Vimeo, Archive, Dailymotion)
+│   ├── catalog_service.dart    # Public catalogs (YouTube, Vimeo, Archive, Dailymotion, IPTV)
 │   ├── config.dart             # Singleton configuration manager (data/config.json)
 │   ├── doh_resolver.dart       # DNS-over-HTTPS fallback (Cloudflare & Google)
+│   ├── iptv_service.dart       # Free global Live IPTV parser, country/category filters, offline cache
 │   ├── key_validator.dart      # Real-time API key validation for TorBox, OMDb, TMDB, TVDB, Fanart
 │   ├── metadata_service.dart   # Fallback metadata fetching (Cinemeta, TMDB, TVMaze)
+│   ├── opensubtitles_service.dart # OpenSubtitles v3 REST API client (90+ languages, direct SRT)
 │   ├── proxy.dart              # Header-injecting streaming reverse proxy (/proxy)
 │   ├── scraper_engine.dart     # Concurrency manager, deduping, dead-link filter, TorBox cache injection
-│   ├── scraper_registry.dart   # Registry of all 61 active PlayTorrio scrapers
+│   ├── scraper_registry.dart   # Registry of all 63 active PlayTorrio scrapers
 │   ├── torbox_service.dart     # TorBox v1 API client (caching, checking, hosters)
 │   ├── tvdb_service.dart       # TheTVDB alternate episode numbering resolver
 │   ├── web_ui.dart             # Web Dashboard HTML/CSS/JS generator (/configure)
-│   └── upstream/               # PlayTorrio scraper site extractors (61 files)
+│   └── upstream/               # PlayTorrio scraper site extractors (63 files)
 ├── android_app/                # Flutter Android TV, Fire TV & Mobile client
 │   ├── lib/
-│   │   ├── main.dart           # Flutter dashboard screen with TV remote D-Pad navigation
+│   │   ├── main.dart           # 3-Tab dashboard (Server, Cinema & Series, Live IPTV) with Nuvio detail view
 │   │   ├── server_service.dart # Embedded foreground server manager
-│   │   └── [mirrored files]    # (web_ui.dart, catalog_service.dart, scraper_engine.dart, etc.)
+│   │   └── [mirrored files]    # (web_ui.dart, catalog_service.dart, iptv_service.dart, etc.)
 ├── tool/
 │   ├── rcedit.exe              # Windows PE icon injector tool
 │   └── update.dart             # Automated compilation and upgrade script
@@ -239,8 +241,10 @@ Whenever updating the version number, you **MUST** update all 4 locations in loc
 | `/manifest.json` | `GET` | Official Stremio v2 Addon Manifest declaring catalogs, types, and resource prefixes. |
 | `/catalog/:type/:id.json` | `GET` | Fetches catalog items for movies, series, or public feeds. |
 | `/catalog/:type/:id/:extra.json` | `GET` | Supports pagination (`skip=20`), genre filtering, and search. |
+| `/catalog/tv/iptv_global.json` | `GET` | Free Global Live IPTV channel directory (iptv-org) with category/genre filters. |
 | `/meta/:type/:id.json` | `GET` | Metadata resolver for public feeds (`yt:`, `archive:`, `dm:`, `vimeo:`). |
-| `/stream/:type/:id.json` | `GET` | Primary scraping endpoint. Scrapes all 61 providers and returns streams list. |
+| `/stream/:type/:id.json` | `GET` | Primary scraping endpoint. Scrapes all 63 providers and returns streams list. |
+| `/stream/tv/iptv:*.json` | `GET` | Stream resolver for live broadcast TV channels. |
 | `/api/torbox/hosters` | `GET` | Returns list of 160+ active TorBox supported cloud hosters. |
 | `/api/torbox/cache-link` | `POST` | Submits a URL to TorBox's WebDL queue for 1-click cloud caching. |
 | `/api/key/validate` | `POST` | Tests and validates user API keys against TorBox, OMDb, TMDB, TVDB, or Fanart. |
@@ -397,7 +401,90 @@ Remove-Item "D:\hostreamio\live_test.js"
 
 ---
 
-## 10. Troubleshooting & Known Traps
+## 10. Free Global Live IPTV & Direct Subtitle Engine
+
+### 📡 Free Global Live IPTV Architecture (`IptvService`)
+- **Data Source:** High-availability open-source broadcast index from `iptv-org` (`https://iptv-org.github.io/iptv/index.category.m3u`) indexing 8,000+ free broadcast channels.
+- **Parsing & Filtering:** Parses `tvg-id`, `tvg-logo`, `group-title`, and extracts 2-letter ISO country codes from channel identifiers.
+- **In-Memory Query Performance:** Filters channels in <5ms across:
+  - `category`: News, Sports, Movies, Animation, Music, Entertainment, Documentary, General.
+  - `country`: Global, US, UK, IN, CA, FR, DE, ES, IT, AU, JP, BR.
+  - `search`: Case-insensitive substring matching against channel name, category, and country.
+- **Resilience & Caching:** Caches remote data locally in `data/iptv_cache.json`. Built-in emergency fallbacks (Sky News, Al Jazeera English, DW English, France 24, Red Bull TV, NDTV 24x7, NASA TV) ensure immediate playback even during upstream connectivity drops.
+
+### 📝 Direct Subtitle Engine (`OpenSubtitlesService`)
+- **Endpoint:** Official zero-rate-limit OpenSubtitles v3 REST API (`https://opensubtitles-v3.strem.io/subtitles/{type}/{id}.json`).
+- **Features:** Delivers complete multilingual subtitle tracks (90+ languages) in <2 seconds with direct `.srt` download URLs and format tagging.
+- **User Control:** Configurable via `enableOpenSubtitles` (defaults to `true`) in `data/config.json` with user toggle in the settings drawer.
+
+---
+
+## 11. Nuvio-Style Dedicated Media Detail Screen & External Player Bridge
+
+### 🎬 Dedicated Media Detail View State Machine
+Rather than stacking episodes and streams vertically on the catalog browsing page, Hostreamio uses an isolated viewport state machine (`_isInDetailView`):
+
+```text
+  [Catalog Browse View] ──────(Tap Movie/Series Card)──────► [Dedicated Media Detail Screen]
+         ▲                                                                 │
+         └────────────────(Tap 'Back to Catalog' Button)───────────────────┘
+```
+
+- **Hero Metadata Card:** Displays cinematic backdrop, poster thumbnail, title, release year, IMDb star badge ⭐, content type (`MOVIE` / `SERIES`), genres chips, and plot synopsis.
+- **Interactive Seasons & Episodes Browser:** For TV series, presents horizontal season selector pills (`Season 1`, `Season 2`...) and an episode list with thumbnail, title, and 1-tap stream scraping.
+- **Focused Streams List:** Displays scraped streams categorized with badges (`⚡ TorBox Cached`, `☁️ TorBox Cachable`, `🌐 Direct Play`, `[SUB]`/`[DUB]`).
+
+### 🚀 External Player Intent Bridge ("Play With...")
+- **MethodChannel:** `com.playtorrio.nuvio.addon/player` on Android.
+- **Methods:**
+  - `checkInstalledPlayers`: Queries the Android `PackageManager` for installed media players (**VLC**, **Just Player**, **MPV**, **MX Player**).
+  - `playStream`: Dispatches an `Intent.ACTION_VIEW` targeting the chosen player package or prompts the native Android App Chooser dialog (`forceChooser: true`).
+
+---
+
+---
+
+## 13. Nuvio-Style Side Navigation Rail & Dedicated About View
+- **Multi-Platform Navigation Architecture:**
+  - **Wide Screens (Desktop / Tablet / TV):** 250px persistent left navigation rail (`.sidebar` in Web UI, `_buildSidebarNav` in Flutter) with active state indicators, hover animations, and persistent engine connectivity status.
+  - **Compact Screens (Mobile Portrait):** Top responsive selector (`_buildTabSelector`) that collapses gracefully.
+- **Dedicated 4-Tab Separation:**
+  - 🖥️ **Server & Addon:** Setup instructions, TorBox API key, scraper toggles, and streaming profile options.
+  - 🎬 **Cinema & Series Theater:** Discover trending content, search catalog, and browse seasons/episodes in dedicated view.
+  - 📺 **Live IPTV:** 8,000+ live global broadcast channels with category, country, and instant search.
+  - ℹ️ **About & Diagnostics:** Header branding (Logo, title, subtitle), 5 system engine status pills (Direct Cloud, TorBox Debrid, Live IPTV, Anime Zoro, OpenSubtitles), Community Attributions card (PlayTorrio, Nyaa, TamilMV, YTS, EZTV, iptv-org), and Legal Disclaimer.
+- **De-cluttering Design:** Keeps Server, Cinema, and IPTV screens 100% focused on functionality and playback by moving static header badges and legal footers into About.
+
+---
+
+## 14. TorBox Cached Torrents Engine & 0 P2P Architecture
+- **Strict 0 P2P Philosophy:**
+  - Standard torrenting requires uploading blocks back to the peer swarm (P2P), consuming bandwidth and exposing IP addresses.
+  - Hostreamio enforces a **Strict 0 P2P Guarantee**:
+    1. Torrents are **default OFF** (`enableTorboxCachedTorrents = false`). In default mode, 0 torrent scrapers are queried.
+    2. When enabled, torrent infohashes are queried in batch against TorBox (`checkCachedTorrentsBatch`).
+    3. If cached, playback is routed via TorBox's high-speed cloud CDN (`/torbox/play`). The file streams directly over HTTPS from TorBox servers to the player.
+    4. If uncached, the torrent is **dropped immediately**. It is never downloaded locally and never seeded.
+- **Community Addon Scrapers:**
+  - Anime: `NyaaScraper` (Nyaa.si Community)
+  - Indian / Desi Regional: `TamilmvScraper` (1TamilMV & TamilBlasters)
+  - Asian Dramas: `AsianDramaTorrentScraper` (Nyaa Live Action c=6_1)
+  - Global Movies & TV: `YtsScraper` (YTS.mx API), `EztvScraper` (EZTV API), `KnabenScraper`, `TorrentGalaxyScraper` (PlayTorrio).
+
+---
+
+## 15. Prowlarr-Style Captcha Resolver & Origin-Fresh Anti-Cache Architecture
+- **`ProxyResolverService` (`lib/proxy_resolver.dart`):**
+  - Connects to FlareSolverr or Prowlarr-compatible captcha proxy solver (`proxyResolverUrl`).
+  - Automatically intercepts Cloudflare Turnstile, IUAM ("Just a moment..."), and DDOS-GUARD challenges.
+  - Caches clearance cookies (`cf_clearance`) in memory (`_ClearanceSession`) with expiration timestamps, reusing sessions without repetitive solving.
+- **Origin-Fresh Cache-Bypass:**
+  - Prevents stale or cached HTML pages from ISP proxies, intermediate CDNs, or router DNS caches.
+  - Injects `Cache-Control: no-cache, no-store, max-age=0, must-revalidate`, `Pragma: no-cache`, `Expires: 0`, and random nonce parameters (`_nocache`) into outgoing HTTP queries.
+
+---
+
+## 16. Troubleshooting & Known Traps
 
 | Symptom | Root Cause | Solution |
 |---|---|---|

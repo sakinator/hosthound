@@ -222,13 +222,18 @@ class FourKHDHubScraper extends StreamScraper {
         final resolvedUrl = await _resolveRedirectUrl(redirectUrl);
         if (resolvedUrl != null) {
           final safeUrl = _sanitizeStreamUrl(resolvedUrl);
-          // Perform quick stream health check to prevent 403 quota / HTML error pages from crashing player
-          final isValid = await _validateStreamUrl(safeUrl);
+          final isSupportedHoster = safeUrl.contains('hubcloud') ||
+              safeUrl.contains('hubdrive') ||
+              safeUrl.contains('driveseed') ||
+              safeUrl.contains('pixeldrain') ||
+              safeUrl.contains('1fichier') ||
+              safeUrl.contains('mega.nz');
+          final isValid = isSupportedHoster || await _validateStreamUrl(safeUrl);
           if (isValid) {
-            print('[4KHDHub SUCCESS] Added valid stream source: $safeUrl');
+            print('[4KHDHub SUCCESS] Added stream source: $safeUrl (torbox-ready: $isSupportedHoster)');
             sources.add(StreamSource(
-              name: 'PlayTorrioHTTP',
-              addonName: 'PlayTorrioHTTP',
+              name: isSupportedHoster ? 'HubCloud' : 'MegaScraper',
+              addonName: 'MegaScraper',
               title: displayParts.join('\n'),
               url: safeUrl,
             ));

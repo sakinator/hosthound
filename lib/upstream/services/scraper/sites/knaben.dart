@@ -6,7 +6,10 @@ import '../../../utils/torrent/parse_torrent_title.dart';
 
 class KnabenScraper extends StreamScraper {
   @override
-  String get name => 'PlayTorrio';
+  String get name => 'Knaben';
+
+  @override
+  bool get isTorrent => true;
 
   @override
   Future<List<StreamSource>> scrape({
@@ -104,10 +107,11 @@ class KnabenScraper extends StreamScraper {
             .toList();
 
         sources.add(StreamSource(
-          name: 'PlayTorrio',
+          name: 'Knaben',
           addonName: 'PlayTorrio',
           title: '$torrentName\n$size 👥 $seeders',
           infoHash: infoHash,
+          url: magnetUrl,
           sources: trackers.isNotEmpty ? trackers : null,
         ));
       }

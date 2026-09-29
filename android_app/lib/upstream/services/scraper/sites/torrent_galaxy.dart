@@ -7,7 +7,10 @@ import '../../../utils/torrent/parse_torrent_title.dart';
 
 class TorrentGalaxyScraper extends StreamScraper {
   @override
-  String get name => 'PlayTorrio';
+  String get name => 'TorrentGalaxy';
+
+  @override
+  bool get isTorrent => true;
 
   @override
   Future<List<StreamSource>> scrape({
