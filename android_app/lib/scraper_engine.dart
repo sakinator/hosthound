@@ -315,7 +315,20 @@ class ScraperEngine {
       final q = src.quality ?? '';
       final isHls = rawUrl.contains('.m3u8');
       final badge = src.getAudioBadge(mediaTitle: meta.title) ?? '';
-      final headers = src.headers ?? {};
+      final Map<String, String> headers = {};
+      if (src.headers != null && src.headers!.isNotEmpty) {
+        headers.addAll(src.headers!);
+      }
+      if (src.behaviorHints != null && src.behaviorHints!['proxyHeaders'] is Map) {
+        final req = src.behaviorHints!['proxyHeaders']['request'];
+        if (req is Map) {
+          req.forEach((k, v) {
+            if (k != null && v != null) {
+              headers[k.toString()] = v.toString();
+            }
+          });
+        }
+      }
 
       // ── Direct (Uncached) Stream Configuration ────────────────────────
       String directStreamUrl = rawUrl;

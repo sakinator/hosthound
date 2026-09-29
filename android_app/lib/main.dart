@@ -2766,7 +2766,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         ),
                         icon: const Icon(Icons.play_arrow_rounded, size: 16, color: Colors.white),
                         label: const Text('Play', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                        onPressed: () => _playStream(url),
+                        onPressed: () => _playStream(s),
                       ),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
@@ -3028,9 +3028,50 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }
   }
 
-  Future<void> _playStream(String url) async {
+  Future<void> _playStream(dynamic streamTarget) async {
     try {
-      final uri = Uri.parse(url);
+      String playUrl = '';
+      if (streamTarget is Map) {
+        final rawUrl = streamTarget['finalUrl']?.toString() ?? streamTarget['url']?.toString() ?? '';
+        final bh = streamTarget['behaviorHints'] is Map ? streamTarget['behaviorHints'] as Map : null;
+        final headersMap = <String, String>{};
+        if (bh != null && bh['proxyHeaders'] is Map && bh['proxyHeaders']['request'] is Map) {
+          (bh['proxyHeaders']['request'] as Map).forEach((k, v) {
+            if (k != null && v != null) headersMap[k.toString()] = v.toString();
+          });
+        }
+
+        final port = AddonConfig.instance.port;
+        if (rawUrl.contains('/proxy') || rawUrl.contains('/torbox/play')) {
+          final uri = Uri.tryParse(rawUrl);
+          if (uri != null) {
+            playUrl = 'http://127.0.0.1:$port${uri.path}${uri.hasQuery ? '?${uri.query}' : ''}';
+          } else {
+            playUrl = rawUrl;
+          }
+        } else if (headersMap.isNotEmpty) {
+          final headersJson = jsonEncode(headersMap);
+          playUrl = 'http://127.0.0.1:$port/proxy?url=${Uri.encodeComponent(rawUrl)}&headers=${Uri.encodeComponent(headersJson)}';
+        } else {
+          playUrl = rawUrl;
+        }
+      } else if (streamTarget is String) {
+        final port = AddonConfig.instance.port;
+        if (streamTarget.contains('/proxy') || streamTarget.contains('/torbox/play')) {
+          final uri = Uri.tryParse(streamTarget);
+          if (uri != null) {
+            playUrl = 'http://127.0.0.1:$port${uri.path}${uri.hasQuery ? '?${uri.query}' : ''}';
+          } else {
+            playUrl = streamTarget;
+          }
+        } else {
+          playUrl = streamTarget;
+        }
+      }
+
+      if (playUrl.isEmpty) return;
+
+      final uri = Uri.parse(playUrl);
       final canLaunch = await canLaunchUrl(uri);
       if (canLaunch) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -3039,7 +3080,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _copyToClipboard(url, 'Stream Link');
+        final fallbackUrl = (streamTarget is Map)
+            ? (streamTarget['finalUrl']?.toString() ?? streamTarget['url']?.toString() ?? '')
+            : streamTarget.toString();
+        _copyToClipboard(fallbackUrl, 'Stream Link');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not open external player. Link copied: $e')),
         );

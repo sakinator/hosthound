@@ -8,7 +8,7 @@ class AddonConfig {
   int port = 7000;
   String host = '0.0.0.0';
   int timeoutSeconds = 9;
-  bool enableProxyForHeaders = false;
+  bool enableProxyForHeaders = true;
   Set<String> disabledProviders = {};
   List<String> providerOrder = [];
   bool autoCheckUpdates = true;
