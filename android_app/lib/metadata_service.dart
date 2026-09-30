@@ -385,7 +385,7 @@ class MetadataService {
     if (results.length < 5) {
       final tmdbType = (type == 'series' || type == 'tv') ? 'tv' : 'movie';
       try {
-        final uri = Uri.parse('$_tmdbDirect/search/$tmdbType?api_key=$_apiKey&query=${Uri.encodeComponent(cleanQuery)}');
+        final uri = Uri.parse('$_tmdbDirect/search/$tmdbType?api_key=$_apiKey&query=${Uri.encodeComponent(cleanQuery)}&include_adult=true');
         final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 3));
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
