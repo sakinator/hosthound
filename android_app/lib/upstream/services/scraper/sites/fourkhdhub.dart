@@ -154,12 +154,20 @@ class FourKHDHubScraper extends StreamScraper {
           final metaEl = card.querySelector('.movie-card-meta');
           final metaText = metaEl?.text.trim() ?? '';
           final cardYear = int.tryParse(metaText);
-          if (cardYear != null && (cardYear - year).abs() > 1) continue;
+          if (cardYear != null && cardYear != year) continue;
         }
 
         final titleEl = card.querySelector('.movie-card-title');
         var cardTitle = titleEl?.text ?? '';
         cardTitle = cardTitle.replaceAll(RegExp(r'\[.*?\]'), '').trim();
+
+        if (year != null) {
+          final yearInTitle = RegExp(r'\b(19\d\d|20\d\d)\b').firstMatch(cardTitle)?.group(1);
+          if (yearInTitle != null) {
+            final yNum = int.tryParse(yearInTitle);
+            if (yNum != null && yNum != year) continue;
+          }
+        }
 
         final diff = _levenshtein(cardTitle.toLowerCase(), name.toLowerCase());
         final titleMatch = diff < 5 ||

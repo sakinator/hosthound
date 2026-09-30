@@ -613,6 +613,21 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       return;
     }
 
+    // ── 4c3. In-App Full Media Details: GET /api/media/details?id=...&type=... ─
+    if (path == '/api/media/details') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final type = request.uri.queryParameters['type'] ?? 'movie';
+      final details = await MetadataService.getMediaDetails(id, type: type);
+      request.response.headers.contentType = ContentType.json;
+      if (details != null) {
+        request.response.write(jsonEncode({'success': true, 'media': details}));
+      } else {
+        request.response.write(jsonEncode({'success': false, 'message': 'Media details not found'}));
+      }
+      await request.response.close();
+      return;
+    }
+
     // ── 4d. M3U Playlist Generator: GET /stream/playlist.m3u?url=...&title=... ─
     if (path == '/stream/playlist.m3u') {
       final url = request.uri.queryParameters['url'] ?? '';

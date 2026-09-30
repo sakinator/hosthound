@@ -1122,6 +1122,165 @@ class WebUI {
         gap: 8px !important;
       }
     }
+
+    /* ═════════ Nuvio-like Full Expand Media Modal ═════════ */
+    .media-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(4, 7, 13, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      overflow-y: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 30px 16px;
+      box-sizing: border-box;
+    }
+    .media-modal-container {
+      background: #0b0f17;
+      border: 1px solid #30363d;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 980px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+      animation: modalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalScaleIn {
+      from { opacity: 0; transform: scale(0.96) translateY(12px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-hero {
+      position: relative;
+      min-height: 280px;
+      background-size: cover;
+      background-position: center 25%;
+      background-color: #161b22;
+      display: flex;
+      align-items: flex-end;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .modal-hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(11, 15, 23, 0.2) 0%, rgba(11, 15, 23, 0.8) 65%, #0b0f17 100%),
+                  linear-gradient(90deg, rgba(11, 15, 23, 0.85) 0%, rgba(11, 15, 23, 0.4) 60%, rgba(11, 15, 23, 0.85) 100%);
+    }
+    .modal-hero-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      gap: 20px;
+      align-items: flex-end;
+      width: 100%;
+    }
+    .modal-poster {
+      width: 135px;
+      height: 200px;
+      border-radius: 10px;
+      object-fit: cover;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      border: 2px solid rgba(255,255,255,0.12);
+      flex-shrink: 0;
+      background: #161b22;
+    }
+    .modal-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 10;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .modal-close-btn:hover {
+      background: #ff0c82;
+      border-color: #ff0c82;
+      transform: scale(1.08);
+    }
+    .modal-seasons-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 14px;
+    }
+    .modal-season-tab {
+      background: #161b22;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .modal-season-tab:hover {
+      background: #21262d;
+      color: #fff;
+    }
+    .modal-season-tab.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+      box-shadow: 0 0 10px rgba(88, 166, 255, 0.4);
+    }
+    .modal-episodes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+      max-height: 340px;
+      overflow-y: auto;
+      padding-right: 4px;
+      margin-bottom: 16px;
+    }
+    .modal-episode-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      padding: 8px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .modal-episode-card:hover {
+      border-color: var(--blue);
+      background: #1c2128;
+    }
+    .modal-episode-card.active {
+      border-color: var(--accent);
+      background: rgba(255, 12, 130, 0.1);
+      box-shadow: 0 0 10px rgba(255, 12, 130, 0.25);
+    }
+    .modal-episode-thumb {
+      width: 86px;
+      height: 56px;
+      border-radius: 5px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #0d1117;
+    }
   </style>
 </head>
 <body>
@@ -1139,6 +1298,10 @@ class WebUI {
         <button id="tabBtnServer" class="sidebar-nav-btn active" onclick="switchMainTab('server')">
           <span class="nav-icon">🖥️</span>
           <span>Server &amp; Addon</span>
+        </button>
+        <button id="tabBtnSearch" class="sidebar-nav-btn" onclick="switchMainTab('search')">
+          <span class="nav-icon">🔍</span>
+          <span>Search &amp; Scrape</span>
         </button>
         <button id="tabBtnStreaming" class="sidebar-nav-btn" onclick="switchMainTab('streaming')">
           <span class="nav-icon">🎬</span>
@@ -1644,8 +1807,8 @@ class WebUI {
     </div>
   </div> <!-- End of tabContentServer -->
 
-  <!-- TAB 2: STREAMING & NATIVE THEATER -->
-  <div id="tabContentStreaming" style="display:none;">
+  <!-- TAB 2: SEARCH & STREAM THEATER -->
+  <div id="tabContentSearch" style="display:none;">
     <!-- Cloud Debrid & Cache Philosophy Banner -->
     <div style="background: rgba(25, 95, 235, 0.08); border: 1px solid rgba(88, 166, 255, 0.25); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
       <div style="font-size: 0.86rem; color: var(--text); line-height: 1.5;">
@@ -1699,7 +1862,10 @@ class WebUI {
       <!-- Scraped Stream Results -->
       <div id="testResults"></div>
     </div>
+  </div> <!-- End of tabContentSearch -->
 
+  <!-- TAB 3: CINEMA & SERIES CATALOGS -->
+  <div id="tabContentStreaming" style="display:none;">
     <!-- ═══════════════════ CATALOG BROWSER ═══════════════════ -->
     <div class="card" id="catalogBrowserCard" style="margin-bottom:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
@@ -1872,6 +2038,14 @@ class WebUI {
       </p>
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
         <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#79c0ff; font-size:0.95rem;">Nuvio Streaming App</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Next-generation streaming client whose native badge system, sleek layout, and debrid philosophy inspired Hostreamio&apos;s UI &amp; stream architecture.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#a371f7; font-size:0.95rem;">Cloudstream (recloudstream)</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Pioneering open modular scraping framework and multi-provider cloud resolvers that inspired Hostreamio&apos;s direct hoster extractors.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
           <strong style="color:var(--blue); font-size:0.95rem;">PlayTorrio (ayman708-UX)</strong>
           <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Original base Dart scraper architecture, StreamSource models, Knaben aggregator &amp; TorrentGalaxy scrapers.</div>
         </div>
@@ -2003,15 +2177,91 @@ class WebUI {
     </div>
   </div>
 
+  <!-- ═══════════════════ NUVIO-LIKE FULL EXPAND MEDIA MODAL ═══════════════════ -->
+  <div id="mediaDetailModal" class="media-modal-backdrop" style="display:none;" onclick="handleModalBackdropClick(event)">
+    <div class="media-modal-container" id="mediaDetailModalContainer" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeMediaDetailModal()" title="Close (Esc)">✕</button>
+
+      <!-- Hero Backdrop Header -->
+      <div class="modal-hero" id="modalHero">
+        <div class="modal-hero-overlay"></div>
+        <div class="modal-hero-content">
+          <img id="modalPoster" class="modal-poster" src="/logo.png" alt="Poster" onerror="this.src='/logo.png'">
+          <div class="modal-header-info">
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+              <span id="modalTypeBadge" class="badge" style="background:#ff0c82; color:#fff; font-weight:700; font-size:0.75rem;">MOVIE</span>
+              <span id="modalYearBadge" class="badge" style="background:#161b22; color:var(--text); font-size:0.75rem;"></span>
+              <span id="modalRatingBadge" class="badge" style="background:rgba(227, 179, 65, 0.2); color:#e3b341; border:1px solid rgba(227, 179, 65, 0.4); font-size:0.75rem; font-weight:700;"></span>
+            </div>
+            <h1 id="modalTitle" style="font-size:1.6rem; font-weight:800; color:#fff; line-height:1.2; margin:0 0 6px 0; text-shadow:0 2px 10px rgba(0,0,0,0.8);"></h1>
+            <div id="modalGenres" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+        <!-- Synopsis -->
+        <div>
+          <div style="font-size:0.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Overview</div>
+          <p id="modalOverview" style="font-size:0.88rem; color:var(--text); line-height:1.55; margin:0;"></p>
+        </div>
+
+        <!-- TV Series Seasons & Episodes Explorer (Hidden for movies) -->
+        <div id="modalSeriesBrowser" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+            <div style="font-weight:700; font-size:0.95rem; color:#fff;">📺 Seasons &amp; Episodes</div>
+            <span id="modalSeasonsCount" style="font-size:0.8rem; color:var(--text-muted);"></span>
+          </div>
+          <!-- Season switcher pills -->
+          <div class="modal-seasons-bar" id="modalSeasonTabs"></div>
+          <!-- Episode Cards Grid -->
+          <div class="modal-episodes-grid" id="modalEpisodesGrid"></div>
+        </div>
+
+        <!-- Action / Scraper Bar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding:12px 16px; background:#161b22; border:1px solid #30363d; border-radius:10px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.85rem; color:var(--text-muted);">Selection:</span>
+            <strong id="modalSelectedMediaLabel" style="color:#58a6ff; font-size:0.9rem;"></strong>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary" id="btnModalScrape" onclick="triggerModalScrape()" style="padding:8px 16px; font-weight:700;">⚡ Scrape Sources</button>
+            <button class="btn btn-sm" onclick="openCurrentInSearchTab()" style="font-size:0.82rem;">🔍 Open in Search Tab</button>
+          </div>
+        </div>
+
+        <!-- Scraped Stream Results inside Modal -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="font-weight:700; font-size:0.95rem; color:#fff;">🎬 Available Streams (<span id="modalStreamsCount">0</span>)</div>
+            <div id="modalStreamFilterChips" style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="stream-filter-chip active" onclick="filterModalStreams('all', this)">All</button>
+              <button class="stream-filter-chip" onclick="filterModalStreams('torbox', this)">⚡ TorBox Cached</button>
+              <button class="stream-filter-chip" onclick="filterModalStreams('direct', this)">🌐 Direct Play</button>
+              <button class="stream-filter-chip" onclick="filterModalStreams('1080p', this)">1080p+</button>
+            </div>
+          </div>
+          <div id="modalStreamsList" style="display:flex; flex-direction:column; gap:10px; min-height:80px;">
+            <div style="color:var(--text-muted); text-align:center; padding:20px; font-size:0.88rem;">Click &quot;⚡ Scrape Sources&quot; above or select an episode to discover streams.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast">Copied to clipboard!</div>
 
   <script>
     let currentStreams = [];
     let activeFilter = 'all';
     let currentHls = null;
+    let activeMainTab = 'server';
 
     function switchMainTab(tab) {
-      const tabs = ['server', 'streaming', 'iptv', 'caching', 'about'];
+      activeMainTab = tab;
+      window.activeMainTab = tab;
+      const tabs = ['server', 'search', 'streaming', 'iptv', 'caching', 'about'];
       tabs.forEach(t => {
         const content = document.getElementById('tabContent' + t.charAt(0).toUpperCase() + t.slice(1));
         const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -2037,9 +2287,9 @@ class WebUI {
     window.addEventListener('DOMContentLoaded', () => {
       const hash = window.location.hash.replace('#', '');
       const savedTab = localStorage.getItem('hostreamio_active_tab');
-      if (hash && ['server', 'streaming', 'iptv', 'caching', 'about'].includes(hash)) {
+      if (hash && ['server', 'search', 'streaming', 'iptv', 'caching', 'about'].includes(hash)) {
         switchMainTab(hash);
-      } else if (savedTab && ['server', 'streaming', 'iptv', 'caching', 'about'].includes(savedTab)) {
+      } else if (savedTab && ['server', 'search', 'streaming', 'iptv', 'caching', 'about'].includes(savedTab)) {
         switchMainTab(savedTab);
       } else {
         switchMainTab('server');
@@ -2355,6 +2605,8 @@ class WebUI {
     let queuePollTimer = null;
     let isQueuePollingActive = true;
     let cacheQueueFilter = 'hostreamio'; // 'hostreamio' or 'all'
+    let _queueReqSeq = 0;
+    let _isLoadingQueue = false;
 
     function startQueueBackgroundPolling() {
       loadCacheQueue(false);
@@ -2363,7 +2615,7 @@ class WebUI {
         if (isQueuePollingActive) {
           loadCacheQueue(false);
         }
-      }, 3500);
+      }, 5000);
     }
 
     function toggleQueueAutoPoll(enabled) {
@@ -2408,10 +2660,18 @@ class WebUI {
     }
 
     async function loadCacheQueue(showToastNotice = false) {
+      if (_isLoadingQueue) return;
+      _isLoadingQueue = true;
+      const currentSeq = ++_queueReqSeq;
+      const requestedFilter = cacheQueueFilter;
+
       try {
-        const res = await fetch('/api/torbox/queue?filter=' + cacheQueueFilter);
+        const res = await fetch('/api/torbox/queue?filter=' + encodeURIComponent(requestedFilter));
         if (!res.ok) return;
         const data = await res.json();
+        // Guard against race conditions and stale responses
+        if (currentSeq !== _queueReqSeq || data.filter !== cacheQueueFilter) return;
+
         const items = data.items || [];
 
         // Update counts
@@ -2436,10 +2696,15 @@ class WebUI {
           countBadge.textContent = items.length + ' Item' + (items.length === 1 ? '' : 's') + (activeCount > 0 ? ' (' + activeCount + ' Caching)' : '');
         }
 
-        renderCacheQueue(items, data.hasKey);
+        // Only reconcile/render DOM if currently on caching tab
+        if (!window.activeMainTab || window.activeMainTab === 'caching') {
+          renderCacheQueue(items, data.hasKey);
+        }
         if (showToastNotice) showToast('Caching queue refreshed');
       } catch (err) {
         console.error('Error fetching cache queue:', err);
+      } finally {
+        _isLoadingQueue = false;
       }
     }
 
@@ -2470,6 +2735,70 @@ class WebUI {
       }
 
       window._cacheQueueItems = items;
+
+      // Smooth DOM reconciliation: check if existing card IDs match new items
+      const existingCards = container.querySelectorAll('.cache-queue-card');
+      const existingIds = Array.from(existingCards).map(c => c.getAttribute('data-id'));
+      const newIds = items.map(it => String(it.id));
+
+      const isSameList = existingIds.length === newIds.length && existingIds.every((id, idx) => id === newIds[idx]);
+
+      if (isSameList) {
+        // Update in-place smoothly without layout thrashing or image reload!
+        items.forEach((it, idx) => {
+          const card = existingCards[idx];
+          if (!card) return;
+          const isDone = it.status === 'completed';
+          const isFailed = it.status === 'failed';
+          const pct = it.progressPercent || Math.round((it.progress || 0) * 100);
+
+          let badgeBg = 'rgba(88, 166, 255, 0.15)';
+          let badgeColor = '#58a6ff';
+          let badgeBorder = 'rgba(88, 166, 255, 0.3)';
+          let badgeText = '⚡ CACHING (' + pct + '%)';
+
+          if (isDone) {
+            badgeBg = 'rgba(63, 185, 80, 0.15)';
+            badgeColor = '#3fb950';
+            badgeBorder = 'rgba(63, 185, 80, 0.3)';
+            badgeText = '✅ READY TO STREAM';
+          } else if (isFailed) {
+            badgeBg = 'rgba(248, 81, 73, 0.15)';
+            badgeColor = '#f85149';
+            badgeBorder = 'rgba(248, 81, 73, 0.3)';
+            badgeText = '❌ FAILED';
+          } else if (it.status === 'queued') {
+            badgeBg = 'rgba(227, 179, 65, 0.15)';
+            badgeColor = '#e3b341';
+            badgeBorder = 'rgba(227, 179, 65, 0.3)';
+            badgeText = '⏳ QUEUED';
+          }
+
+          const statusBadge = card.querySelector('.queue-status-badge');
+          if (statusBadge) {
+            statusBadge.textContent = badgeText;
+            statusBadge.style.background = badgeBg;
+            statusBadge.style.color = badgeColor;
+            statusBadge.style.borderColor = badgeBorder;
+          }
+
+          const progressBar = card.querySelector('.queue-progress-bar');
+          if (progressBar) {
+            progressBar.style.width = pct + '%';
+            progressBar.style.background = isDone ? '#3fb950' : 'linear-gradient(90deg, #195feb, #ff0c82)';
+          }
+
+          const statsSpeed = card.querySelector('.queue-stat-speed');
+          if (statsSpeed) statsSpeed.textContent = '⚡ ' + (it.speed || '--');
+          const statsEta = card.querySelector('.queue-stat-eta');
+          if (statsEta) statsEta.textContent = '⏱️ ' + (it.eta || '--');
+
+          card.style.borderColor = isDone ? '#238636' : '#21262d';
+        });
+        return;
+      }
+
+      // Rebuild HTML only when items were added/removed/switched
       let html = '';
       items.forEach((it, idx) => {
         const isDone = it.status === 'completed';
@@ -2504,7 +2833,7 @@ class WebUI {
         const showRawName = cleanTitle !== it.name && it.name.length > 0;
         const badges = (it.qualityBadges || []).map(b => '<span class="badge" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8; font-size:0.7rem; padding:1px 6px;">' + escapeHtml(b) + '</span>').join('');
 
-        html += '<div style="background:#0d1117; border:1px solid ' + (isDone ? '#238636' : '#21262d') + '; border-radius:12px; padding:14px 16px; display:flex; gap:16px; align-items:flex-start; box-shadow:0 4px 16px rgba(0,0,0,0.25);">' +
+        html += '<div class="cache-queue-card" data-id="' + escapeHtml(String(it.id)) + '" style="background:#0d1117; border:1px solid ' + (isDone ? '#238636' : '#21262d') + '; border-radius:12px; padding:14px 16px; display:flex; gap:16px; align-items:flex-start; box-shadow:0 4px 16px rgba(0,0,0,0.25);">' +
           // Vertical Poster Thumbnail
           '<div style="width:52px; height:74px; min-width:52px; min-height:74px; border-radius:8px; background:#161b22; border:1px solid #30363d; overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0;">' +
             (poster ? '<img src="' + escapeHtml(poster) + '" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.parentElement.innerHTML=&apos;🎬&apos;;">' : '<span style="font-size:1.6rem;">🎬</span>') +
@@ -2521,16 +2850,16 @@ class WebUI {
                   '<span class="badge" style="background:#161b22; color:var(--text-muted); padding:1px 6px; font-size:0.7rem;">' + (it.type === 'torrent' ? 'Torrent' : 'WebDL') + '</span>' +
                   (it.isHostreamio ? '<span class="badge" style="background:rgba(255, 12, 130, 0.15); color:#ff0c82; padding:1px 6px; font-size:0.7rem;">⚡ Hostreamio</span>' : '') +
                   '<span style="font-size:0.75rem; color:var(--text-muted);">📦 ' + escapeHtml(it.size || '--') + '</span>' +
-                  '<span style="font-size:0.75rem; color:var(--text-muted);">⚡ ' + escapeHtml(it.speed || '--') + '</span>' +
-                  '<span style="font-size:0.75rem; color:var(--text-muted);">⏱️ ' + escapeHtml(it.eta || '--') + '</span>' +
+                  '<span class="queue-stat-speed" style="font-size:0.75rem; color:var(--text-muted);">⚡ ' + escapeHtml(it.speed || '--') + '</span>' +
+                  '<span class="queue-stat-eta" style="font-size:0.75rem; color:var(--text-muted);">⏱️ ' + escapeHtml(it.eta || '--') + '</span>' +
                 '</div>' +
               '</div>' +
-              '<span class="badge" style="background:' + badgeBg + '; color:' + badgeColor + '; border:1px solid ' + badgeBorder + '; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">' + badgeText + '</span>' +
+              '<span class="badge queue-status-badge" style="background:' + badgeBg + '; color:' + badgeColor + '; border:1px solid ' + badgeBorder + '; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">' + badgeText + '</span>' +
             '</div>' +
 
             // Progress Bar
             '<div style="background:#161b22; border-radius:6px; height:7px; width:100%; overflow:hidden; margin-top:2px;">' +
-              '<div style="background:' + (isDone ? '#3fb950' : 'linear-gradient(90deg, #195feb, #ff0c82)') + '; height:100%; width:' + pct + '%; transition:width 0.4s ease;"></div>' +
+              '<div class="queue-progress-bar" style="background:' + (isDone ? '#3fb950' : 'linear-gradient(90deg, #195feb, #ff0c82)') + '; height:100%; width:' + pct + '%; transition:width 0.4s ease;"></div>' +
             '</div>' +
 
             // Actions Row
@@ -2550,6 +2879,7 @@ class WebUI {
 
       container.innerHTML = html;
     }
+
 
     function playQueueIndex(idx) {
       const it = (window._cacheQueueItems || [])[idx];
@@ -2860,13 +3190,389 @@ class WebUI {
       }
     }
 
+    let modalCurrentMedia = null;
+    let modalScrapedStreams = [];
+    let modalSeriesDetails = null;
+    let modalSelectedSeason = 1;
+    let modalSelectedEpisode = 1;
+    let modalSelectedEpId = null;
+
+    function handleModalBackdropClick(event) {
+      if (event.target && event.target.id === 'mediaDetailModal') {
+        closeMediaDetailModal();
+      }
+    }
+
+    function closeMediaDetailModal() {
+      const modal = document.getElementById('mediaDetailModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeMediaDetailModal();
+      }
+    });
+
+    async function openMediaDetailModal(id, type, name, poster, isSeries) {
+      const modal = document.getElementById('mediaDetailModal');
+      if (!modal) return;
+
+      const cleanType = (isSeries || type === 'series' || type === 'tv') ? 'series' : 'movie';
+      modalCurrentMedia = {
+        id: id,
+        baseId: id.includes(':') ? id.split(':')[0] : id,
+        type: cleanType,
+        name: name || id,
+        poster: poster || ('https://images.metahub.space/poster/medium/' + (id.split(':')[0]) + '/img'),
+        isSeries: cleanType === 'series',
+        season: 1,
+        episode: 1,
+        epTitle: ''
+      };
+      modalScrapedStreams = [];
+      modalSeriesDetails = null;
+
+      // Reset Modal UI
+      modal.style.display = 'flex';
+      const posterEl = document.getElementById('modalPoster');
+      if (posterEl) posterEl.src = modalCurrentMedia.poster;
+
+      const titleEl = document.getElementById('modalTitle');
+      if (titleEl) titleEl.textContent = modalCurrentMedia.name;
+
+      const typeBadge = document.getElementById('modalTypeBadge');
+      if (typeBadge) {
+        typeBadge.textContent = cleanType === 'series' ? '📺 TV SERIES' : '🎬 MOVIE';
+        typeBadge.style.background = cleanType === 'series' ? '#a371f7' : '#ff0c82';
+      }
+
+      const yearBadge = document.getElementById('modalYearBadge');
+      if (yearBadge) yearBadge.textContent = '';
+
+      const ratingBadge = document.getElementById('modalRatingBadge');
+      if (ratingBadge) ratingBadge.style.display = 'none';
+
+      const genresEl = document.getElementById('modalGenres');
+      if (genresEl) genresEl.innerHTML = '';
+
+      const overviewEl = document.getElementById('modalOverview');
+      if (overviewEl) overviewEl.textContent = 'Fetching rich metadata from Cinemeta & TMDb…';
+
+      const hero = document.getElementById('modalHero');
+      if (hero) hero.style.backgroundImage = 'url(' + modalCurrentMedia.poster + ')';
+
+      const seriesBox = document.getElementById('modalSeriesBrowser');
+      if (seriesBox) seriesBox.style.display = 'none';
+
+      const selLabel = document.getElementById('modalSelectedMediaLabel');
+      if (selLabel) selLabel.textContent = modalCurrentMedia.name;
+
+      const streamsList = document.getElementById('modalStreamsList');
+      if (streamsList) streamsList.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px; font-size:0.88rem;"><div style="font-size:1.6rem; margin-bottom:8px;">⏳</div>Loading details and media streams…</div>';
+
+      const streamsCount = document.getElementById('modalStreamsCount');
+      if (streamsCount) streamsCount.textContent = '0';
+
+      // Fetch comprehensive metadata (background, rating, synopsis, episodes)
+      try {
+        const res = await fetch('/api/media/details?id=' + encodeURIComponent(modalCurrentMedia.baseId) + '&type=' + cleanType);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.media) {
+            const m = data.media;
+            modalCurrentMedia.name = m.name || modalCurrentMedia.name;
+            if (titleEl) titleEl.textContent = modalCurrentMedia.name;
+
+            if (m.poster && posterEl) posterEl.src = m.poster;
+            if (m.background && hero) hero.style.backgroundImage = 'url(' + m.background + ')';
+
+            if (m.year && yearBadge) {
+              yearBadge.textContent = m.year;
+              yearBadge.style.display = 'inline-block';
+            }
+            if (m.imdbRating && ratingBadge) {
+              ratingBadge.textContent = '⭐ ' + m.imdbRating;
+              ratingBadge.style.display = 'inline-block';
+            }
+            if (m.genres && Array.isArray(m.genres) && genresEl) {
+              genresEl.innerHTML = m.genres.map(g => '<span class="badge" style="background:#161b22; color:var(--text-muted); font-size:0.75rem;">' + escapeHtml(g) + '</span>').join('');
+            }
+            if (overviewEl) {
+              overviewEl.textContent = m.description || m.overview || 'No synopsis available.';
+            }
+
+            if (cleanType === 'series') {
+              modalSeriesDetails = m;
+              renderModalSeriesBrowser(m);
+              return; // renderModalSeriesBrowser will trigger scrape for S1E1
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching media details:', e);
+      }
+
+      // If movie or series without Cinemeta episodes: scrape directly!
+      triggerModalScrape();
+    }
+
+    function renderModalSeriesBrowser(series) {
+      const seriesBox = document.getElementById('modalSeriesBrowser');
+      if (!seriesBox) return;
+      seriesBox.style.display = 'block';
+
+      const seasons = series.seasons || [1];
+      const countEl = document.getElementById('modalSeasonsCount');
+      if (countEl) countEl.textContent = seasons.length + ' Season' + (seasons.length === 1 ? '' : 's') + ' Available';
+
+      // Render Seasons tabs
+      const tabsBar = document.getElementById('modalSeasonTabs');
+      if (tabsBar) {
+        modalSelectedSeason = seasons.length > 0 ? seasons[0] : 1;
+        tabsBar.innerHTML = seasons.map(s => {
+          const isActive = s === modalSelectedSeason;
+          return '<button type="button" class="modal-season-tab ' + (isActive ? 'active' : '') + '" onclick="switchModalSeason(' + s + ')">Season ' + s + '</button>';
+        }).join('');
+      }
+
+      renderModalEpisodesGrid();
+
+      // Auto-scrape Episode 1
+      const eps = (series.episodesBySeason && series.episodesBySeason[String(modalSelectedSeason)]) || [];
+      if (eps.length > 0) {
+        const ep1 = eps[0];
+        selectModalEpisode(ep1.id, ep1.season, ep1.episode, ep1.name, ep1.thumbnail, ep1.overview, false);
+      }
+      triggerModalScrape();
+    }
+
+    function switchModalSeason(sNum) {
+      modalSelectedSeason = sNum;
+      document.querySelectorAll('#modalSeasonTabs .modal-season-tab').forEach(b => {
+        b.classList.toggle('active', b.textContent === 'Season ' + sNum);
+      });
+      renderModalEpisodesGrid();
+    }
+
+    function renderModalEpisodesGrid() {
+      const grid = document.getElementById('modalEpisodesGrid');
+      if (!grid || !modalSeriesDetails) return;
+
+      const eps = (modalSeriesDetails.episodesBySeason && modalSeriesDetails.episodesBySeason[String(modalSelectedSeason)]) || [];
+      if (eps.length === 0) {
+        grid.innerHTML = '<div style="color:var(--text-muted); padding:16px; font-size:0.85rem;">No episodes found for Season ' + modalSelectedSeason + '.</div>';
+        return;
+      }
+
+      grid.innerHTML = eps.map(ep => {
+        const isActive = ep.id === modalSelectedEpId;
+        const epThumb = ep.thumbnail || modalCurrentMedia.poster || '/logo.png';
+        const epNumStr = 'S' + (ep.season < 10 ? '0' : '') + ep.season + 'E' + (ep.episode < 10 ? '0' : '') + ep.episode;
+        const safeTitle = escapeHtml(ep.name || ('Episode ' + ep.episode));
+        const safeOverview = escapeHtml(ep.overview || 'Click to scrape and stream this episode');
+
+        return '<div class="modal-episode-card ' + (isActive ? 'active' : '') + '" onclick="selectModalEpisode(\'' + escapeHtml(ep.id) + '\', ' + ep.season + ', ' + ep.episode + ', \'' + safeTitle.replace(/'/g, "\\'") + '\', \'' + escapeHtml(epThumb) + '\', \'' + safeOverview.replace(/'/g, "\\'") + '\', true)">' +
+          '<img src="' + escapeHtml(epThumb) + '" class="modal-episode-thumb" onerror="this.src=\'/logo.png\'">' +
+          '<div style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center;">' +
+            '<div style="font-size:0.75rem; color:#58a6ff; font-weight:700;">' + epNumStr + (ep.released ? ' • ' + escapeHtml(ep.released.substring(0, 10)) : '') + '</div>' +
+            '<div style="font-size:0.88rem; font-weight:700; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">' + safeTitle + '</div>' +
+            '<div style="font-size:0.76rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">' + safeOverview + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function selectModalEpisode(epId, season, episode, title, thumb, overview, autoScrape = true) {
+      modalSelectedEpId = epId;
+      modalSelectedSeason = season;
+      modalSelectedEpisode = episode;
+      modalCurrentMedia.season = season;
+      modalCurrentMedia.episode = episode;
+      modalCurrentMedia.epTitle = title;
+
+      // Update active card styling
+      const grid = document.getElementById('modalEpisodesGrid');
+      if (grid) {
+        grid.querySelectorAll('.modal-episode-card').forEach(c => {
+          c.classList.remove('active');
+        });
+      }
+
+      const selLabel = document.getElementById('modalSelectedMediaLabel');
+      if (selLabel) {
+        selLabel.textContent = modalCurrentMedia.name + ' S' + season + 'E' + episode + (title ? ' (' + title + ')' : '');
+      }
+
+      if (autoScrape) {
+        triggerModalScrape();
+      }
+    }
+
+    async function triggerModalScrape() {
+      if (!modalCurrentMedia) return;
+      const streamsList = document.getElementById('modalStreamsList');
+      const streamsCount = document.getElementById('modalStreamsCount');
+      const btn = document.getElementById('btnModalScrape');
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Scraping…';
+      }
+
+      let targetId = modalCurrentMedia.baseId;
+      if (modalCurrentMedia.isSeries) {
+        targetId = modalSelectedEpId || (modalCurrentMedia.baseId + ':' + modalCurrentMedia.season + ':' + modalCurrentMedia.episode);
+      }
+
+      const displayTitle = modalCurrentMedia.name + (modalCurrentMedia.isSeries ? ' S' + modalCurrentMedia.season + 'E' + modalCurrentMedia.episode : '');
+
+      if (streamsList) {
+        streamsList.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:24px 16px; font-size:0.88rem;">' +
+          '<div style="font-size:1.8rem; margin-bottom:8px;">📡</div>' +
+          'Scraping all scrapers for <strong>"' + escapeHtml(displayTitle) + '"</strong>…' +
+          '</div>';
+      }
+
+      try {
+        const res = await fetch('/stream/' + modalCurrentMedia.type + '/' + encodeURIComponent(targetId) + '.json');
+        const data = await res.json();
+        const rawStreams = data.streams || [];
+
+        modalScrapedStreams = rawStreams.map((s, idx) => {
+          const finalUrl = normalizeStreamUrl(s.url);
+          const rawName = (s.name || '').replace(/\n/g, ' ');
+          const rawTitle = (s.title || '').replace(/\n/g, '\n');
+
+          let underlyingUrl = finalUrl;
+          try {
+            if (finalUrl.includes('?url=')) {
+              const u = new URL(finalUrl);
+              underlyingUrl = decodeURIComponent(u.searchParams.get('url') || finalUrl);
+            }
+          } catch (_) {}
+
+          return {
+            idx: idx,
+            name: rawName,
+            title: rawTitle,
+            url: finalUrl,
+            underlyingUrl: underlyingUrl,
+            isTorboxCached: rawName.includes('Cached') || rawTitle.includes('Cached') || rawName.includes('⚡') || rawTitle.includes('⚡'),
+            isTorboxCaching: rawName.includes('Start Caching') || rawTitle.includes('Start Caching') || rawName.includes('☁️'),
+            isDirect: !rawName.includes('TorBox') && !rawTitle.includes('TorBox'),
+            is1080p: /1080p|2160p|4k/i.test(rawName + ' ' + rawTitle),
+            is4k: /2160p|4k/i.test(rawName + ' ' + rawTitle)
+          };
+        });
+
+        if (streamsCount) streamsCount.textContent = modalScrapedStreams.length;
+        renderModalStreams(modalScrapedStreams);
+      } catch (err) {
+        if (streamsList) {
+          streamsList.innerHTML = '<div style="color:#f85149; text-align:center; padding:20px;">Scraping failed: ' + escapeHtml(String(err)) + '</div>';
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '⚡ Scrape Sources';
+        }
+      }
+    }
+
+    function filterModalStreams(filter, btn) {
+      document.querySelectorAll('#modalStreamFilterChips .stream-filter-chip').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+
+      let filtered = modalScrapedStreams;
+      if (filter === 'torbox') {
+        filtered = modalScrapedStreams.filter(s => s.isTorboxCached);
+      } else if (filter === 'direct') {
+        filtered = modalScrapedStreams.filter(s => s.isDirect);
+      } else if (filter === '1080p') {
+        filtered = modalScrapedStreams.filter(s => s.is1080p);
+      }
+      renderModalStreams(filtered);
+    }
+
+    function renderModalStreams(streams) {
+      const container = document.getElementById('modalStreamsList');
+      if (!container) return;
+
+      if (!streams || streams.length === 0) {
+        container.innerHTML = '<div style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:24px; text-align:center; color:var(--text-muted);">' +
+          '<div style="font-size:1.8rem; margin-bottom:8px;">🔍</div>' +
+          'No streams found for this selection with active filter.' +
+          '</div>';
+        return;
+      }
+
+      container.innerHTML = streams.map(s => {
+        let badgeHtml = '';
+        if (s.isTorboxCached) {
+          badgeHtml = '<span class="badge" style="background:rgba(63, 185, 80, 0.15); color:#3fb950; border:1px solid rgba(63, 185, 80, 0.3); font-weight:700;">⚡ TorBox [Cached]</span>';
+        } else if (s.isTorboxCaching) {
+          badgeHtml = '<span class="badge" style="background:rgba(88, 166, 255, 0.15); color:#58a6ff; border:1px solid rgba(88, 166, 255, 0.3); font-weight:700;">☁️ TorBox [Start Caching]</span>';
+        } else {
+          badgeHtml = '<span class="badge" style="background:rgba(240, 136, 62, 0.15); color:#f0883e; border:1px solid rgba(240, 136, 62, 0.3); font-weight:700;">🌐 Direct Play</span>';
+        }
+
+        const lines = (s.title || s.name).split('\n');
+        const mainTitle = lines[0] || 'Stream';
+        const subDetails = lines.slice(1).join(' • ');
+
+        return '<div style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">' +
+          '<div style="flex:1; min-width:200px;">' +
+            '<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:4px;">' +
+              badgeHtml +
+              '<span class="badge" style="background:#090d13; color:var(--text-muted); font-size:0.75rem;">' + escapeHtml(s.name) + '</span>' +
+            '</div>' +
+            '<div style="font-size:0.92rem; font-weight:700; color:#fff; word-break:break-all;">' + escapeHtml(mainTitle) + '</div>' +
+            (subDetails ? '<div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">' + escapeHtml(subDetails) + '</div>' : '') +
+          '</div>' +
+          '<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">' +
+            '<button class="btn btn-sm btn-success" style="padding:6px 12px; font-weight:700;" onclick="playStream(\'' + escapeHtml(s.url) + '\', \'' + escapeHtml(mainTitle).replace(/'/g, "\\'") + '\')">▶ Play</button>' +
+            '<button class="btn btn-sm" style="padding:6px 10px;" onclick="openWithModal(\'' + escapeHtml(s.url) + '\', \'' + escapeHtml(mainTitle).replace(/'/g, "\\'") + '\')">🚀 External</button>' +
+            '<button class="btn btn-sm" style="padding:6px 8px;" onclick="navigator.clipboard.writeText(\'' + escapeHtml(s.url) + '\'); showToast(\'📋 Link copied!\');" title="Copy Stream URL">📋</button>' +
+            (s.isTorboxCaching ? '<button class="btn btn-sm" style="padding:6px 8px; background:rgba(88,166,255,0.15); color:#58a6ff;" onclick="cacheStreamToTorbox(\'' + escapeHtml(s.underlyingUrl) + '\')" title="Send to TorBox Cache">☁️ Cache</button>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function openCurrentInSearchTab() {
+      if (!modalCurrentMedia) return;
+      closeMediaDetailModal();
+      switchMainTab('search');
+
+      const typeSelect = document.getElementById('theaterMediaType');
+      if (typeSelect) {
+        typeSelect.value = modalCurrentMedia.type === 'series' ? 'series' : 'movie';
+        toggleSeasonEpisodeInputs();
+      }
+
+      const searchInput = document.getElementById('theaterSearchQuery');
+      if (searchInput) searchInput.value = modalCurrentMedia.baseId;
+
+      if (modalCurrentMedia.isSeries) {
+        const seasonEl = document.getElementById('theaterSeason');
+        const episodeEl = document.getElementById('theaterEpisode');
+        if (seasonEl) seasonEl.value = modalCurrentMedia.season;
+        if (episodeEl) episodeEl.value = modalCurrentMedia.episode;
+      }
+
+      setTimeout(() => {
+        executeTheaterSearch();
+      }, 250);
+    }
+
     function onCatalogCardClick(el) {
       const id = decodeURIComponent(el.getAttribute('data-id') || '');
       const type = decodeURIComponent(el.getAttribute('data-type') || 'movie');
       const name = decodeURIComponent(el.getAttribute('data-name') || '');
       const poster = decodeURIComponent(el.getAttribute('data-poster') || '');
       const isSeries = el.getAttribute('data-series') === '1';
-      catalogItemClick(id, type, name, poster, isSeries);
+      openMediaDetailModal(id, type, name, poster, isSeries);
     }
 
     function loadMoreCatalog() {
@@ -2874,36 +3580,9 @@ class WebUI {
     }
 
     function catalogItemClick(id, type, name, poster, isSeries) {
-      // Scroll to theater
-      const theater = document.getElementById('searchTheaterCard');
-      if (theater) theater.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-      // Set type selector
-      const typeSelect = document.getElementById('theaterMediaType');
-      if (typeSelect) {
-        typeSelect.value = type === 'series' ? 'series' : 'movie';
-        toggleSeasonEpisodeInputs();
-      }
-
-      // Set search query to the id
-      const searchInput = document.getElementById('theaterSearchQuery');
-      if (searchInput) searchInput.value = id;
-
-      // Small delay for scroll, then kick off scrape
-      setTimeout(() => {
-        if (isSeries) {
-          // For series: show catalog + default to S1E1
-          const seasonEl = document.getElementById('theaterSeason');
-          const episodeEl = document.getElementById('theaterEpisode');
-          if (seasonEl) seasonEl.value = '1';
-          if (episodeEl) episodeEl.value = '1';
-          // Trigger search
-          executeTheaterSearch();
-        } else {
-          executeTheaterSearch();
-        }
-      }, 350);
+      openMediaDetailModal(id, type, name, poster, isSeries);
     }
+
 
     function showToast(msg) {
       const toast = document.getElementById('toast');
@@ -3442,7 +4121,7 @@ class WebUI {
         <div class="media-card-box">
           <img src="\${posterImg}" class="media-card-poster" onerror="this.src='/logo.png'">
           <div style="flex:1;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
               <div>
                 <h3 style="font-size:1.15rem; color:#fff; font-weight:700;">\${escapeHtml(displayTitle)}</h3>
                 <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
@@ -3450,6 +4129,9 @@ class WebUI {
                   <span>\${escapeHtml(id)}\${displayYear}</span>
                 </div>
               </div>
+              <button class="btn btn-sm" onclick="openMediaDetailModal('\${escapeHtml(id.split(':')[0])}', '\${escapeHtml(type)}', '\${escapeHtml(displayTitle).replace(/'/g, &quot;\\'&quot;)}', '\${escapeHtml(posterImg).replace(/'/g, &quot;\\'&quot;)}', \${type === 'series'})" style="font-size:0.78rem; padding:4px 10px; white-space:nowrap; background:#161b22; border:1px solid #30363d;">
+                ⛶ Full Expand (Nuvio View)
+              </button>
             </div>
             \${desc ? '<p style="font-size:0.82rem; color:var(--text-muted); margin-top:8px; line-height:1.4; max-height:48px; overflow:hidden;">' + escapeHtml(desc) + '</p>' : ''}
           </div>

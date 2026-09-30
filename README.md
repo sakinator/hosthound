@@ -159,8 +159,8 @@ flowchart TD
         TorrentScrapers["7 Community Torrent Providers<br/>(Nyaa Anime, 1TamilMV Desi, YTS, EZTV, Galaxy)"]
         PublicCatalogs["Public Video Feeds & Live IPTV<br/>(YouTube, Archive, Vimeo, IPTV-Org)"]
         
-        TorrentToggle -->|OFF (Default)| NoTorrents["Zero Torrent Scrapers Queried<br/>(Pure 100% Direct Hosters)"]
-        TorrentToggle -->|ON (Opt-in)| TorrentScrapers
+        TorrentToggle -->|"OFF (Default)"| NoTorrents["Zero Torrent Scrapers Queried<br/>(Pure 100% Direct Hosters)"]
+        TorrentToggle -->|"ON (Opt-in)"| TorrentScrapers
     end
 
     subgraph Processing ["2. Verification & Anti-Cache Engine"]
@@ -173,9 +173,9 @@ flowchart TD
     end
 
     subgraph Playback ["3. High-Speed Line-Speed Playback Rails"]
-        BatchCache -->|Cached on Cloud| TorboxCached["⚡ TorBox [Cached]<br/>(10Gbps CDN • Full Byte-Range Seeking)"]
-        BatchCache -->|Uncached Torrent| DropTorrent["❌ Dropped Immediately<br/>(Strict Zero P2P / No Seeding Guarantee)"]
-        BatchCache -->|Uncached Hoster| CachingQueue["☁️⬆️ TorBox [Start Caching]<br/>(Tracked in Live Caching Queue)"]
+        BatchCache -->|"Cached on Cloud"| TorboxCached["⚡ TorBox [Cached]<br/>(10Gbps CDN • Full Byte-Range Seeking)"]
+        BatchCache -->|"Uncached Torrent"| DropTorrent["❌ Dropped Immediately<br/>(Strict Zero P2P / No Seeding Guarantee)"]
+        BatchCache -->|"Uncached Hoster"| CachingQueue["☁️⬆️ TorBox [Start Caching]<br/>(Tracked in Live Caching Queue)"]
         
         CachingQueue -.->|"Watch Direct while Caching!"| DirectPlay["🌐 Direct Play [Hoster / HLS]<br/>(Zero-Wait Playback via Reverse Proxy)"]
         CachingQueue -->|"Opened in Player before Ready"| VideoNotice["🎬 In-Video Player Notice (/video/caching.mp4)<br/>(Displays Caching Progress Slate instead of 502 error)"]

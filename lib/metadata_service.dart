@@ -493,5 +493,77 @@ class MetadataService {
 
     return null;
   }
+
+  /// Fetches complete media catalog details (movie or series) including poster, backdrop, synopsis, rating, and episodes.
+  static Future<Map<String, dynamic>?> getMediaDetails(String rawId, {String type = 'movie'}) async {
+    final cleanType = (type == 'series' || type == 'tv') ? 'series' : 'movie';
+    if (cleanType == 'series') {
+      return getSeriesDetails(rawId);
+    }
+
+    String baseId = rawId;
+    if (baseId.contains(':')) {
+      baseId = baseId.split(':')[0];
+    }
+
+    String? imdbId;
+    if (baseId.startsWith('tt')) {
+      imdbId = baseId;
+    } else if (baseId.startsWith('tmdb:')) {
+      final numericStr = baseId.replaceFirst('tmdb:', '');
+      final tmdbId = int.tryParse(numericStr);
+      if (tmdbId != null) {
+        try {
+          final uri = Uri.parse('$_tmdbDirect/movie/$tmdbId?api_key=$_apiKey');
+          final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 4));
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body);
+            imdbId = data['external_ids']?['imdb_id'] ?? data['imdb_id'];
+            if (imdbId == null || !imdbId.startsWith('tt')) {
+              return {
+                'id': rawId,
+                'name': data['title']?.toString() ?? '',
+                'year': (data['release_date']?.toString() ?? '').split('-').first,
+                'poster': data['poster_path'] != null ? 'https://image.tmdb.org/t/p/w500${data['poster_path']}' : null,
+                'background': data['backdrop_path'] != null ? 'https://image.tmdb.org/t/p/original${data['backdrop_path']}' : null,
+                'description': data['overview']?.toString() ?? '',
+                'imdbRating': data['vote_average']?.toString() ?? '',
+                'genres': (data['genres'] as List?)?.map((g) => g['name']?.toString() ?? '').toList() ?? [],
+                'type': 'movie',
+              };
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (imdbId == null || !imdbId.startsWith('tt')) {
+      return null;
+    }
+
+    try {
+      final uri = Uri.parse('$_cinemeta/movie/$imdbId.json');
+      final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final meta = data['meta'];
+        if (meta != null) {
+          return {
+            'id': imdbId,
+            'name': meta['name']?.toString() ?? '',
+            'year': meta['year']?.toString() ?? meta['releaseInfo']?.toString() ?? '',
+            'poster': meta['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$imdbId/img',
+            'background': meta['background']?.toString() ?? 'https://images.metahub.space/background/medium/$imdbId/img',
+            'description': meta['description']?.toString() ?? '',
+            'imdbRating': meta['imdbRating']?.toString() ?? '',
+            'genres': meta['genres'] ?? [],
+            'type': 'movie',
+          };
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
 }
 
