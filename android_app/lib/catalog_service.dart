@@ -23,6 +23,86 @@ class CatalogService {
   static final Map<String, dynamic> _cache = {};
   static final Map<String, Map<String, dynamic>> _enrichmentCache = {};
 
+  static const Set<String> _nsfwKeywords = {
+    'porn',
+    'xxx',
+    'nude',
+    'nsfw',
+    'erotica',
+    'erotic',
+    'sex',
+    'fetish',
+    'felicia',
+    'bikini',
+    'swimsuit',
+    'lingerie',
+    'softcore',
+    'hardcore',
+    'naked',
+    'playboy',
+    'hentai',
+    'camgirl',
+    'onlyfans',
+    'pussy',
+    'boobs',
+    'penis',
+    'blowjob',
+    'milf',
+    'masturbat',
+    'incest',
+    'threesome',
+    'gangbang',
+    'bhabhi',
+    'sensual',
+    'seduction',
+    'adultcdroms',
+  };
+
+  /// Returns true if any text contains adult/NSFW terminology or collections
+  static bool isNsfwContent(String? text) {
+    if (text == null || text.isEmpty) return false;
+    final lower = text.toLowerCase();
+    for (final kw in _nsfwKeywords) {
+      if (lower.contains(kw)) return true;
+    }
+    return false;
+  }
+
+  /// Verifies that candidateTitle strictly matches targetTitle (no loose substrings, verified year)
+  static bool isStrictTitleMatch({
+    required String targetTitle,
+    required String candidateTitle,
+    int? targetYear,
+    int? candidateYear,
+  }) {
+    if (targetTitle.trim().isEmpty || candidateTitle.trim().isEmpty) return false;
+
+    // Check year if both are present: must be within +/- 1 year
+    if (targetYear != null && candidateYear != null) {
+      if ((targetYear - candidateYear).abs() > 1) return false;
+    }
+
+    final cleanT = targetTitle.toLowerCase().replaceAll(RegExp(r'[^a-z0-9\s]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final cleanC = candidateTitle.toLowerCase().replaceAll(RegExp(r'[^a-z0-9\s]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    if (cleanT == cleanC) return true;
+
+    final wordsT = cleanT.split(' ').where((w) => w.length > 1).toSet();
+    final wordsC = cleanC.split(' ').where((w) => w.length > 1).toSet();
+
+    if (wordsT.isEmpty || wordsC.isEmpty) return false;
+
+    // All meaningful words of targetTitle MUST be present in candidateTitle
+    if (!wordsT.every((w) => wordsC.contains(w))) return false;
+
+    // Disallow candidates with extraneous irrelevant words (compilations, unrelated titles, adult variants)
+    final extraWords = wordsC.difference(wordsT);
+    const allowedExtras = {'full', 'movie', 'film', 'hd', '1080p', '720p', '4k', 'uhd', 'hindi', 'english', 'dubbed', 'subtitles', 'official', 'the', 'a', 'an'};
+    final badExtras = extraWords.where((w) => !allowedExtras.contains(w) && !RegExp(r'^(19\d\d|20\d\d)$').hasMatch(w));
+
+    return badExtras.isEmpty;
+  }
+
   /// Returns catalog specifications for manifest.json
   static List<Map<String, dynamic>> getCatalogs() {
     return [
@@ -306,7 +386,9 @@ class CatalogService {
           for (final item in list) {
             final vId = item['videoId']?.toString() ?? '';
             final title = item['title']?.toString() ?? '';
+            final desc = item['description']?.toString() ?? '';
             if (vId.isEmpty || title.isEmpty) continue;
+            if (isNsfwContent(title) || isNsfwContent(desc)) continue;
 
             // Prefer HD 720p crisp thumbnail for YouTube
             final thumbs = item['videoThumbnails'] as List?;
@@ -327,7 +409,7 @@ class CatalogService {
               'poster': poster,
               'nativePoster': poster,
               'background': 'https://i.ytimg.com/vi/$vId/maxresdefault.jpg',
-              'description': item['description']?.toString() ?? 'YouTube Media ($genre)',
+              'description': desc.isNotEmpty ? desc : 'YouTube Media ($genre)',
               'releaseInfo': item['publishedText']?.toString() ?? '',
               'genres': ['YouTube', genre],
               'posterShape': 'landscape',
@@ -348,24 +430,24 @@ class CatalogService {
   }) async {
     String q;
     if (search != null && search.isNotEmpty) {
-      q = 'mediatype:movies AND (title:${Uri.encodeComponent(search)} OR description:${Uri.encodeComponent(search)})';
+      q = 'mediatype:movies AND (title:${Uri.encodeComponent(search)} OR description:${Uri.encodeComponent(search)}) AND NOT collection:(adultcdroms) AND NOT collection:(no-preview) AND NOT subject:(porn OR nude OR nsfw OR erotica OR adult OR sex OR fetish)';
     } else {
       switch (genre) {
         case 'Indian Classics':
-          q = 'mediatype:movies AND (title:hindi OR title:india OR title:bollywood OR collection:hindi_movies)';
+          q = 'mediatype:movies AND (title:hindi OR title:india OR title:bollywood OR collection:hindi_movies) AND NOT collection:(adultcdroms)';
           break;
         case 'Film Noir':
-          q = 'mediatype:movies AND (collection:Film_Noir OR subject:film-noir)';
+          q = 'mediatype:movies AND (collection:Film_Noir OR subject:film-noir) AND NOT collection:(adultcdroms)';
           break;
         case 'Sci-Fi & Horror':
-          q = 'mediatype:movies AND (collection:SciFi_Horror OR subject:horror)';
+          q = 'mediatype:movies AND (collection:SciFi_Horror OR subject:horror) AND NOT collection:(adultcdroms)';
           break;
         case 'Silent Era':
-          q = 'mediatype:movies AND collection:silent_films';
+          q = 'mediatype:movies AND collection:silent_films AND NOT collection:(adultcdroms)';
           break;
         case 'Golden Era Hollywood':
         default:
-          q = 'mediatype:movies AND collection:feature_films';
+          q = 'mediatype:movies AND collection:feature_films AND NOT collection:(adultcdroms)';
           break;
       }
     }
@@ -379,7 +461,13 @@ class CatalogService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final docs = data['response']['docs'] as List;
-        return docs.map<Map<String, dynamic>>((doc) {
+        return docs.where((doc) {
+          final id = doc['identifier']?.toString() ?? '';
+          final title = doc['title']?.toString() ?? '';
+          final desc = doc['description']?.toString() ?? '';
+          if (isNsfwContent(title) || isNsfwContent(id) || isNsfwContent(desc)) return false;
+          return true;
+        }).map<Map<String, dynamic>>((doc) {
           final id = doc['identifier']?.toString() ?? '';
           final title = doc['title']?.toString() ?? id;
           final year = doc['year']?.toString() ?? '';
@@ -428,7 +516,12 @@ class CatalogService {
       }).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List;
-        return list.map<Map<String, dynamic>>((item) {
+        return list.where((item) {
+          final title = item['title']?.toString() ?? '';
+          final desc = item['description']?.toString() ?? '';
+          if (isNsfwContent(title) || isNsfwContent(desc)) return false;
+          return true;
+        }).map<Map<String, dynamic>>((item) {
           final id = item['id'].toString();
           final title = item['title']?.toString() ?? 'Vimeo Video';
           final desc = (item['description']?.toString() ?? '')
@@ -483,14 +576,19 @@ class CatalogService {
 
     final page = (skip / 20).floor() + 1;
     final url = Uri.parse(
-        'https://api.dailymotion.com/videos?fields=id,title,description,thumbnail_1080_url,thumbnail_720_url,thumbnail_480_url,thumbnail_url,created_time&search=${Uri.encodeComponent(q)}&limit=20&page=$page');
+        'https://api.dailymotion.com/videos?fields=id,title,description,thumbnail_1080_url,thumbnail_720_url,thumbnail_480_url,thumbnail_url,created_time&search=${Uri.encodeComponent(q)}&limit=20&page=$page&flags=no_live');
 
     try {
       final res = await http.get(url).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final list = data['list'] as List;
-        return list.map<Map<String, dynamic>>((item) {
+        return list.where((item) {
+          final title = item['title']?.toString() ?? '';
+          final desc = item['description']?.toString() ?? '';
+          if (isNsfwContent(title) || isNsfwContent(desc)) return false;
+          return true;
+        }).map<Map<String, dynamic>>((item) {
           final id = item['id']?.toString() ?? '';
           final title = item['title']?.toString() ?? id;
           final desc = item['description']?.toString() ?? 'Dailymotion Stream';
@@ -1125,7 +1223,7 @@ class CatalogService {
   }
 
   /// Searches YouTube, Archive.org, and Dailymotion for a given movie/show title
-  /// and returns playable direct cloud streams to display in Stremio & Nuvio!
+  /// and returns verified, family-safe public cloud streams to display in Stremio & Nuvio!
   Future<List<Map<String, dynamic>>> searchPublicStreams({
     required String title,
     int? year,
@@ -1133,7 +1231,8 @@ class CatalogService {
     String? localBaseUrl,
   }) async {
     final cleanTitle = title.trim();
-    if (cleanTitle.isEmpty) return [];
+    // Default OFF to prevent random or unverified public/user-uploaded video injection
+    if (cleanTitle.isEmpty || !AddonConfig.instance.enablePublicStreams) return [];
 
     final cacheKey = 'pub_streams:$type:$cleanTitle:$year';
     if (_cache.containsKey(cacheKey)) {
@@ -1143,21 +1242,53 @@ class CatalogService {
     final publicStreams = <Map<String, dynamic>>[];
     final futures = <Future<void>>[];
 
-    // 1. YouTube Search & Stream Resolution
+    // 1. YouTube Search & Stream Resolution (Strict match, no NSFW)
     futures.add(() async {
       try {
         final query = '$cleanTitle ${year ?? ''} full movie'.trim();
         final metas = await _searchInvidious(query, genre: 'Cinema');
-        if (metas.isNotEmpty) {
-          for (final item in metas.take(2)) {
-            final vId = (item['id']?.toString() ?? '').replaceFirst('yt:', '');
-            if (vId.isNotEmpty) {
-              final ytStreams = await _resolveYouTubeStreams(vId);
-              for (final s in ytStreams) {
-                final q = s['name']?.toString() ?? 'Direct';
+        for (final item in metas) {
+          final itemTitle = item['name']?.toString() ?? '';
+          if (isNsfwContent(itemTitle)) continue;
+          if (!isStrictTitleMatch(targetTitle: cleanTitle, candidateTitle: itemTitle, targetYear: year)) continue;
+
+          final vId = (item['id']?.toString() ?? '').replaceFirst('yt:', '');
+          if (vId.isNotEmpty) {
+            final ytStreams = await _resolveYouTubeStreams(vId);
+            for (final s in ytStreams) {
+              final q = s['name']?.toString() ?? 'Direct';
+              publicStreams.add({
+                'name': '⚡ YouTube ($q)',
+                'title': '⚡ Direct Cloud Stream (Non-Torrent) • $itemTitle',
+                'url': s['url'],
+                'behaviorHints': {'notWebReady': false},
+              });
+            }
+            if (publicStreams.isNotEmpty) break;
+          }
+        }
+      } catch (_) {}
+    }());
+
+    // 2. Internet Archive Search & Stream Resolution (Strictly public domain classics pre-1965)
+    if (type == 'movie' && (year == null || year <= 1965)) {
+      futures.add(() async {
+        try {
+          final archiveItems = await _fetchArchiveOrg(search: cleanTitle);
+          for (final matched in archiveItems) {
+            final itName = matched['name']?.toString() ?? '';
+            final itYearStr = matched['releaseInfo']?.toString();
+            final itYear = int.tryParse(itYearStr ?? '');
+            if (isNsfwContent(itName)) continue;
+            if (!isStrictTitleMatch(targetTitle: cleanTitle, candidateTitle: itName, targetYear: year, candidateYear: itYear)) continue;
+
+            final ident = (matched['id']?.toString() ?? '').replaceFirst('archive:', '');
+            if (ident.isNotEmpty) {
+              final aStreams = await _resolveArchiveStreams(ident);
+              for (final s in aStreams.take(2)) {
                 publicStreams.add({
-                  'name': '⚡ YouTube ($q)',
-                  'title': '⚡ Direct Cloud Stream (Non-Torrent) • ${item['name']}',
+                  'name': '🏛️ Archive.org [Classic]',
+                  'title': '🏛️ Internet Archive Public Domain • $itName',
                   'url': s['url'],
                   'behaviorHints': {'notWebReady': false},
                 });
@@ -1165,55 +1296,31 @@ class CatalogService {
               if (publicStreams.isNotEmpty) break;
             }
           }
-        }
-      } catch (_) {}
-    }());
-
-    // 2. Internet Archive Search & Stream Resolution
-    if (type == 'movie') {
-      futures.add(() async {
-        try {
-          final archiveItems = await _fetchArchiveOrg(search: cleanTitle);
-          if (archiveItems.isNotEmpty) {
-            final matched = archiveItems.firstWhere(
-              (it) => it['name']?.toString().toLowerCase().contains(cleanTitle.toLowerCase()) ?? false,
-              orElse: () => archiveItems.first,
-            );
-            final ident = (matched['id']?.toString() ?? '').replaceFirst('archive:', '');
-            if (ident.isNotEmpty) {
-              final aStreams = await _resolveArchiveStreams(ident);
-              for (final s in aStreams.take(3)) {
-                publicStreams.add({
-                  'name': '🏛️ Archive.org [Direct]',
-                  'title': '🏛️ Internet Archive Video • Direct Cloud Stream (Non-Torrent)',
-                  'url': s['url'],
-                  'behaviorHints': {'notWebReady': false},
-                });
-              }
-            }
-          }
         } catch (_) {}
       }());
     }
 
-    // 3. Dailymotion Search & Stream Resolution
+    // 3. Dailymotion Search & Stream Resolution (Strict match, no NSFW)
     futures.add(() async {
       try {
         final dmItems = await _fetchDailymotion(search: '$cleanTitle ${year ?? ''}');
-        if (dmItems.isNotEmpty) {
-          for (final item in dmItems.take(1)) {
-            final vId = (item['id']?.toString() ?? '').replaceFirst('dm:', '');
-            if (vId.isNotEmpty) {
-              final dmStreams = await _resolveDailymotionStreams(vId);
-              for (final s in dmStreams) {
-                publicStreams.add({
-                  'name': '📺 Dailymotion [HLS]',
-                  'title': '📺 Dailymotion Cloud Stream • ${item['name']}',
-                  'url': s['url'],
-                  'behaviorHints': {'notWebReady': false},
-                });
-              }
+        for (final item in dmItems) {
+          final itemTitle = item['name']?.toString() ?? '';
+          if (isNsfwContent(itemTitle)) continue;
+          if (!isStrictTitleMatch(targetTitle: cleanTitle, candidateTitle: itemTitle, targetYear: year)) continue;
+
+          final vId = (item['id']?.toString() ?? '').replaceFirst('dm:', '');
+          if (vId.isNotEmpty) {
+            final dmStreams = await _resolveDailymotionStreams(vId);
+            for (final s in dmStreams) {
+              publicStreams.add({
+                'name': '📺 Dailymotion [HLS]',
+                'title': '📺 Dailymotion Cloud Stream • $itemTitle',
+                'url': s['url'],
+                'behaviorHints': {'notWebReady': false},
+              });
             }
+            if (publicStreams.isNotEmpty) break;
           }
         }
       } catch (_) {}

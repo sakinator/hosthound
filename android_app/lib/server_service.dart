@@ -466,24 +466,28 @@ class ServerService {
             title: idWithExt.replaceAll(RegExp(r'\+|_'), ' '),
           );
 
-          // Concurrently run hoster/torrent scrapers + public cloud streams (YouTube, Archive, Dailymotion)!
+          // 1. Scrape verified hoster and debrid providers
           final scrapeFuture = ScraperEngine.instance.scrapeAll(
             meta: meta,
             localBaseUrl: localBaseUrl,
           );
-          final publicFuture = CatalogService.instance.searchPublicStreams(
-            title: meta.title,
-            year: meta.year,
-            type: meta.type,
-            localBaseUrl: localBaseUrl,
-          );
 
-          final results = await Future.wait([scrapeFuture, publicFuture]);
+          final futures = <Future<dynamic>>[scrapeFuture];
+          if (AddonConfig.instance.enablePublicStreams) {
+            futures.add(CatalogService.instance.searchPublicStreams(
+              title: meta.title,
+              year: meta.year,
+              type: meta.type,
+              localBaseUrl: localBaseUrl,
+            ));
+          }
+
+          final results = await Future.wait(futures);
           final hosterStreams = (results[0] as List<ScrapedStream>).map((s) => s.toJson()).toList();
-          final publicStreams = results[1] as List<Map<String, dynamic>>;
+          final publicStreams = results.length > 1 ? (results[1] as List<Map<String, dynamic>>) : <Map<String, dynamic>>[];
 
-          // Combine: public direct cloud streams alongside hoster and debrid streams
-          final allStreams = [...publicStreams, ...hosterStreams];
+          // Combine: Verified hoster & debrid streams ALWAYS appear first!
+          final allStreams = [...hosterStreams, ...publicStreams];
 
           request.response.headers.contentType = ContentType.json;
           request.response.write(jsonEncode({

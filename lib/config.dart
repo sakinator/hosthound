@@ -40,6 +40,7 @@ class AddonConfig {
   bool enableOpenSubtitles = true;
   bool enableTorboxCachedTorrents = false; // By default OFF (100% direct hosters)
   bool enableCacheBypass = true; // Prowlarr-style Cache escape (no-cache headers + query nonce)
+  bool enablePublicStreams = false; // By default OFF to prevent unverified public video/porn uploads
   String proxyResolverUrl = ''; // FlareSolverr / Proxy URL (e.g. http://localhost:8191/v1)
 
   static final File _configFile = File('data/config.json');
@@ -112,6 +113,9 @@ class AddonConfig {
         if (map['enableCacheBypass'] is bool) {
           enableCacheBypass = map['enableCacheBypass'];
         }
+        if (map['enablePublicStreams'] is bool) {
+          enablePublicStreams = map['enablePublicStreams'];
+        }
         if (map['proxyResolverUrl'] is String) {
           proxyResolverUrl = map['proxyResolverUrl'];
         }
@@ -158,6 +162,7 @@ class AddonConfig {
         'enableOpenSubtitles': enableOpenSubtitles,
         'enableTorboxCachedTorrents': enableTorboxCachedTorrents,
         'enableCacheBypass': enableCacheBypass,
+        'enablePublicStreams': enablePublicStreams,
         'proxyResolverUrl': proxyResolverUrl,
       };
       final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
