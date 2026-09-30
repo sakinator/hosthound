@@ -173,29 +173,61 @@ class DtddService {
     'X-Requested-With': 'XMLHttpRequest',
   };
 
-  /// Fetches HTML, using curl process when needed to reliably bypass Cloudflare challenges.
+  /// Fetches HTML using ordered fallbacks:
+  /// 1. FlareSolverr / proxy URL (if configured)
+  /// 2. CLI curl process (Windows/Linux/macOS desktop only)
+  /// 3. Direct HTTP with browser headers
   Future<String?> _fetchHtml(String url, {bool isAjax = false}) async {
-    // 1. Try curl process first (built-in on Windows 10/11 & Linux)
-    try {
-      final curlCmd = Platform.isWindows ? 'curl.exe' : 'curl';
-      final args = <String>[
-        '-s',
-        '-L',
-        '-A',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        if (isAjax) ...['-H', 'X-Requested-With: XMLHttpRequest'],
-        url,
-      ];
-      final res = await Process.run(curlCmd, args).timeout(const Duration(seconds: 8));
-      if (res.exitCode == 0 && res.stdout != null) {
-        final out = res.stdout.toString();
-        if (out.isNotEmpty && !out.contains('challenges.cloudflare.com')) {
-          return out;
+    // 1. FlareSolverr proxy if configured by user
+    final proxyUrl = AddonConfig.instance.proxyResolverUrl.trim();
+    if (proxyUrl.isNotEmpty) {
+      try {
+        final flareUri = Uri.parse(proxyUrl.endsWith('/') ? '${proxyUrl}v1' : '$proxyUrl/v1');
+        final flareRes = await http.post(
+          flareUri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'cmd': 'request.get',
+            'url': url,
+            'maxTimeout': 12000,
+          }),
+        ).timeout(const Duration(seconds: 14));
+        if (flareRes.statusCode == 200) {
+          final data = jsonDecode(flareRes.body);
+          final solution = data['solution'];
+          if (solution is Map && solution['response'] != null) {
+            final html = solution['response'].toString();
+            if (html.isNotEmpty && !html.contains('challenges.cloudflare.com')) {
+              return html;
+            }
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
-    // 2. Direct HTTP fallback
+    // 2. Desktop CLI curl process (Windows, Linux, macOS servers)
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      try {
+        final curlCmd = Platform.isWindows ? 'curl.exe' : 'curl';
+        final args = <String>[
+          '-s',
+          '-L',
+          '-A',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          if (isAjax) ...['-H', 'X-Requested-With: XMLHttpRequest'],
+          url,
+        ];
+        final res = await Process.run(curlCmd, args).timeout(const Duration(seconds: 8));
+        if (res.exitCode == 0 && res.stdout != null) {
+          final out = res.stdout.toString();
+          if (out.isNotEmpty && !out.contains('challenges.cloudflare.com')) {
+            return out;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Direct HTTP fallback with browser headers
     try {
       final headers = isAjax ? _ajaxHeaders : _browserHeaders;
       final res = await http.get(Uri.parse(url), headers: headers).timeout(const Duration(seconds: 6));
