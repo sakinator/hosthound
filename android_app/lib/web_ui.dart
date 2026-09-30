@@ -3365,15 +3365,15 @@ class WebUI {
         return;
       }
 
-      grid.innerHTML = eps.map(ep => {
+      grid.innerHTML = eps.map((ep, idx) => {
         const isActive = ep.id === modalSelectedEpId;
         const epThumb = ep.thumbnail || modalCurrentMedia.poster || '/logo.png';
         const epNumStr = 'S' + (ep.season < 10 ? '0' : '') + ep.season + 'E' + (ep.episode < 10 ? '0' : '') + ep.episode;
         const safeTitle = escapeHtml(ep.name || ('Episode ' + ep.episode));
         const safeOverview = escapeHtml(ep.overview || 'Click to scrape and stream this episode');
 
-        return '<div class="modal-episode-card ' + (isActive ? 'active' : '') + '" onclick="selectModalEpisode(\'' + escapeHtml(ep.id) + '\', ' + ep.season + ', ' + ep.episode + ', \'' + safeTitle.replace(/'/g, "\\'") + '\', \'' + escapeHtml(epThumb) + '\', \'' + safeOverview.replace(/'/g, "\\'") + '\', true)">' +
-          '<img src="' + escapeHtml(epThumb) + '" class="modal-episode-thumb" onerror="this.src=\'/logo.png\'">' +
+        return '<div class="modal-episode-card ' + (isActive ? 'active' : '') + '" data-idx="' + idx + '" onclick="onModalEpisodeCardClick(this)">' +
+          '<img src="' + escapeHtml(epThumb) + '" class="modal-episode-thumb" onerror="this.src=&apos;/logo.png&apos;">' +
           '<div style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center;">' +
             '<div style="font-size:0.75rem; color:#58a6ff; font-weight:700;">' + epNumStr + (ep.released ? ' • ' + escapeHtml(ep.released.substring(0, 10)) : '') + '</div>' +
             '<div style="font-size:0.88rem; font-weight:700; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">' + safeTitle + '</div>' +
@@ -3381,6 +3381,15 @@ class WebUI {
           '</div>' +
         '</div>';
       }).join('');
+    }
+
+    function onModalEpisodeCardClick(el) {
+      const idx = parseInt(el.getAttribute('data-idx') || '0', 10);
+      const eps = (modalSeriesDetails && modalSeriesDetails.episodesBySeason && modalSeriesDetails.episodesBySeason[String(modalSelectedSeason)]) || [];
+      const ep = eps[idx];
+      if (ep) {
+        selectModalEpisode(ep.id, ep.season, ep.episode, ep.name, ep.thumbnail, ep.overview, true);
+      }
     }
 
     function selectModalEpisode(epId, season, episode, title, thumb, overview, autoScrape = true) {
@@ -3441,8 +3450,8 @@ class WebUI {
 
         modalScrapedStreams = rawStreams.map((s, idx) => {
           const finalUrl = normalizeStreamUrl(s.url);
-          const rawName = (s.name || '').replace(/\n/g, ' ');
-          const rawTitle = (s.title || '').replace(/\n/g, '\n');
+          const rawName = (s.name || '').replace(/\\n/g, ' ');
+          const rawTitle = (s.title || '').replace(/\\n/g, '\\n');
 
           let underlyingUrl = finalUrl;
           try {
@@ -3507,7 +3516,7 @@ class WebUI {
         return;
       }
 
-      container.innerHTML = streams.map(s => {
+      container.innerHTML = streams.map((s, idx) => {
         let badgeHtml = '';
         if (s.isTorboxCached) {
           badgeHtml = '<span class="badge" style="background:rgba(63, 185, 80, 0.15); color:#3fb950; border:1px solid rgba(63, 185, 80, 0.3); font-weight:700;">⚡ TorBox [Cached]</span>';
@@ -3517,11 +3526,12 @@ class WebUI {
           badgeHtml = '<span class="badge" style="background:rgba(240, 136, 62, 0.15); color:#f0883e; border:1px solid rgba(240, 136, 62, 0.3); font-weight:700;">🌐 Direct Play</span>';
         }
 
-        const lines = (s.title || s.name).split('\n');
-        const mainTitle = lines[0] || 'Stream';
-        const subDetails = lines.slice(1).join(' • ');
+        const rawTitle = (s.title || s.name || '');
+        const nlIdx = rawTitle.indexOf('\\n');
+        const mainTitle = nlIdx !== -1 ? rawTitle.substring(0, nlIdx) : rawTitle;
+        const subDetails = nlIdx !== -1 ? rawTitle.substring(nlIdx + 1).split('\\n').join(' • ') : '';
 
-        return '<div style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">' +
+        return '<div class="modal-stream-card" style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">' +
           '<div style="flex:1; min-width:200px;">' +
             '<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:4px;">' +
               badgeHtml +
@@ -3531,14 +3541,41 @@ class WebUI {
             (subDetails ? '<div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">' + escapeHtml(subDetails) + '</div>' : '') +
           '</div>' +
           '<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">' +
-            '<button class="btn btn-sm btn-success" style="padding:6px 12px; font-weight:700;" onclick="playStream(\'' + escapeHtml(s.url) + '\', \'' + escapeHtml(mainTitle).replace(/'/g, "\\'") + '\')">▶ Play</button>' +
-            '<button class="btn btn-sm" style="padding:6px 10px;" onclick="openWithModal(\'' + escapeHtml(s.url) + '\', \'' + escapeHtml(mainTitle).replace(/'/g, "\\'") + '\')">🚀 External</button>' +
-            '<button class="btn btn-sm" style="padding:6px 8px;" onclick="navigator.clipboard.writeText(\'' + escapeHtml(s.url) + '\'); showToast(\'📋 Link copied!\');" title="Copy Stream URL">📋</button>' +
-            (s.isTorboxCaching ? '<button class="btn btn-sm" style="padding:6px 8px; background:rgba(88,166,255,0.15); color:#58a6ff;" onclick="cacheStreamToTorbox(\'' + escapeHtml(s.underlyingUrl) + '\')" title="Send to TorBox Cache">☁️ Cache</button>' : '') +
+            '<button class="btn btn-sm btn-success" style="padding:6px 12px; font-weight:700;" onclick="playModalStreamIdx(' + idx + ')">▶ Play</button>' +
+            '<button class="btn btn-sm" style="padding:6px 10px;" onclick="openWithModalStreamIdx(' + idx + ')">🚀 External</button>' +
+            '<button class="btn btn-sm" style="padding:6px 8px;" onclick="copyModalStreamIdx(' + idx + ')" title="Copy Stream URL">📋</button>' +
+            (s.isTorboxCaching ? '<button class="btn btn-sm" style="padding:6px 8px; background:rgba(88,166,255,0.15); color:#58a6ff;" onclick="cacheModalStreamIdx(' + idx + ')" title="Send to TorBox Cache">☁️ Cache</button>' : '') +
           '</div>' +
         '</div>';
       }).join('');
     }
+
+    function playModalStreamIdx(idx) {
+      const s = modalScrapedStreams[idx];
+      if (!s || !s.url) return;
+      playStream(s.url, s.title || s.name);
+    }
+
+    function openWithModalStreamIdx(idx) {
+      const s = modalScrapedStreams[idx];
+      if (!s || !s.url) return;
+      openWithModal(s.url, s.title || s.name);
+    }
+
+    function copyModalStreamIdx(idx) {
+      const s = modalScrapedStreams[idx];
+      if (!s || !s.url) return;
+      navigator.clipboard.writeText(s.url).then(() => {
+        showToast('📋 Link copied to clipboard!');
+      });
+    }
+
+    function cacheModalStreamIdx(idx) {
+      const s = modalScrapedStreams[idx];
+      if (!s || !s.underlyingUrl) return;
+      cacheStreamToTorbox(s.underlyingUrl);
+    }
+
 
     function openCurrentInSearchTab() {
       if (!modalCurrentMedia) return;
@@ -3564,6 +3601,12 @@ class WebUI {
       setTimeout(() => {
         executeTheaterSearch();
       }, 250);
+    }
+
+    function openActiveMediaInModal() {
+      if (!window._activeMediaData) return;
+      const m = window._activeMediaData;
+      openMediaDetailModal(m.id, m.type, m.name, m.poster, m.isSeries);
     }
 
     function onCatalogCardClick(el) {
@@ -4115,7 +4158,13 @@ class WebUI {
       activeCard.style.display = 'block';
       const posterImg = poster || ('https://images.metahub.space/poster/medium/' + (id.split(':')[0]) + '/img');
       const displayTitle = name || id;
-      const displayYear = year ? ' • ' + year : '';
+      window._activeMediaData = {
+        id: id.split(':')[0],
+        type: type,
+        name: displayTitle,
+        poster: posterImg,
+        isSeries: type === 'series'
+      };
 
       activeCard.innerHTML = `
         <div class="media-card-box">
@@ -4129,7 +4178,7 @@ class WebUI {
                   <span>\${escapeHtml(id)}\${displayYear}</span>
                 </div>
               </div>
-              <button class="btn btn-sm" onclick="openMediaDetailModal('\${escapeHtml(id.split(':')[0])}', '\${escapeHtml(type)}', '\${escapeHtml(displayTitle).replace(/'/g, &quot;\\'&quot;)}', '\${escapeHtml(posterImg).replace(/'/g, &quot;\\'&quot;)}', \${type === 'series'})" style="font-size:0.78rem; padding:4px 10px; white-space:nowrap; background:#161b22; border:1px solid #30363d;">
+              <button class="btn btn-sm" onclick="openActiveMediaInModal()" style="font-size:0.78rem; padding:4px 10px; white-space:nowrap; background:#161b22; border:1px solid #30363d;">
                 ⛶ Full Expand (Nuvio View)
               </button>
             </div>
