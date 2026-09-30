@@ -17,6 +17,7 @@ class WebUI {
     final fanartApiKey = cfg.fanartApiKey;
     final tvdbApiKey = cfg.tvdbApiKey;
     final tmdbApiKey = cfg.tmdbApiKey;
+    final dtddApiKey = cfg.dtddApiKey;
     final excludeCamsChecked = cfg.excludeCams ? 'checked' : '';
     final dedupeChecked = cfg.enableDeduplication ? 'checked' : '';
     final deadLinkChecked = cfg.enableDeadLinkFilter ? 'checked' : '';
@@ -1657,6 +1658,22 @@ class WebUI {
             <span id="tmdbBadge" class="badge" style="background:#21262d; font-size:0.75rem;">Ready</span>
           </div>
         </div>
+
+        <!-- DoesTheDogDie (DTDD) API Key -->
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px; display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label style="font-weight:600;">🐶 DoesTheDogDie Key <span style="font-weight:normal; font-size:0.8rem; color:#3fb950;">(Optional)</span>:</label>
+              <a href="https://www.doesthedogdie.com/profile" target="_blank" style="color:var(--blue); font-size:0.8rem; text-decoration:none; font-weight:600;">🔗 Get Free Key ↗</a>
+            </div>
+            <input type="text" id="dtddApiKey" value="$dtddApiKey" placeholder="Paste DoesTheDogDie API key (free)" style="width:100%; padding:8px; background:#161b22; border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.88rem;">
+            <div style="color:var(--text-muted); font-size:0.78rem; margin-top:6px;">Enables community content warnings &amp; trigger advisories (e.g. animal death, jumpscares) in media modal.</div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:8px;">
+            <button class="btn" style="padding:4px 10px; font-size:0.8rem;" onclick="testKey('dtdd', 'dtddApiKey', 'dtddBadge')">🔍 Test Key</button>
+            <span id="dtddBadge" class="badge" style="background:#21262d; font-size:0.75rem;">Ready</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2206,6 +2223,9 @@ class WebUI {
           <div style="font-size:0.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Overview</div>
           <p id="modalOverview" style="font-size:0.88rem; color:var(--text); line-height:1.55; margin:0;"></p>
         </div>
+
+        <!-- DoesTheDogDie Content Advisories & Trigger Warnings -->
+        <div id="modalDtddContainer" style="display:none;"></div>
 
         <!-- TV Series Seasons & Episodes Explorer (Hidden for movies) -->
         <div id="modalSeriesBrowser" style="display:none;">
@@ -3174,7 +3194,7 @@ class WebUI {
           ? '<img src="' + encodeURI(item.poster) + '"' + fallbackAttr + ' alt="' + safeName + '" style="width:100%;height:' + imgHeight + ';object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="onPosterError(this)">'
           : '<div style="width:100%;height:' + imgHeight + ';background:linear-gradient(135deg,#1a1f2e,#0d1117);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-radius:8px 8px 0 0;">🎬</div>';
 
-        return '<div class="catalog-card" data-id="' + encodeURIComponent(item.id || '') + '" data-type="' + encodeURIComponent(item.type || 'movie') + '" data-name="' + encodeURIComponent(item.name || '') + '" data-poster="' + encodeURIComponent(item.poster || '') + '" data-series="' + (isSeries ? '1' : '0') + '" onclick="onCatalogCardClick(this)" title="' + safeName + '">'
+        return '<div class="catalog-card" data-id="' + encodeURIComponent(item.id || '') + '" data-type="' + encodeURIComponent(item.type || 'movie') + '" data-name="' + encodeURIComponent(item.name || '') + '" data-poster="' + encodeURIComponent(item.poster || '') + '" data-rating="' + encodeURIComponent(item.rating || '') + '" data-series="' + (isSeries ? '1' : '0') + '" onclick="onCatalogCardClick(this)" title="' + safeName + '">'
           + posterHtml
           + '<div style="padding:8px 8px 10px;">'
           + '<div style="font-size:0.82rem;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + typeIcon + ' ' + safeName + '</div>'
@@ -3214,7 +3234,7 @@ class WebUI {
       }
     });
 
-    async function openMediaDetailModal(id, type, name, poster, isSeries) {
+    async function openMediaDetailModal(id, type, name, poster, isSeries, initialRating) {
       const modal = document.getElementById('mediaDetailModal');
       if (!modal) return;
 
@@ -3226,6 +3246,7 @@ class WebUI {
         name: name || id,
         poster: poster || ('https://images.metahub.space/poster/medium/' + (id.split(':')[0]) + '/img'),
         isSeries: cleanType === 'series',
+        rating: initialRating || '',
         season: 1,
         episode: 1,
         epTitle: ''
@@ -3251,7 +3272,14 @@ class WebUI {
       if (yearBadge) yearBadge.textContent = '';
 
       const ratingBadge = document.getElementById('modalRatingBadge');
-      if (ratingBadge) ratingBadge.style.display = 'none';
+      if (ratingBadge) {
+        if (initialRating && initialRating !== 'N/A' && initialRating !== '0' && initialRating !== '0.0') {
+          ratingBadge.textContent = '⭐ ' + initialRating;
+          ratingBadge.style.display = 'inline-block';
+        } else {
+          ratingBadge.style.display = 'none';
+        }
+      }
 
       const genresEl = document.getElementById('modalGenres');
       if (genresEl) genresEl.innerHTML = '';
@@ -3265,6 +3293,9 @@ class WebUI {
       const seriesBox = document.getElementById('modalSeriesBrowser');
       if (seriesBox) seriesBox.style.display = 'none';
 
+      const dtddBox = document.getElementById('modalDtddContainer');
+      if (dtddBox) dtddBox.style.display = 'none';
+
       const selLabel = document.getElementById('modalSelectedMediaLabel');
       if (selLabel) selLabel.textContent = modalCurrentMedia.name;
 
@@ -3273,6 +3304,9 @@ class WebUI {
 
       const streamsCount = document.getElementById('modalStreamsCount');
       if (streamsCount) streamsCount.textContent = '0';
+
+      // Load DoesTheDogDie Content Advisories asynchronously
+      loadModalDtddAdvisories(modalCurrentMedia.baseId, modalCurrentMedia.name);
 
       // Fetch comprehensive metadata (background, rating, synopsis, episodes)
       try {
@@ -3291,9 +3325,12 @@ class WebUI {
               yearBadge.textContent = m.year;
               yearBadge.style.display = 'inline-block';
             }
-            if (m.imdbRating && ratingBadge) {
-              ratingBadge.textContent = '⭐ ' + m.imdbRating;
-              ratingBadge.style.display = 'inline-block';
+            const rawRating = m.imdbRating || m.rating;
+            if (rawRating && rawRating !== 'N/A' && rawRating !== '0' && rawRating !== '0.0') {
+              if (ratingBadge) {
+                ratingBadge.textContent = '⭐ ' + rawRating;
+                ratingBadge.style.display = 'inline-block';
+              }
             }
             if (m.genres && Array.isArray(m.genres) && genresEl) {
               genresEl.innerHTML = m.genres.map(g => '<span class="badge" style="background:#161b22; color:var(--text-muted); font-size:0.75rem;">' + escapeHtml(g) + '</span>').join('');
@@ -3315,6 +3352,53 @@ class WebUI {
 
       // If movie or series without Cinemeta episodes: scrape directly!
       triggerModalScrape();
+    }
+
+    async function loadModalDtddAdvisories(id, title, year) {
+      const box = document.getElementById('modalDtddContainer');
+      if (!box) return;
+      box.style.display = 'block';
+      box.innerHTML = '<div style="font-size:0.78rem; color:var(--text-muted); padding:6px 0;">🐶 Checking DoesTheDogDie content warnings…</div>';
+
+      try {
+        const u = '/api/media/dtdd?id=' + encodeURIComponent(id) + (title ? '&title=' + encodeURIComponent(title) : '') + (year ? '&year=' + encodeURIComponent(year) : '');
+        const res = await fetch(u);
+        const data = await res.json();
+
+        if (data && data.needKey) {
+          box.innerHTML = '<div style="margin-top:4px; padding:8px 12px; background:rgba(22,27,34,0.6); border:1px dashed var(--border); border-radius:6px; font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">'
+            + '<span>🐶 <strong>Content Warnings:</strong> Add free DoesTheDogDie API key in Settings to view trigger advisories (animal harm, jumpscares, etc.)</span>'
+            + '<button class="btn btn-sm" onclick="closeMediaDetailModal(); switchMainTab(&apos;server&apos;); document.getElementById(&apos;dtddApiKey&apos;)?.focus();" style="padding:2px 8px; font-size:0.75rem;">⚙️ Add Free Key</button>'
+            + '</div>';
+          return;
+        }
+
+        if (data && data.matched && data.triggers && data.triggers.length > 0) {
+          const triggers = data.triggers;
+          let pills = triggers.slice(0, 8).map(t => {
+            const commentTip = t.comment ? ' title="' + escapeHtml(t.comment) + '"' : '';
+            return '<span class="badge" style="background:rgba(248,81,73,0.15); color:#f85149; border:1px solid rgba(248,81,73,0.3); font-size:0.74rem; padding:3px 8px; margin-right:4px; margin-bottom:4px; display:inline-block;"' + commentTip + '>⚠️ ' + escapeHtml(t.topic) + ' <small style="opacity:0.75;">(' + t.yes + ')</small></span>';
+          }).join('');
+
+          if (triggers.length > 8) {
+            pills += '<span style="font-size:0.74rem; color:var(--text-muted); margin-left:4px;">+' + (triggers.length - 8) + ' more</span>';
+          }
+
+          box.innerHTML = '<div style="margin-top:6px; padding:10px 12px; background:rgba(22,27,34,0.7); border:1px solid var(--border); border-radius:8px;">'
+            + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">'
+            + '<span style="font-size:0.8rem; font-weight:700; color:#e6edf3;">🐶 DoesTheDogDie Content Advisories:</span>'
+            + '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" style="font-size:0.75rem; color:#58a6ff; text-decoration:none;">View all ' + triggers.length + ' on DTDD ↗</a>'
+            + '</div>'
+            + '<div style="display:flex; flex-wrap:wrap;">' + pills + '</div>'
+            + '</div>';
+        } else if (data && data.matched) {
+          box.innerHTML = '<div style="margin-top:6px; font-size:0.78rem; color:#3fb950; display:flex; align-items:center; gap:6px;">🐶 <span>DoesTheDogDie: No major triggers confirmed by community.</span> <a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" style="color:#58a6ff; font-size:0.74rem; text-decoration:none;">Details ↗</a></div>';
+        } else {
+          box.style.display = 'none';
+        }
+      } catch (e) {
+        box.style.display = 'none';
+      }
     }
 
     function renderModalSeriesBrowser(series) {
@@ -3606,7 +3690,7 @@ class WebUI {
     function openActiveMediaInModal() {
       if (!window._activeMediaData) return;
       const m = window._activeMediaData;
-      openMediaDetailModal(m.id, m.type, m.name, m.poster, m.isSeries);
+      openMediaDetailModal(m.id, m.type, m.name, m.poster, m.isSeries, m.rating || m.imdbRating || '');
     }
 
     function onCatalogCardClick(el) {
@@ -3615,15 +3699,16 @@ class WebUI {
       const name = decodeURIComponent(el.getAttribute('data-name') || '');
       const poster = decodeURIComponent(el.getAttribute('data-poster') || '');
       const isSeries = el.getAttribute('data-series') === '1';
-      openMediaDetailModal(id, type, name, poster, isSeries);
+      const rating = decodeURIComponent(el.getAttribute('data-rating') || '');
+      openMediaDetailModal(id, type, name, poster, isSeries, rating);
     }
 
     function loadMoreCatalog() {
       loadCatalog(false);
     }
 
-    function catalogItemClick(id, type, name, poster, isSeries) {
-      openMediaDetailModal(id, type, name, poster, isSeries);
+    function catalogItemClick(id, type, name, poster, isSeries, rating) {
+      openMediaDetailModal(id, type, name, poster, isSeries, rating || '');
     }
 
 
@@ -3784,6 +3869,7 @@ class WebUI {
             fanartApiKey: document.getElementById('fanartApiKey').value.trim(),
             tvdbApiKey: document.getElementById('tvdbApiKey').value.trim(),
             tmdbApiKey: document.getElementById('tmdbApiKey') ? document.getElementById('tmdbApiKey').value.trim() : '',
+            dtddApiKey: document.getElementById('dtddApiKey') ? document.getElementById('dtddApiKey').value.trim() : '',
           })
         });
         const data = await res.json();
@@ -3981,13 +4067,8 @@ class WebUI {
       if (query.startsWith('tt') || query.startsWith('tmdb:')) {
         suggestionsBox.style.display = 'none';
         const baseId = query.split(':')[0];
-        if (type === 'series') {
-          loadSeriesCatalog(baseId, query, null);
-        } else {
-          const catalogBox = document.getElementById('seriesCatalogContainer');
-          if (catalogBox) catalogBox.style.display = 'none';
-          scrapeMediaById(query, type, query, null, null, null);
-        }
+        const isSeries = (type === 'series');
+        openMediaDetailModal(baseId, type, query, null, isSeries, '');
         return;
       }
 
@@ -4003,54 +4084,54 @@ class WebUI {
         const results = (data && data.results) ? data.results : [];
 
         if (results.length === 0) {
-          suggestionsBox.innerHTML = '<div style="color:var(--text-muted); padding:10px;">No exact title matches found in Cinemeta/TMDB. Scraping directly for "' + escapeHtml(query) + '"...</div>';
-          scrapeMediaById(query, type, query, null, null, null);
+          suggestionsBox.innerHTML = '<div style="color:var(--text-muted); padding:10px;">No exact title matches found in Cinemeta/TMDB. Opening scraper modal for "' + escapeHtml(query) + '"...</div>';
+          openMediaDetailModal(query, type, query, null, type === 'series', '');
         } else {
-          let html = '<div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px; font-weight:600;">Found ' + results.length + ' match(es) — click any title to load catalog:</div>';
+          window._searchResults = results;
+          let html = '<div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px; font-weight:600;">Found ' + results.length + ' match(es) — click any title to expand details &amp; discover streams:</div>';
           html += '<div class="search-suggestions-grid">';
-          for (const m of results) {
+          for (let i = 0; i < results.length; i++) {
+            const m = results[i];
             const posterUrl = m.poster || ('https://images.metahub.space/poster/medium/' + m.id + '/img');
             const yearStr = m.year ? ' (' + m.year + ')' : '';
-            html += `
-              <div class="search-suggestion-item" onclick="selectSearchSuggestion('\${escapeHtml(m.id)}', '\${m.type || type}', '\${escapeHtml(m.name)}', '\${escapeHtml(m.year)}', '\${escapeHtml(posterUrl)}', '\${escapeHtml(m.description || '')}')">
-                <img src="\${posterUrl}" class="search-suggestion-thumb" onerror="this.src='/logo.png'">
-                <div style="overflow:hidden;">
-                  <div style="font-weight:600; font-size:0.88rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${escapeHtml(m.name)}</div>
-                  <div style="font-size:0.75rem; color:var(--text-muted);">\${escapeHtml(m.type || type).toUpperCase()}\${yearStr}</div>
-                </div>
-              </div>
-            `;
+            const ratingVal = m.rating || m.imdbRating || '';
+            const ratingBadge = ratingVal ? ' <span style="background:rgba(227,179,65,0.2);color:#e3b341;border:1px solid rgba(227,179,65,0.35);font-size:0.7rem;padding:1px 5px;border-radius:4px;font-weight:700;">⭐ ' + escapeHtml(ratingVal) + '</span>' : '';
+            html += '<div class="search-suggestion-item" data-idx="' + i + '" onclick="onSearchSuggestionCardClick(this)">'
+              + '<img src="' + encodeURI(posterUrl) + '" class="search-suggestion-thumb" onerror="this.src=&apos;/logo.png&apos;">'
+              + '<div style="overflow:hidden; flex:1;">'
+              + '<div style="font-weight:600; font-size:0.88rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(m.name || m.title || 'Unknown') + '</div>'
+              + '<div style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:6px; margin-top:3px;">'
+              + '<span>' + escapeHtml(m.type || type).toUpperCase() + yearStr + '</span>'
+              + ratingBadge
+              + '</div>'
+              + '</div>'
+              + '</div>';
           }
           html += '</div>';
           suggestionsBox.innerHTML = html;
-
-          // Auto-select the top result
-          const top = results[0];
-          selectSearchSuggestion(top.id, top.type || type, top.name, top.year, top.poster, top.description || '');
         }
       } catch (err) {
         suggestionsBox.innerHTML = '<div style="color:#f85149; padding:10px;">Search request error: ' + err + '</div>';
-        scrapeMediaById(query, type, query, null, null, null);
+        openMediaDetailModal(query, type, query, null, type === 'series', '');
       } finally {
         btn.disabled = false;
         btn.innerText = '🔍 Search & Scrape';
       }
     }
 
-    function selectSearchSuggestion(id, type, name, year, poster, desc) {
-      document.getElementById('theaterSearchQuery').value = id;
-      document.getElementById('theaterMediaType').value = type;
-      toggleSeasonEpisodeInputs();
+    function onSearchSuggestionCardClick(el) {
+      const idx = parseInt(el.getAttribute('data-idx') || '0', 10);
+      if (!window._searchResults || !window._searchResults[idx]) return;
+      const m = window._searchResults[idx];
+      const isSeries = (m.type === 'series' || m.type === 'tv');
+      const poster = m.poster || ('https://images.metahub.space/poster/medium/' + m.id + '/img');
+      const rating = m.rating || m.imdbRating || '';
+      openMediaDetailModal(m.id, m.type || (isSeries ? 'series' : 'movie'), m.name, poster, isSeries, rating);
+    }
 
-      const baseId = id.split(':')[0];
-
-      if (type === 'series') {
-        loadSeriesCatalog(baseId, name, poster);
-      } else {
-        const catalogBox = document.getElementById('seriesCatalogContainer');
-        if (catalogBox) catalogBox.style.display = 'none';
-        scrapeMediaById(baseId, 'movie', name, poster, desc, year);
-      }
+    function selectSearchSuggestion(id, type, name, year, poster, desc, rating) {
+      const isSeries = (type === 'series' || type === 'tv');
+      openMediaDetailModal(id, type, name, poster, isSeries, rating || '');
     }
 
     async function loadSeriesCatalog(seriesId, initialName, poster) {

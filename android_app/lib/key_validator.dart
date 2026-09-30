@@ -46,6 +46,8 @@ class KeyValidator {
         return _validateTvdb(key);
       case 'tmdb':
         return _validateTmdb(key);
+      case 'dtdd':
+        return _validateDtdd(key);
       default:
         return KeyValidationResult(
           valid: false,
@@ -189,6 +191,33 @@ class KeyValidator {
       return KeyValidationResult(
         valid: false,
         message: 'Could not connect to TMDB: $e',
+      );
+    }
+  }
+
+  static Future<KeyValidationResult> _validateDtdd(String key) async {
+    try {
+      final uri = Uri.parse('https://api.doesthedogdie.com/dddsearch?imdb=tt1375666');
+      final req = await _client.getUrl(uri).timeout(const Duration(seconds: 4));
+      req.headers.set('Accept', 'application/json');
+      req.headers.set('X-API-KEY', key);
+      req.headers.set('User-Agent', 'Hostreamio/1.0');
+      final res = await req.close().timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        return KeyValidationResult(
+          valid: true,
+          message: 'Valid DoesTheDogDie API Key',
+        );
+      } else {
+        return KeyValidationResult(
+          valid: false,
+          message: 'Invalid DoesTheDogDie API Key (HTTP ${res.statusCode})',
+        );
+      }
+    } catch (e) {
+      return KeyValidationResult(
+        valid: false,
+        message: 'Could not connect to DoesTheDogDie: $e',
       );
     }
   }

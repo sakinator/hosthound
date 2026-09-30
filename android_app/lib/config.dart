@@ -27,6 +27,9 @@ class AddonConfig {
   /// API 4: TheTVDB API Key (Episode Mappings & Alternate Ordering)
   String tvdbApiKey = '';
 
+  /// API 7: DoesTheDogDie Content Warnings & Trigger Advisories API Key
+  String dtddApiKey = '';
+
   // Stream Filtering Profiles & Optimization
   bool excludeCams = true;
   String maxResolution = 'all'; // 'all', '1080p', '720p'
@@ -78,6 +81,9 @@ class AddonConfig {
         }
         if (map['tvdbApiKey'] is String) {
           tvdbApiKey = map['tvdbApiKey'];
+        }
+        if (map['dtddApiKey'] is String) {
+          dtddApiKey = map['dtddApiKey'];
         }
         if (map['showRatingsInStreams'] is bool) {
           showRatingsInStreams = map['showRatingsInStreams'];
@@ -142,6 +148,7 @@ class AddonConfig {
         'omdbApiKey': omdbApiKey,
         'fanartApiKey': fanartApiKey,
         'tvdbApiKey': tvdbApiKey,
+        'dtddApiKey': dtddApiKey,
         'showRatingsInStreams': showRatingsInStreams,
         'excludeCams': excludeCams,
         'maxResolution': maxResolution,

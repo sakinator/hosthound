@@ -11,6 +11,7 @@ import 'package:playtorrio_nuvio_addon/torbox_service.dart';
 import 'package:playtorrio_nuvio_addon/iptv_service.dart';
 import 'package:playtorrio_nuvio_addon/doh_resolver.dart';
 import 'package:playtorrio_nuvio_addon/key_validator.dart';
+import 'package:playtorrio_nuvio_addon/dtdd_service.dart';
 
 void main(List<String> args) async {
   runZonedGuarded(() async {
@@ -628,6 +629,19 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       return;
     }
 
+    // ── 4c4. DoesTheDogDie Trigger Warnings: GET /api/media/dtdd?id=...&title=...&year=... ─
+    if (path == '/api/media/dtdd') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final title = request.uri.queryParameters['title'];
+      final yearStr = request.uri.queryParameters['year'];
+      final year = int.tryParse(yearStr ?? '');
+      final data = await DtddService.instance.getContentWarnings(id, title: title, year: year);
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode(data));
+      await request.response.close();
+      return;
+    }
+
     // ── 4d. M3U Playlist Generator: GET /stream/playlist.m3u?url=...&title=... ─
     if (path == '/stream/playlist.m3u') {
       final url = request.uri.queryParameters['url'] ?? '';
@@ -832,6 +846,9 @@ Future<void> _handleRequest(HttpRequest request, String lanIp, int port) async {
       }
       if (bodyJson.containsKey('tmdbApiKey')) {
         AddonConfig.instance.tmdbApiKey = bodyJson['tmdbApiKey'].toString().trim();
+      }
+      if (bodyJson.containsKey('dtddApiKey')) {
+        AddonConfig.instance.dtddApiKey = bodyJson['dtddApiKey'].toString().trim();
       }
       if (bodyJson.containsKey('enableTorboxCachedTorrents')) {
         AddonConfig.instance.enableTorboxCachedTorrents = bodyJson['enableTorboxCachedTorrents'] == true;

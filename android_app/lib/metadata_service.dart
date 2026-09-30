@@ -62,6 +62,7 @@ class MetadataService {
   static const _tmdbDirect = 'https://api.themoviedb.org/3';
   static const _tmdbProxy = 'https://db.speedracelight.com/3';
   static const _cinemeta = 'https://v3-cinemeta.strem.io/meta';
+  static const _cinemetaCatalog = 'https://v3-cinemeta.strem.io/catalog';
 
   static const _headers = {
     'User-Agent':
@@ -354,7 +355,7 @@ class MetadataService {
 
     // 1. Cinemeta Catalog Search (zero-key, instant)
     try {
-      final uri = Uri.parse('$_cinemeta/$cinemetaType/top/search=${Uri.encodeComponent(cleanQuery)}.json');
+      final uri = Uri.parse('$_cinemetaCatalog/$cinemetaType/top/search=${Uri.encodeComponent(cleanQuery)}.json');
       final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -363,6 +364,7 @@ class MetadataService {
           for (final m in metas) {
             final id = m['id']?.toString() ?? '';
             if (id.isNotEmpty && seenIds.add(id)) {
+              final r = m['imdbRating']?.toString() ?? '';
               results.add({
                 'id': id,
                 'name': m['name']?.toString() ?? '',
@@ -370,6 +372,8 @@ class MetadataService {
                 'year': m['releaseInfo']?.toString() ?? m['year']?.toString() ?? '',
                 'poster': m['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$id/img',
                 'description': m['description']?.toString() ?? '',
+                'rating': r,
+                'imdbRating': r,
               });
             }
           }
@@ -475,6 +479,16 @@ class MetadataService {
 
           final sortedSeasons = seasonsSet.toList()..sort();
 
+          var rating = meta['imdbRating']?.toString() ?? '';
+          if (rating.isEmpty || rating == 'N/A' || rating == '0' || rating == '0.0') {
+            try {
+              final omdb = await OmdbService.instance.getMetadata(imdbId);
+              if (omdb != null && omdb.imdbRating != null && omdb.imdbRating != 'N/A' && omdb.imdbRating!.isNotEmpty) {
+                rating = omdb.imdbRating!;
+              }
+            } catch (_) {}
+          }
+
           return {
             'id': imdbId,
             'name': meta['name']?.toString() ?? '',
@@ -482,7 +496,8 @@ class MetadataService {
             'poster': meta['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$imdbId/img',
             'background': meta['background']?.toString() ?? 'https://images.metahub.space/background/medium/$imdbId/img',
             'description': meta['description']?.toString() ?? '',
-            'imdbRating': meta['imdbRating']?.toString() ?? '',
+            'imdbRating': rating,
+            'rating': rating,
             'genres': meta['genres'] ?? [],
             'seasons': sortedSeasons,
             'episodesBySeason': episodesBySeason,
@@ -548,6 +563,16 @@ class MetadataService {
         final data = jsonDecode(res.body);
         final meta = data['meta'];
         if (meta != null) {
+          var rating = meta['imdbRating']?.toString() ?? '';
+          if (rating.isEmpty || rating == 'N/A' || rating == '0' || rating == '0.0') {
+            try {
+              final omdb = await OmdbService.instance.getMetadata(imdbId);
+              if (omdb != null && omdb.imdbRating != null && omdb.imdbRating != 'N/A' && omdb.imdbRating!.isNotEmpty) {
+                rating = omdb.imdbRating!;
+              }
+            } catch (_) {}
+          }
+
           return {
             'id': imdbId,
             'name': meta['name']?.toString() ?? '',
@@ -555,7 +580,8 @@ class MetadataService {
             'poster': meta['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$imdbId/img',
             'background': meta['background']?.toString() ?? 'https://images.metahub.space/background/medium/$imdbId/img',
             'description': meta['description']?.toString() ?? '',
-            'imdbRating': meta['imdbRating']?.toString() ?? '',
+            'imdbRating': rating,
+            'rating': rating,
             'genres': meta['genres'] ?? [],
             'type': 'movie',
           };

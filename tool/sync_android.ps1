@@ -4,6 +4,7 @@ $sourceFiles = @(
     "catalog_service.dart",
     "config.dart",
     "doh_resolver.dart",
+    "dtdd_service.dart",
     "fanart_service.dart",
     "iptv_service.dart",
     "key_validator.dart",
