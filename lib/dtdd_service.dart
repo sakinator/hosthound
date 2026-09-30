@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'config.dart';
 
@@ -172,6 +173,40 @@ class DtddService {
     'X-Requested-With': 'XMLHttpRequest',
   };
 
+  /// Fetches HTML, using curl process when needed to reliably bypass Cloudflare challenges.
+  Future<String?> _fetchHtml(String url, {bool isAjax = false}) async {
+    // 1. Try curl process first (built-in on Windows 10/11 & Linux)
+    try {
+      final curlCmd = Platform.isWindows ? 'curl.exe' : 'curl';
+      final args = <String>[
+        '-s',
+        '-L',
+        '-A',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        if (isAjax) ...['-H', 'X-Requested-With: XMLHttpRequest'],
+        url,
+      ];
+      final res = await Process.run(curlCmd, args).timeout(const Duration(seconds: 8));
+      if (res.exitCode == 0 && res.stdout != null) {
+        final out = res.stdout.toString();
+        if (out.isNotEmpty && !out.contains('challenges.cloudflare.com')) {
+          return out;
+        }
+      }
+    } catch (_) {}
+
+    // 2. Direct HTTP fallback
+    try {
+      final headers = isAjax ? _ajaxHeaders : _browserHeaders;
+      final res = await http.get(Uri.parse(url), headers: headers).timeout(const Duration(seconds: 6));
+      if (res.statusCode == 200 && !res.body.contains('challenges.cloudflare.com')) {
+        return res.body;
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
   /// Scrapes DoesTheDogDie public pages without needing an API key
   Future<Map<String, dynamic>?> _fetchZeroKeyWeb(
     String imdbId, {
@@ -183,23 +218,32 @@ class DtddService {
       final query = (title != null && title.trim().isNotEmpty) ? title.trim() : imdbId;
       if (query.trim().isEmpty) return null;
 
-      final searchUrl = Uri.parse('https://www.doesthedogdie.com/search?q=${Uri.encodeComponent(query.trim())}');
-      final searchRes = await http.get(searchUrl, headers: _ajaxHeaders).timeout(const Duration(seconds: 5));
-      if (searchRes.statusCode != 200) return null;
+      final searchUrl = 'https://www.doesthedogdie.com/search?q=${Uri.encodeComponent(query.trim())}';
+      var html = await _fetchHtml(searchUrl, isAjax: true);
 
-      final html = searchRes.body;
-      final mediaMatch = RegExp(r'data-item-id="(\d+)"').firstMatch(html) ?? RegExp(r'href="/media/(\d+)"').firstMatch(html);
+      var mediaMatch = html != null
+          ? (RegExp(r'data-item-id="(\d+)"').firstMatch(html) ?? RegExp(r'href="/media/(\d+)"').firstMatch(html))
+          : null;
+
+      // If title search did not yield an item, try searching by IMDb ID if available
+      if (mediaMatch == null && imdbId.startsWith('tt') && imdbId != query) {
+        final imdbSearchUrl = 'https://www.doesthedogdie.com/search?q=${Uri.encodeComponent(imdbId)}';
+        final imdbHtml = await _fetchHtml(imdbSearchUrl, isAjax: true);
+        if (imdbHtml != null) {
+          mediaMatch = RegExp(r'data-item-id="(\d+)"').firstMatch(imdbHtml) ?? RegExp(r'href="/media/(\d+)"').firstMatch(imdbHtml);
+        }
+      }
+
       if (mediaMatch == null) return null;
 
       final mediaIdStr = mediaMatch.group(1);
       final mediaId = int.tryParse(mediaIdStr ?? '0');
       if (mediaId == null || mediaId == 0) return null;
 
-      final itemUrl = Uri.parse('https://www.doesthedogdie.com/media/$mediaId');
-      final itemRes = await http.get(itemUrl, headers: _browserHeaders).timeout(const Duration(seconds: 6));
-      if (itemRes.statusCode != 200) return null;
+      final itemUrl = 'https://www.doesthedogdie.com/media/$mediaId';
+      final itemHtml = await _fetchHtml(itemUrl);
+      if (itemHtml == null || itemHtml.isEmpty) return null;
 
-      final itemHtml = itemRes.body;
       final titleMatch = RegExp(r'<title>(.*?)<\/title>').firstMatch(itemHtml);
       var pageTitle = titleMatch?.group(1) ?? query;
       pageTitle = pageTitle.replaceAll(' - DoesTheDogDie.com', '').trim();

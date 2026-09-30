@@ -531,9 +531,9 @@ class ScraperEngine {
           codec: src.codec,
           audioBadge: badge,
           fileSize: src.fileSize,
-          providerName: '$sourceName (TorBox Cachable)',
+          providerName: sourceName,
           sourceName: sourceName,
-          hostName: '$hostName (TorBox Cachable)',
+          hostName: hostName,
           ottPlatform: meta.ottPlatform,
           isCached: false,
           isHls: isHls,
@@ -542,8 +542,8 @@ class ScraperEngine {
 
         final cacheBadge = cacheEnriched['badgeHeader'] ?? qLabel;
         final startCachingStream = ScrapedStream(
-          name: '☁️⬆️ TorBox [Start Caching] • $hostName\n$cacheBadge',
-          title: '${cacheEnriched['title']}\n☁️⬆️ TorBox Cachable • Click to upload & cache on TorBox cloud & stream',
+          name: '☁️ TorBox [Start Caching] • $hostName\n$cacheBadge',
+          title: '${cacheEnriched['title']}\n☁️ Click to cache on TorBox cloud & stream',
           url: cachePlayUrl,
           behaviorHints: const {'notWebReady': false},
           provider: '$sourceName ($hostName)',

@@ -21,6 +21,8 @@ class OmdbMetadata {
   final String? metascore;
   final String? rottenTomatoes;
   final String? boxOffice;
+  final String? country;
+  final String? language;
 
   OmdbMetadata({
     this.imdbId,
@@ -40,6 +42,8 @@ class OmdbMetadata {
     this.metascore,
     this.rottenTomatoes,
     this.boxOffice,
+    this.country,
+    this.language,
   });
 
   /// Produces a sleek, compact rating badge string suitable for stream cards:
@@ -88,6 +92,8 @@ class OmdbMetadata {
       metascore: json['Metascore']?.toString(),
       rottenTomatoes: rt,
       boxOffice: json['BoxOffice']?.toString(),
+      country: json['Country']?.toString(),
+      language: json['Language']?.toString(),
     );
   }
 
@@ -109,6 +115,8 @@ class OmdbMetadata {
         if (metascore != null) 'metascore': metascore,
         if (rottenTomatoes != null) 'rottenTomatoes': rottenTomatoes,
         if (boxOffice != null) 'boxOffice': boxOffice,
+        if (country != null) 'country': country,
+        if (language != null) 'language': language,
       };
 }
 

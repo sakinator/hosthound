@@ -2208,6 +2208,8 @@ class WebUI {
             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
               <span id="modalTypeBadge" class="badge" style="background:#ff0c82; color:#fff; font-weight:700; font-size:0.75rem;">MOVIE</span>
               <span id="modalYearBadge" class="badge" style="background:#161b22; color:var(--text); font-size:0.75rem;"></span>
+              <span id="modalAgeBadge" class="badge" style="background:#21262d; color:#e6edf3; border:1px solid #30363d; font-size:0.75rem; font-weight:700; display:none;" title="Universal Age Rating"></span>
+              <span id="modalIndianAgeBadge" class="badge" style="background:rgba(255, 153, 51, 0.18); color:#ff9933; border:1px solid rgba(255, 153, 51, 0.4); font-size:0.75rem; font-weight:700; display:none;" title="CBFC Age Rating (India)"></span>
               <div id="modalRatingsContainer" style="display:inline-flex; gap:6px; flex-wrap:wrap; align-items:center;">
                 <span id="modalRatingBadge" class="badge" style="background:rgba(227, 179, 65, 0.2); color:#e3b341; border:1px solid rgba(227, 179, 65, 0.4); font-size:0.75rem; font-weight:700;"></span>
               </div>
@@ -3290,6 +3292,12 @@ class WebUI {
       const yearBadge = document.getElementById('modalYearBadge');
       if (yearBadge) yearBadge.textContent = '';
 
+      const ageBadge = document.getElementById('modalAgeBadge');
+      if (ageBadge) { ageBadge.style.display = 'none'; ageBadge.textContent = ''; }
+
+      const indianAgeBadge = document.getElementById('modalIndianAgeBadge');
+      if (indianAgeBadge) { indianAgeBadge.style.display = 'none'; indianAgeBadge.textContent = ''; }
+
       const ratingsContainer = document.getElementById('modalRatingsContainer');
       if (ratingsContainer) {
         if (initialRating && initialRating !== 'N/A' && initialRating !== '0' && initialRating !== '0.0') {
@@ -3338,7 +3346,7 @@ class WebUI {
       if (streamsCount) streamsCount.textContent = '0';
 
       // Load DoesTheDogDie Content Advisories asynchronously
-      loadModalDtddAdvisories(modalCurrentMedia.baseId, modalCurrentMedia.name);
+      loadModalDtddAdvisories(modalCurrentMedia.baseId, modalCurrentMedia.name, modalCurrentMedia.year);
 
       // Fetch comprehensive metadata (background, rating, synopsis, episodes)
       try {
@@ -3356,6 +3364,16 @@ class WebUI {
             if (m.year && yearBadge) {
               yearBadge.textContent = m.year;
               yearBadge.style.display = 'inline-block';
+            }
+
+            if (m.universalAgeRating && ageBadge) {
+              ageBadge.textContent = '🛡️ ' + m.universalAgeRating;
+              ageBadge.style.display = 'inline-block';
+            }
+
+            if (m.isIndianContent && m.indianAgeRating && indianAgeBadge) {
+              indianAgeBadge.textContent = '🇮🇳 ' + m.indianAgeRating;
+              indianAgeBadge.style.display = 'inline-block';
             }
 
             // Render all rating sources side-by-side (IMDb, Rotten Tomatoes, Metacritic, TMDb)

@@ -462,6 +462,132 @@ class MetadataService {
     return list;
   }
 
+  /// Resolves universal age rating (e.g. PG-13, R, TV-MA) and Indian CBFC age rating (e.g. U, UA, U/A 13+, A)
+  static Future<Map<String, dynamic>> resolveAgeRatings(
+    String? imdbId, {
+    String type = 'movie',
+    int? tmdbId,
+    String? country,
+    String? name,
+    int? year,
+  }) async {
+    String? universal;
+    String? indian;
+    bool isIndianContent = false;
+
+    final lowerCountry = (country ?? '').toLowerCase();
+    if (lowerCountry.contains('india') || RegExp(r'\b(in|ind)\b', caseSensitive: false).hasMatch(lowerCountry)) {
+      isIndianContent = true;
+    }
+
+    // 1. Check OMDb (fastest, pre-cached)
+    OmdbMetadata? omdb;
+    if (imdbId != null && imdbId.startsWith('tt')) {
+      try {
+        omdb = await OmdbService.instance.getMetadata(imdbId, title: name, year: year);
+        if (omdb != null) {
+          final oCountry = (omdb.country ?? '').toLowerCase();
+          if (oCountry.contains('india')) {
+            isIndianContent = true;
+          }
+          final rated = omdb.rated?.trim();
+          if (rated != null && rated.isNotEmpty && rated != 'N/A' && rated != 'NOT RATED' && rated != 'UNRATED') {
+            final upper = rated.toUpperCase();
+            if (upper == 'U' || upper == 'UA' || upper == 'U/A' || upper.startsWith('U/A') || upper == 'A' || upper == 'S') {
+              indian = upper;
+              isIndianContent = true;
+            } else {
+              universal = rated;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Query TMDb certifications if tmdbId or find query can be run
+    try {
+      int? targetTmdbId = tmdbId;
+      if (targetTmdbId == null && imdbId != null && imdbId.startsWith('tt')) {
+        final findUri = Uri.parse('$_tmdbDirect/find/$imdbId?api_key=$_apiKey&external_source=imdb_id');
+        final findRes = await http.get(findUri, headers: _headers).timeout(const Duration(seconds: 4));
+        if (findRes.statusCode == 200) {
+          final findData = jsonDecode(findRes.body);
+          if (type == 'series' || type == 'tv') {
+            final tvList = (findData['tv_results'] as List?) ?? [];
+            if (tvList.isNotEmpty) targetTmdbId = tvList[0]['id'] as int?;
+          } else {
+            final mList = (findData['movie_results'] as List?) ?? [];
+            if (mList.isNotEmpty) targetTmdbId = mList[0]['id'] as int?;
+          }
+        }
+      }
+
+      if (targetTmdbId != null) {
+        if (type == 'series' || type == 'tv') {
+          final certUri = Uri.parse('$_tmdbDirect/tv/$targetTmdbId/content_ratings?api_key=$_apiKey');
+          final certRes = await http.get(certUri, headers: _headers).timeout(const Duration(seconds: 4));
+          if (certRes.statusCode == 200) {
+            final certData = jsonDecode(certRes.body);
+            final results = (certData['results'] as List?) ?? [];
+            for (final r in results) {
+              if (r is! Map) continue;
+              final iso = r['iso_3166_1']?.toString().toUpperCase();
+              final rating = r['rating']?.toString().trim();
+              if (rating == null || rating.isEmpty || rating == 'NR') continue;
+              if (iso == 'IN' && indian == null) {
+                indian = rating;
+              } else if (iso == 'US' && universal == null) {
+                universal = rating;
+              }
+            }
+          }
+        } else {
+          final certUri = Uri.parse('$_tmdbDirect/movie/$targetTmdbId/release_dates?api_key=$_apiKey');
+          final certRes = await http.get(certUri, headers: _headers).timeout(const Duration(seconds: 4));
+          if (certRes.statusCode == 200) {
+            final certData = jsonDecode(certRes.body);
+            final results = (certData['results'] as List?) ?? [];
+            for (final r in results) {
+              if (r is! Map) continue;
+              final iso = r['iso_3166_1']?.toString().toUpperCase();
+              final dates = (r['release_dates'] as List?) ?? [];
+              for (final d in dates) {
+                if (d is! Map) continue;
+                final cert = d['certification']?.toString().trim();
+                if (cert == null || cert.isEmpty || cert == 'NR') continue;
+                if (iso == 'IN' && indian == null) {
+                  indian = cert;
+                } else if (iso == 'US' && universal == null) {
+                  universal = cert;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 3. Smart CBFC mapping for Indian Content when only universal rating is known
+    if (isIndianContent && indian == null && universal != null) {
+      final uUpper = universal.toUpperCase();
+      if (uUpper.contains('TV-MA') || uUpper == 'R' || uUpper == 'NC-17') {
+        indian = 'A (18+)';
+      } else if (uUpper.contains('TV-14') || uUpper == 'PG-13') {
+        indian = 'U/A 13+';
+      } else if (uUpper.contains('TV-PG') || uUpper == 'PG') {
+        indian = 'U/A 7+';
+      } else if (uUpper.contains('TV-G') || uUpper.contains('TV-Y') || uUpper == 'G') {
+        indian = 'U';
+      }
+    }
+
+    return {
+      'universal': universal,
+      'indian': isIndianContent ? indian : null,
+      'isIndianContent': isIndianContent,
+    };
+  }
+
   /// Fetches complete series catalog details including seasons and episodes.
   static Future<Map<String, dynamic>?> getSeriesDetails(String rawId) async {
     String baseId = rawId;
@@ -524,6 +650,16 @@ class MetadataService {
           final sortedSeasons = seasonsSet.toList()..sort();
           final ratings = await resolveMultipleRatings(imdbId, cinemetaRating: meta['imdbRating']?.toString());
           final primaryRating = ratings.isNotEmpty ? ratings[0]['value']! : (meta['imdbRating']?.toString() ?? '');
+          final tmdbNumeric = meta['moviedb_id'] is int
+              ? meta['moviedb_id'] as int
+              : int.tryParse(meta['moviedb_id']?.toString() ?? '');
+          final ageRatings = await resolveAgeRatings(
+            imdbId,
+            type: 'series',
+            tmdbId: tmdbNumeric,
+            country: meta['country']?.toString(),
+            name: meta['name']?.toString(),
+          );
 
           return {
             'id': imdbId,
@@ -535,6 +671,9 @@ class MetadataService {
             'imdbRating': primaryRating,
             'rating': primaryRating,
             'ratings': ratings,
+            'universalAgeRating': ageRatings['universal'],
+            'indianAgeRating': ageRatings['indian'],
+            'isIndianContent': ageRatings['isIndianContent'],
             'genres': meta['genres'] ?? [],
             'seasons': sortedSeasons,
             'episodesBySeason': episodesBySeason,
@@ -602,6 +741,16 @@ class MetadataService {
         if (meta != null) {
           final ratings = await resolveMultipleRatings(imdbId, cinemetaRating: meta['imdbRating']?.toString());
           final primaryRating = ratings.isNotEmpty ? ratings[0]['value']! : (meta['imdbRating']?.toString() ?? '');
+          final tmdbNumeric = meta['moviedb_id'] is int
+              ? meta['moviedb_id'] as int
+              : int.tryParse(meta['moviedb_id']?.toString() ?? '');
+          final ageRatings = await resolveAgeRatings(
+            imdbId,
+            type: 'movie',
+            tmdbId: tmdbNumeric,
+            country: meta['country']?.toString(),
+            name: meta['name']?.toString(),
+          );
 
           return {
             'id': imdbId,
@@ -613,6 +762,9 @@ class MetadataService {
             'imdbRating': primaryRating,
             'rating': primaryRating,
             'ratings': ratings,
+            'universalAgeRating': ageRatings['universal'],
+            'indianAgeRating': ageRatings['indian'],
+            'isIndianContent': ageRatings['isIndianContent'],
             'genres': meta['genres'] ?? [],
             'type': 'movie',
           };

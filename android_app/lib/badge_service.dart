@@ -385,12 +385,8 @@ class BadgeService {
 
     if (isCached) {
       details.add('⚡ TorBox Cached');
-    } else if (providerName.toLowerCase().contains('cachable')) {
-      details.add('🌐 TorBox Cachable');
     } else if (isHls) {
       details.add('🌐 HLS Stream');
-    } else {
-      details.add('🌐 Direct HTTP');
     }
 
     if (isProxied) {
