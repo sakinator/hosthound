@@ -418,6 +418,50 @@ class MetadataService {
     return results;
   }
 
+  /// Resolves multiple rating sources (IMDb, Rotten Tomatoes, Metacritic, TMDb) with icons and values.
+  static Future<List<Map<String, String>>> resolveMultipleRatings(
+    String? imdbId, {
+    String? cinemetaRating,
+    String? tmdbRating,
+  }) async {
+    final list = <Map<String, String>>[];
+    String? imdbScore = cinemetaRating;
+    String? rtScore;
+    String? metaScore;
+
+    if (imdbId != null && imdbId.startsWith('tt')) {
+      try {
+        final omdb = await OmdbService.instance.getMetadata(imdbId);
+        if (omdb != null) {
+          if (omdb.imdbRating != null && omdb.imdbRating != 'N/A' && omdb.imdbRating!.isNotEmpty) {
+            imdbScore = omdb.imdbRating;
+          }
+          if (omdb.rottenTomatoes != null && omdb.rottenTomatoes != 'N/A' && omdb.rottenTomatoes!.isNotEmpty) {
+            rtScore = omdb.rottenTomatoes;
+          }
+          if (omdb.metascore != null && omdb.metascore != 'N/A' && omdb.metascore!.isNotEmpty) {
+            metaScore = omdb.metascore;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (imdbScore != null && imdbScore.isNotEmpty && imdbScore != 'N/A' && imdbScore != '0' && imdbScore != '0.0') {
+      list.add({'source': 'IMDb', 'value': imdbScore, 'icon': '⭐'});
+    }
+    if (rtScore != null && rtScore.isNotEmpty && rtScore != 'N/A') {
+      list.add({'source': 'Rotten Tomatoes', 'value': rtScore, 'icon': '🍅'});
+    }
+    if (metaScore != null && metaScore.isNotEmpty && metaScore != 'N/A') {
+      list.add({'source': 'Metacritic', 'value': metaScore, 'icon': 'Ⓜ️'});
+    }
+    if (tmdbRating != null && tmdbRating.isNotEmpty && tmdbRating != 'N/A' && tmdbRating != '0' && tmdbRating != '0.0') {
+      list.add({'source': 'TMDb', 'value': tmdbRating, 'icon': '🌟'});
+    }
+
+    return list;
+  }
+
   /// Fetches complete series catalog details including seasons and episodes.
   static Future<Map<String, dynamic>?> getSeriesDetails(String rawId) async {
     String baseId = rawId;
@@ -478,16 +522,8 @@ class MetadataService {
           }
 
           final sortedSeasons = seasonsSet.toList()..sort();
-
-          var rating = meta['imdbRating']?.toString() ?? '';
-          if (rating.isEmpty || rating == 'N/A' || rating == '0' || rating == '0.0') {
-            try {
-              final omdb = await OmdbService.instance.getMetadata(imdbId);
-              if (omdb != null && omdb.imdbRating != null && omdb.imdbRating != 'N/A' && omdb.imdbRating!.isNotEmpty) {
-                rating = omdb.imdbRating!;
-              }
-            } catch (_) {}
-          }
+          final ratings = await resolveMultipleRatings(imdbId, cinemetaRating: meta['imdbRating']?.toString());
+          final primaryRating = ratings.isNotEmpty ? ratings[0]['value']! : (meta['imdbRating']?.toString() ?? '');
 
           return {
             'id': imdbId,
@@ -496,8 +532,9 @@ class MetadataService {
             'poster': meta['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$imdbId/img',
             'background': meta['background']?.toString() ?? 'https://images.metahub.space/background/medium/$imdbId/img',
             'description': meta['description']?.toString() ?? '',
-            'imdbRating': rating,
-            'rating': rating,
+            'imdbRating': primaryRating,
+            'rating': primaryRating,
+            'ratings': ratings,
             'genres': meta['genres'] ?? [],
             'seasons': sortedSeasons,
             'episodesBySeason': episodesBySeason,
@@ -563,15 +600,8 @@ class MetadataService {
         final data = jsonDecode(res.body);
         final meta = data['meta'];
         if (meta != null) {
-          var rating = meta['imdbRating']?.toString() ?? '';
-          if (rating.isEmpty || rating == 'N/A' || rating == '0' || rating == '0.0') {
-            try {
-              final omdb = await OmdbService.instance.getMetadata(imdbId);
-              if (omdb != null && omdb.imdbRating != null && omdb.imdbRating != 'N/A' && omdb.imdbRating!.isNotEmpty) {
-                rating = omdb.imdbRating!;
-              }
-            } catch (_) {}
-          }
+          final ratings = await resolveMultipleRatings(imdbId, cinemetaRating: meta['imdbRating']?.toString());
+          final primaryRating = ratings.isNotEmpty ? ratings[0]['value']! : (meta['imdbRating']?.toString() ?? '');
 
           return {
             'id': imdbId,
@@ -580,8 +610,9 @@ class MetadataService {
             'poster': meta['poster']?.toString() ?? 'https://images.metahub.space/poster/medium/$imdbId/img',
             'background': meta['background']?.toString() ?? 'https://images.metahub.space/background/medium/$imdbId/img',
             'description': meta['description']?.toString() ?? '',
-            'imdbRating': rating,
-            'rating': rating,
+            'imdbRating': primaryRating,
+            'rating': primaryRating,
+            'ratings': ratings,
             'genres': meta['genres'] ?? [],
             'type': 'movie',
           };

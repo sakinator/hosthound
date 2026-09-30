@@ -18,6 +18,7 @@ class TorboxService {
   // In-memory cache for hosters list & checkcached results
   static List<Map<String, dynamic>>? _cachedHosters;
   static DateTime? _hostersExpiry;
+  static final Map<String, ({String name, bool isOnline, String icon})> _domainHosterMap = {};
   static final Map<String, ({bool isCached, DateTime expiry})> _cacheLookup = {};
 
   static const _defaultUserAgent =
@@ -94,6 +95,9 @@ class TorboxService {
   Future<List<Map<String, dynamic>>> getHosters({String? apiKey}) async {
     final now = DateTime.now();
     if (_cachedHosters != null && _hostersExpiry != null && now.isBefore(_hostersExpiry!)) {
+      if (_domainHosterMap.isEmpty) {
+        _updateHosterDomainMap(_cachedHosters!);
+      }
       return _cachedHosters!;
     }
 
@@ -113,11 +117,34 @@ class TorboxService {
 
         _cachedHosters = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
         _hostersExpiry = now.add(const Duration(hours: 1));
+        _updateHosterDomainMap(_cachedHosters!);
         return _cachedHosters!;
       }
     } catch (_) {}
 
     return _cachedHosters ?? [];
+  }
+
+  static void _updateHosterDomainMap(List<Map<String, dynamic>> hosters) {
+    _domainHosterMap.clear();
+    for (final h in hosters) {
+      final name = h['name']?.toString() ?? 'Hoster';
+      final rawStatus = h['status'];
+      final isOnline = rawStatus == true || rawStatus == 1 || rawStatus.toString().toLowerCase() == 'true';
+      final icon = h['icon']?.toString() ?? '';
+      final domains = h['domains'];
+      if (domains is List) {
+        for (final d in domains) {
+          if (d != null && d.toString().isNotEmpty) {
+            _domainHosterMap[d.toString().toLowerCase().trim()] = (
+              name: name,
+              isOnline: isOnline,
+              icon: icon,
+            );
+          }
+        }
+      }
+    }
   }
 
   /// Checks if a single direct link or web hoster link is cached on Torbox servers
@@ -888,72 +915,93 @@ class TorboxService {
     }
   }
 
-  /// Returns true if the hoster is supported by TorBox
-  bool isSupportedHoster(String url) {
+  /// Returns hoster operational info (name, isSupported, isOnline, icon) for a given URL
+  ({String name, bool isSupported, bool isOnline, String icon}) checkHosterStatus(String url) {
     final clean = url.split('?').first.toLowerCase();
-    if (clean.endsWith('.mp4') ||
+    final isDirectFile = clean.endsWith('.mp4') ||
         clean.endsWith('.mkv') ||
         clean.endsWith('.avi') ||
         clean.endsWith('.webm') ||
-        clean.endsWith('.ts')) {
-      return true;
+        clean.endsWith('.ts');
+
+    if (isDirectFile) {
+      return (name: 'Direct Video', isSupported: true, isOnline: true, icon: '');
     }
 
     final lower = url.toLowerCase();
-    if (lower.contains('pixeldrain') ||
-        lower.contains('gofile') ||
-        lower.contains('buzzheavier') ||
-        lower.contains('qiwi') ||
-        lower.contains('multiup') ||
-        lower.contains('krakenfiles') ||
-        lower.contains('mixdrop') ||
-        lower.contains('voe.sx') ||
-        lower.contains('filemoon') ||
-        lower.contains('doodstream') ||
-        lower.contains('streamtape') ||
-        lower.contains('1fichier') ||
-        lower.contains('rapidgator') ||
-        lower.contains('mega.nz') ||
-        lower.contains('mediafire') ||
-        lower.contains('ddownload') ||
-        lower.contains('uptobox') ||
-        lower.contains('drive.google.com') ||
-        lower.contains('googleusercontent.com') ||
-        lower.contains('hubcloud') ||
-        lower.contains('hubdrive') ||
-        lower.contains('driveseed') ||
-        lower.contains('drivebot') ||
-        lower.contains('fastdl') ||
-        lower.contains('fast-dl') ||
-        lower.contains('vgmlinks') ||
-        lower.contains('vcloud') ||
-        lower.contains('turbobit') ||
-        lower.contains('katfile') ||
-        lower.contains('nitroflare') ||
-        lower.contains('fileq') ||
-        lower.contains('workers.dev') ||
-        lower.contains('archive.org') ||
-        lower.contains('youtube.com') ||
-        lower.contains('youtu.be') ||
-        lower.contains('vimeo.com') ||
-        lower.contains('dailymotion.com')) {
-      return true;
-    }
 
-    // Check dynamically cached hoster domains
-    if (_cachedHosters != null) {
-      for (final h in _cachedHosters!) {
-        final domains = h['domains'];
-        if (domains is List) {
-          for (final d in domains) {
-            if (lower.contains(d.toString().toLowerCase())) {
-              return true;
-            }
-          }
+    // 1. Check dynamically fetched live hosters from TorBox API with true/false health
+    if (_domainHosterMap.isNotEmpty) {
+      for (final entry in _domainHosterMap.entries) {
+        if (lower.contains(entry.key)) {
+          return (
+            name: entry.value.name,
+            isSupported: true,
+            isOnline: entry.value.isOnline,
+            icon: entry.value.icon,
+          );
         }
       }
     }
 
-    return false;
+    // 2. Fallback check for well-known hosters if live API hasn't populated yet
+    final fallback = _matchFallbackHoster(lower);
+    if (fallback != null) {
+      return (name: fallback, isSupported: true, isOnline: true, icon: '');
+    }
+
+    return (name: '', isSupported: false, isOnline: false, icon: '');
+  }
+
+  /// Returns true ONLY if the hoster is supported AND currently LIVE (online) on TorBox
+  bool isSupportedHoster(String url) {
+    final info = checkHosterStatus(url);
+    return info.isSupported && info.isOnline;
+  }
+
+  /// Returns true if the hoster is recognized as a TorBox hoster but is currently OFFLINE
+  bool isHosterOffline(String url) {
+    final info = checkHosterStatus(url);
+    return info.isSupported && !info.isOnline;
+  }
+
+  /// Returns the name of the hoster if recognized, or empty string
+  String getHosterName(String url) {
+    return checkHosterStatus(url).name;
+  }
+
+  static String? _matchFallbackHoster(String lower) {
+    if (lower.contains('pixeldrain')) return 'Pixeldrain';
+    if (lower.contains('gofile')) return 'Gofile';
+    if (lower.contains('buzzheavier')) return 'Buzzheavier';
+    if (lower.contains('qiwi')) return 'Qiwi';
+    if (lower.contains('multiup')) return 'MultiUp';
+    if (lower.contains('krakenfiles')) return 'KrakenFiles';
+    if (lower.contains('mixdrop')) return 'Mixdrop';
+    if (lower.contains('voe.sx')) return 'Voe';
+    if (lower.contains('filemoon')) return 'Filemoon';
+    if (lower.contains('doodstream')) return 'Doodstream';
+    if (lower.contains('streamtape')) return 'Streamtape';
+    if (lower.contains('1fichier')) return '1Fichier';
+    if (lower.contains('rapidgator')) return 'Rapidgator';
+    if (lower.contains('mega.nz')) return 'Mega';
+    if (lower.contains('mediafire')) return 'Mediafire';
+    if (lower.contains('ddownload')) return 'DDownload';
+    if (lower.contains('uptobox')) return 'Uptobox';
+    if (lower.contains('drive.google.com') || lower.contains('googleusercontent.com')) return 'Google Drive';
+    if (lower.contains('hubcloud')) return 'HubCloud';
+    if (lower.contains('hubdrive')) return 'HubDrive';
+    if (lower.contains('driveseed')) return 'DriveSeed';
+    if (lower.contains('drivebot')) return 'DriveBot';
+    if (lower.contains('fastdl') || lower.contains('fast-dl')) return 'FastDL';
+    if (lower.contains('vgmlinks')) return 'VGMLinks';
+    if (lower.contains('vcloud')) return 'VCloud';
+    if (lower.contains('turbobit')) return 'Turbobit';
+    if (lower.contains('katfile')) return 'Katfile';
+    if (lower.contains('nitroflare')) return 'Nitroflare';
+    if (lower.contains('fileq')) return 'FileQ';
+    if (lower.contains('workers.dev')) return 'Cloudflare Worker';
+    if (lower.contains('archive.org')) return 'Internet Archive';
+    return null;
   }
 }

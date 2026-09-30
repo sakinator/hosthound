@@ -365,6 +365,8 @@ class ScraperEngine {
       if (deadUrls.contains(rawUrl)) continue; // Filtered broken link
 
       final isSupportedHoster = torboxKey.isNotEmpty && TorboxService.instance.isSupportedHoster(rawUrl);
+      final isHosterOffline = torboxKey.isNotEmpty && TorboxService.instance.isHosterOffline(rawUrl);
+      final offlineHosterName = isHosterOffline ? TorboxService.instance.getHosterName(rawUrl) : '';
       final isTorboxCached = torboxCacheMap[rawUrl] == true;
 
       // Clean Source & Host names
@@ -565,8 +567,26 @@ class ScraperEngine {
           );
           finalStreams.add(directStream);
         }
+      } else if (isHosterOffline) {
+        // ── 3. Hoster is recognized by TorBox but currently OFFLINE on TorBox ──
+        // Do NOT offer "Start Caching" (it will fail). Offer direct play if playable, with offline notice!
+        if (isDirectPlayableUrl(rawUrl)) {
+          final directBadge = directEnriched['badgeHeader'] ?? qLabel;
+          final offlineName = offlineHosterName.isNotEmpty ? offlineHosterName : hostName;
+          final directStream = ScrapedStream(
+            name: '🌐 Direct Play [$sourceName] • ⚠️ TorBox: $offlineName Offline\n$directBadge',
+            title: '${directEnriched['title']}\n⚠️ $offlineName is currently OFFLINE on TorBox debrider • Direct playback only',
+            url: directStreamUrl,
+            behaviorHints: directBehaviorHints,
+            provider: sourceName,
+            quality: q,
+            subtitles: subList,
+          );
+          finalStreams.add(directStream);
+          streamDedupeMap[rawUrl] = directStream;
+        }
       } else {
-        // ── 3. Standard Non-Hoster / Direct Stream (1 link) ──
+        // ── 4. Standard Non-Hoster / Direct Stream (1 link) ──
         // Validate that this link is actually a playable stream rather than an unparsed website/blog URL!
         if (isDirectPlayableUrl(rawUrl)) {
           final directBadge = directEnriched['badgeHeader'] ?? qLabel;

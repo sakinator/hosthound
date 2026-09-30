@@ -68,6 +68,8 @@ void main(List<String> args) async {
     print('---------------------------------------------------------------');
     print(' 🌐 Web Dashboard: http://localhost:${cfg.port}/configure');
     print('===============================================================\n');
+    // Warm up live TorBox hosters status cache asynchronously
+    TorboxService.instance.getHosters().ignore();
 
     await for (final request in server) {
       // Don't await – each request runs independently so the server stays responsive.

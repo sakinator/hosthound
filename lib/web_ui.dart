@@ -2208,7 +2208,9 @@ class WebUI {
             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
               <span id="modalTypeBadge" class="badge" style="background:#ff0c82; color:#fff; font-weight:700; font-size:0.75rem;">MOVIE</span>
               <span id="modalYearBadge" class="badge" style="background:#161b22; color:var(--text); font-size:0.75rem;"></span>
-              <span id="modalRatingBadge" class="badge" style="background:rgba(227, 179, 65, 0.2); color:#e3b341; border:1px solid rgba(227, 179, 65, 0.4); font-size:0.75rem; font-weight:700;"></span>
+              <div id="modalRatingsContainer" style="display:inline-flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                <span id="modalRatingBadge" class="badge" style="background:rgba(227, 179, 65, 0.2); color:#e3b341; border:1px solid rgba(227, 179, 65, 0.4); font-size:0.75rem; font-weight:700;"></span>
+              </div>
             </div>
             <h1 id="modalTitle" style="font-size:1.6rem; font-weight:800; color:#fff; line-height:1.2; margin:0 0 6px 0; text-shadow:0 2px 10px rgba(0,0,0,0.8);"></h1>
             <div id="modalGenres" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"></div>
@@ -2224,8 +2226,25 @@ class WebUI {
           <p id="modalOverview" style="font-size:0.88rem; color:var(--text); line-height:1.55; margin:0;"></p>
         </div>
 
-        <!-- DoesTheDogDie Content Advisories & Trigger Warnings -->
-        <div id="modalDtddContainer" style="display:none;"></div>
+        <!-- DoesTheDogDie Content Advisories & Trigger Warnings Card (Just after Overview) -->
+        <div id="modalDtddCard" style="background:#0d1117; border:1px solid #30363d; border-radius:10px; overflow:hidden;">
+          <div style="padding:10px 14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:#161b22; transition:background 0.2s;" onclick="toggleDtddExpand()">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:1.15rem;">🐶</span>
+              <strong style="color:#fff; font-size:0.88rem;">DoesTheDogDie Content Advisories</strong>
+              <span id="modalDtddSummaryBadge" class="badge" style="background:rgba(248,81,73,0.15); color:#f85149; border:1px solid rgba(248,81,73,0.3); font-size:0.72rem; display:none;"></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <a id="modalDtddLink" href="https://www.doesthedogdie.com" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:0.78rem; color:#58a6ff; text-decoration:none; padding:3px 8px; background:rgba(88,166,255,0.1); border:1px solid rgba(88,166,255,0.25); border-radius:4px;">Visit doesthedogdie.com ↗</a>
+              <button type="button" id="btnToggleDtdd" class="btn btn-sm" style="padding:3px 10px; font-size:0.75rem; background:#21262d;">▼ Expand</button>
+            </div>
+          </div>
+          <!-- Expandable Panel -->
+          <div id="modalDtddExpandable" style="display:none; padding:12px 14px; border-top:1px solid #21262d;">
+            <div id="modalDtddLoading" style="font-size:0.8rem; color:var(--text-muted);">⏳ Checking community trigger warnings…</div>
+            <div id="modalDtddContent" style="display:none;"></div>
+          </div>
+        </div>
 
         <!-- TV Series Seasons & Episodes Explorer (Hidden for movies) -->
         <div id="modalSeriesBrowser" style="display:none;">
@@ -3271,13 +3290,12 @@ class WebUI {
       const yearBadge = document.getElementById('modalYearBadge');
       if (yearBadge) yearBadge.textContent = '';
 
-      const ratingBadge = document.getElementById('modalRatingBadge');
-      if (ratingBadge) {
+      const ratingsContainer = document.getElementById('modalRatingsContainer');
+      if (ratingsContainer) {
         if (initialRating && initialRating !== 'N/A' && initialRating !== '0' && initialRating !== '0.0') {
-          ratingBadge.textContent = '⭐ ' + initialRating;
-          ratingBadge.style.display = 'inline-block';
+          ratingsContainer.innerHTML = '<span class="badge" style="background:rgba(227, 179, 65, 0.2); color:#e3b341; border:1px solid rgba(227, 179, 65, 0.4); font-size:0.75rem; font-weight:700;">⭐ ' + escapeHtml(initialRating) + '</span>';
         } else {
-          ratingBadge.style.display = 'none';
+          ratingsContainer.innerHTML = '';
         }
       }
 
@@ -3293,8 +3311,22 @@ class WebUI {
       const seriesBox = document.getElementById('modalSeriesBrowser');
       if (seriesBox) seriesBox.style.display = 'none';
 
-      const dtddBox = document.getElementById('modalDtddContainer');
-      if (dtddBox) dtddBox.style.display = 'none';
+      // Reset DoesTheDogDie Card
+      const dtddCard = document.getElementById('modalDtddCard');
+      const dtddBadge = document.getElementById('modalDtddSummaryBadge');
+      const dtddLink = document.getElementById('modalDtddLink');
+      const dtddExpandable = document.getElementById('modalDtddExpandable');
+      const dtddBtn = document.getElementById('btnToggleDtdd');
+      const dtddLoading = document.getElementById('modalDtddLoading');
+      const dtddContent = document.getElementById('modalDtddContent');
+
+      if (dtddCard) dtddCard.style.display = 'block';
+      if (dtddBadge) { dtddBadge.style.display = 'none'; dtddBadge.textContent = ''; }
+      if (dtddLink) dtddLink.href = 'https://www.doesthedogdie.com';
+      if (dtddExpandable) dtddExpandable.style.display = 'none';
+      if (dtddBtn) dtddBtn.textContent = '▼ Expand';
+      if (dtddLoading) dtddLoading.style.display = 'block';
+      if (dtddContent) { dtddContent.style.display = 'none'; dtddContent.innerHTML = ''; }
 
       const selLabel = document.getElementById('modalSelectedMediaLabel');
       if (selLabel) selLabel.textContent = modalCurrentMedia.name;
@@ -3325,13 +3357,47 @@ class WebUI {
               yearBadge.textContent = m.year;
               yearBadge.style.display = 'inline-block';
             }
-            const rawRating = m.imdbRating || m.rating;
-            if (rawRating && rawRating !== 'N/A' && rawRating !== '0' && rawRating !== '0.0') {
-              if (ratingBadge) {
-                ratingBadge.textContent = '⭐ ' + rawRating;
-                ratingBadge.style.display = 'inline-block';
+
+            // Render all rating sources side-by-side (IMDb, Rotten Tomatoes, Metacritic, TMDb)
+            if (ratingsContainer) {
+              if (m.ratings && Array.isArray(m.ratings) && m.ratings.length > 0) {
+                ratingsContainer.innerHTML = m.ratings.map(r => {
+                  const icon = r.icon || '⭐';
+                  const src = r.source || '';
+                  const val = r.value || '';
+                  let bg = 'rgba(227, 179, 65, 0.15)';
+                  let col = '#e3b341';
+                  let bdr = 'rgba(227, 179, 65, 0.35)';
+
+                  if (src.toLowerCase().includes('rotten')) {
+                    bg = 'rgba(250, 50, 10, 0.15)';
+                    col = '#fa320a';
+                    bdr = 'rgba(250, 50, 10, 0.35)';
+                  } else if (src.toLowerCase().includes('meta')) {
+                    bg = 'rgba(0, 206, 56, 0.15)';
+                    col = '#00ce38';
+                    bdr = 'rgba(0, 206, 56, 0.35)';
+                  } else if (src.toLowerCase().includes('tmdb')) {
+                    bg = 'rgba(1, 180, 228, 0.15)';
+                    col = '#01b4e4';
+                    bdr = 'rgba(1, 180, 228, 0.35)';
+                  }
+
+                  return '<span class="badge" title="' + escapeHtml(src) + '" style="background:' + bg + '; color:' + col + '; border:1px solid ' + bdr + '; font-size:0.75rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; padding:3px 7px;">'
+                    + '<span>' + icon + '</span><span>' + escapeHtml(val) + '</span>'
+                    + '<small style="opacity:0.85; font-size:0.68rem; font-weight:600; margin-left:1px;">' + escapeHtml(src) + '</small>'
+                    + '</span>';
+                }).join('');
+              } else {
+                const rawRating = m.imdbRating || m.rating;
+                if (rawRating && rawRating !== 'N/A' && rawRating !== '0' && rawRating !== '0.0') {
+                  ratingsContainer.innerHTML = '<span class="badge" style="background:rgba(227, 179, 65, 0.2); color:#e3b341; border:1px solid rgba(227, 179, 65, 0.4); font-size:0.75rem; font-weight:700;">⭐ ' + escapeHtml(rawRating) + '</span>';
+                } else {
+                  ratingsContainer.innerHTML = '';
+                }
               }
             }
+
             if (m.genres && Array.isArray(m.genres) && genresEl) {
               genresEl.innerHTML = m.genres.map(g => '<span class="badge" style="background:#161b22; color:var(--text-muted); font-size:0.75rem;">' + escapeHtml(g) + '</span>').join('');
             }
@@ -3354,50 +3420,101 @@ class WebUI {
       triggerModalScrape();
     }
 
+    function toggleDtddExpand() {
+      const panel = document.getElementById('modalDtddExpandable');
+      const btn = document.getElementById('btnToggleDtdd');
+      if (!panel) return;
+      const isHidden = panel.style.display === 'none' || panel.style.display === '';
+      panel.style.display = isHidden ? 'block' : 'none';
+      if (btn) btn.textContent = isHidden ? '▲ Collapse' : '▼ Expand';
+    }
+
     async function loadModalDtddAdvisories(id, title, year) {
-      const box = document.getElementById('modalDtddContainer');
-      if (!box) return;
-      box.style.display = 'block';
-      box.innerHTML = '<div style="font-size:0.78rem; color:var(--text-muted); padding:6px 0;">🐶 Checking DoesTheDogDie content warnings…</div>';
+      const card = document.getElementById('modalDtddCard');
+      const badge = document.getElementById('modalDtddSummaryBadge');
+      const link = document.getElementById('modalDtddLink');
+      const loading = document.getElementById('modalDtddLoading');
+      const content = document.getElementById('modalDtddContent');
+      if (!card) return;
 
       try {
         const u = '/api/media/dtdd?id=' + encodeURIComponent(id) + (title ? '&title=' + encodeURIComponent(title) : '') + (year ? '&year=' + encodeURIComponent(year) : '');
         const res = await fetch(u);
         const data = await res.json();
 
-        if (data && data.needKey) {
-          box.innerHTML = '<div style="margin-top:4px; padding:8px 12px; background:rgba(22,27,34,0.6); border:1px dashed var(--border); border-radius:6px; font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">'
-            + '<span>🐶 <strong>Content Warnings:</strong> Add free DoesTheDogDie API key in Settings to view trigger advisories (animal harm, jumpscares, etc.)</span>'
-            + '<button class="btn btn-sm" onclick="closeMediaDetailModal(); switchMainTab(&apos;server&apos;); document.getElementById(&apos;dtddApiKey&apos;)?.focus();" style="padding:2px 8px; font-size:0.75rem;">⚙️ Add Free Key</button>'
-            + '</div>';
-          return;
+        if (loading) loading.style.display = 'none';
+        if (content) content.style.display = 'block';
+
+        const targetUrl = (data && data.url) ? data.url : ('https://www.doesthedogdie.com/search?q=' + encodeURIComponent(title || id));
+        if (link) {
+          link.href = targetUrl;
         }
 
         if (data && data.matched && data.triggers && data.triggers.length > 0) {
           const triggers = data.triggers;
-          let pills = triggers.slice(0, 8).map(t => {
-            const commentTip = t.comment ? ' title="' + escapeHtml(t.comment) + '"' : '';
-            return '<span class="badge" style="background:rgba(248,81,73,0.15); color:#f85149; border:1px solid rgba(248,81,73,0.3); font-size:0.74rem; padding:3px 8px; margin-right:4px; margin-bottom:4px; display:inline-block;"' + commentTip + '>⚠️ ' + escapeHtml(t.topic) + ' <small style="opacity:0.75;">(' + t.yes + ')</small></span>';
-          }).join('');
+          const count = triggers.length;
 
-          if (triggers.length > 8) {
-            pills += '<span style="font-size:0.74rem; color:var(--text-muted); margin-left:4px;">+' + (triggers.length - 8) + ' more</span>';
+          if (badge) {
+            badge.textContent = '⚠️ ' + count + ' Advisory' + (count === 1 ? '' : 's');
+            badge.style.background = 'rgba(248,81,73,0.18)';
+            badge.style.color = '#f85149';
+            badge.style.borderColor = 'rgba(248,81,73,0.35)';
+            badge.style.display = 'inline-block';
           }
 
-          box.innerHTML = '<div style="margin-top:6px; padding:10px 12px; background:rgba(22,27,34,0.7); border:1px solid var(--border); border-radius:8px;">'
-            + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">'
-            + '<span style="font-size:0.8rem; font-weight:700; color:#e6edf3;">🐶 DoesTheDogDie Content Advisories:</span>'
-            + '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" style="font-size:0.75rem; color:#58a6ff; text-decoration:none;">View all ' + triggers.length + ' on DTDD ↗</a>'
-            + '</div>'
-            + '<div style="display:flex; flex-wrap:wrap;">' + pills + '</div>'
-            + '</div>';
+          let pillsHtml = triggers.map(t => {
+            const commentTip = t.comment ? ' title="' + escapeHtml(t.comment) + '"' : '';
+            const countTxt = (t.yes !== undefined && t.yes > 0) ? ' <small style="opacity:0.75;">(' + t.yes + ')</small>' : '';
+            return '<span class="badge" style="background:rgba(248,81,73,0.15); color:#f85149; border:1px solid rgba(248,81,73,0.3); font-size:0.75rem; padding:4px 9px; margin-right:5px; margin-bottom:6px; display:inline-block;"' + commentTip + '>⚠️ ' + escapeHtml(t.topic) + countTxt + '</span>';
+          }).join('');
+
+          let safeHtml = '';
+          if (data.safe && Array.isArray(data.safe) && data.safe.length > 0) {
+            safeHtml = '<div style="margin-top:10px; padding-top:8px; border-top:1px solid #21262d;">'
+              + '<div style="font-size:0.75rem; font-weight:700; color:#3fb950; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">✓ Safe / Not Reported:</div>'
+              + '<div style="display:flex; flex-wrap:wrap; gap:4px;">'
+              + data.safe.slice(0, 10).map(s => '<span class="badge" style="background:rgba(63,185,80,0.12); color:#3fb950; border:1px solid rgba(63,185,80,0.25); font-size:0.72rem; padding:2px 7px;">✓ ' + escapeHtml(s.topic) + '</span>').join('')
+              + '</div></div>';
+          }
+
+          if (content) {
+            content.innerHTML = '<div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:8px;">Crowdsourced advisory warnings confirmed for this title:</div>'
+              + '<div style="display:flex; flex-wrap:wrap;">' + pillsHtml + '</div>'
+              + safeHtml;
+          }
         } else if (data && data.matched) {
-          box.innerHTML = '<div style="margin-top:6px; font-size:0.78rem; color:#3fb950; display:flex; align-items:center; gap:6px;">🐶 <span>DoesTheDogDie: No major triggers confirmed by community.</span> <a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" style="color:#58a6ff; font-size:0.74rem; text-decoration:none;">Details ↗</a></div>';
+          if (badge) {
+            badge.textContent = '✓ No Major Triggers';
+            badge.style.background = 'rgba(63,185,80,0.15)';
+            badge.style.color = '#3fb950';
+            badge.style.borderColor = 'rgba(63,185,80,0.35)';
+            badge.style.display = 'inline-block';
+          }
+          if (content) {
+            content.innerHTML = '<div style="font-size:0.82rem; color:#3fb950; display:flex; align-items:center; gap:8px;">'
+              + '<span>✓ DoesTheDogDie: No major triggers confirmed by community.</span>'
+              + '</div>';
+          }
         } else {
-          box.style.display = 'none';
+          if (badge) {
+            badge.textContent = 'ℹ️ Check on DTDD';
+            badge.style.background = 'rgba(139,148,158,0.15)';
+            badge.style.color = '#8b949e';
+            badge.style.borderColor = 'rgba(139,148,158,0.3)';
+            badge.style.display = 'inline-block';
+          }
+          if (content) {
+            content.innerHTML = '<div style="font-size:0.82rem; color:var(--text-muted);">'
+              + 'No community advisory reports cached yet. <a href="' + escapeHtml(targetUrl) + '" target="_blank" rel="noopener" style="color:#58a6ff; text-decoration:none;">Search and view advisories directly on DoesTheDogDie.com ↗</a>'
+              + '</div>';
+          }
         }
       } catch (e) {
-        box.style.display = 'none';
+        if (loading) loading.style.display = 'none';
+        if (content) {
+          content.style.display = 'block';
+          content.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted);">Failed to load DoesTheDogDie advisories.</div>';
+        }
       }
     }
 
@@ -3545,14 +3662,19 @@ class WebUI {
             }
           } catch (_) {}
 
+          const hosterInfo = checkUrlHosterStatus(underlyingUrl);
+          const isHosterOffline = (hosterInfo.isSupported && !hosterInfo.isOnline) || rawName.includes('Offline') || rawTitle.includes('Offline');
+
           return {
             idx: idx,
             name: rawName,
             title: rawTitle,
             url: finalUrl,
             underlyingUrl: underlyingUrl,
+            hosterName: hosterInfo.name,
+            isHosterOffline: isHosterOffline,
             isTorboxCached: rawName.includes('Cached') || rawTitle.includes('Cached') || rawName.includes('⚡') || rawTitle.includes('⚡'),
-            isTorboxCaching: rawName.includes('Start Caching') || rawTitle.includes('Start Caching') || rawName.includes('☁️'),
+            isTorboxCaching: !isHosterOffline && (rawName.includes('Start Caching') || rawTitle.includes('Start Caching') || rawName.includes('☁️')),
             isDirect: !rawName.includes('TorBox') && !rawTitle.includes('TorBox'),
             is1080p: /1080p|2160p|4k/i.test(rawName + ' ' + rawTitle),
             is4k: /2160p|4k/i.test(rawName + ' ' + rawTitle)
@@ -3604,6 +3726,9 @@ class WebUI {
         let badgeHtml = '';
         if (s.isTorboxCached) {
           badgeHtml = '<span class="badge" style="background:rgba(63, 185, 80, 0.15); color:#3fb950; border:1px solid rgba(63, 185, 80, 0.3); font-weight:700;">⚡ TorBox [Cached]</span>';
+        } else if (s.isHosterOffline) {
+          const hName = s.hosterName || 'Hoster';
+          badgeHtml = '<span class="badge" style="background:rgba(248, 81, 73, 0.15); color:#f85149; border:1px solid rgba(248, 81, 73, 0.3); font-weight:700;">⚠️ TorBox: ' + escapeHtml(hName) + ' Offline</span>';
         } else if (s.isTorboxCaching) {
           badgeHtml = '<span class="badge" style="background:rgba(88, 166, 255, 0.15); color:#58a6ff; border:1px solid rgba(88, 166, 255, 0.3); font-weight:700;">☁️ TorBox [Start Caching]</span>';
         } else {
@@ -3970,6 +4095,26 @@ class WebUI {
       }
     }
 
+    function checkUrlHosterStatus(url) {
+      if (!url) return { isSupported: false, isOnline: false, name: '' };
+      const clean = url.toLowerCase().split('?')[0];
+      if (clean.endsWith('.mp4') || clean.endsWith('.mkv') || clean.endsWith('.avi') || clean.endsWith('.webm') || clean.endsWith('.ts')) {
+        return { isSupported: true, isOnline: true, name: 'Direct Video' };
+      }
+      if (window.torboxHosters && Array.isArray(window.torboxHosters)) {
+        for (const h of window.torboxHosters) {
+          const isUp = h.status === 'online' || h.status === true || h.status === 'up' || h.status === 1;
+          const domains = Array.isArray(h.domains) ? h.domains : (typeof h.domains === 'string' ? h.domains.split(/[\s,]+/) : []);
+          for (const d of domains) {
+            if (d && clean.includes(d.toLowerCase())) {
+              return { isSupported: true, isOnline: isUp, name: h.name || d };
+            }
+          }
+        }
+      }
+      return { isSupported: false, isOnline: false, name: '' };
+    }
+
     async function loadTorboxHosters() {
       const grid = document.getElementById('hostersGrid');
       const btn = document.getElementById('btnRefreshHosters');
@@ -4298,14 +4443,14 @@ class WebUI {
           const isTorboxCached = rawName.includes('[Cached]') || rawTitle.includes('Cached on TorBox');
           const isTorboxCachable = rawName.toLowerCase().includes('cachable') || rawName.includes('Start Caching') || rawName.includes('[Cache]') || rawTitle.toLowerCase().includes('cachable') || rawTitle.toLowerCase().includes('start caching');
 
-          // A stream is cachable to TorBox only if it is not HLS/DASH, not already cached, and is either tagged cachable or hosted on a supported hoster
-          const isSupportedHoster = !isHlsOrDash && !isTorboxCached && (
+          const hosterInfo = checkUrlHosterStatus(underlyingUrl);
+          const isHosterOffline = (hosterInfo.isSupported && !hosterInfo.isOnline) || rawName.includes('Offline') || rawTitle.includes('Offline');
+
+          // A stream is cachable to TorBox only if it is not HLS/DASH, not already cached, and the hoster is NOT offline!
+          const isSupportedHoster = !isHlsOrDash && !isTorboxCached && !isHosterOffline && (
             isTorboxCachable ||
-            lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mkv') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.webm') || lowerUrl.endsWith('.ts') ||
-            lowerUrl.includes('hubcloud') || lowerUrl.includes('hubdrive') || lowerUrl.includes('driveseed') ||
-            lowerUrl.includes('pixeldrain') || lowerUrl.includes('1fichier') || lowerUrl.includes('rapidgator') ||
-            lowerUrl.includes('mega.nz') || lowerUrl.includes('mediafire') || lowerUrl.includes('ddownload') ||
-            lowerUrl.includes('drive.google.com') || lowerUrl.includes('workers.dev') || lowerUrl.includes('vcloud') || lowerUrl.includes('fastdl')
+            hosterInfo.isOnline ||
+            lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mkv') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.webm') || lowerUrl.endsWith('.ts')
           );
 
           return {
@@ -4315,6 +4460,8 @@ class WebUI {
             url: finalUrl,
             underlyingUrl: underlyingUrl,
             mediaTitle: displayTitle,
+            hosterName: hosterInfo.name,
+            isHosterOffline: isHosterOffline,
             isCached: isTorboxCached,
             isCache: isTorboxCachable,
             isCachableToTorbox: isSupportedHoster,
@@ -4390,6 +4537,8 @@ class WebUI {
         if (s.isCachableToTorbox) {
           const btnLabel = s.isCache ? '☁️⬆️ Start TorBox Cache' : '☁️⬆️ Cache to TorBox';
           html += '    <button class="btn btn-success" onclick="uploadStreamToTorbox(' + s.index + ', this)">' + btnLabel + '</button>';
+        } else if (s.isHosterOffline) {
+          html += '    <span class="badge" style="background:rgba(248,81,73,0.15); color:#f85149; border:1px solid rgba(248,81,73,0.3); font-size:0.75rem; padding:6px 9px; display:inline-flex; align-items:center;" title="TorBox debrider for this hoster is currently offline">⚠️ ' + escapeHtml(s.hosterName || 'Hoster') + ' Offline on TorBox</span>';
         }
         html += '  </div>';
         html += '</div>';
