@@ -413,9 +413,9 @@ hostreamio/
 
 ---
 
-## 🛠️ List of Active Scrapers (56 Total)
+## 🛠️ List of Active Scrapers (63 Active Providers • 56 Direct Cloud + 7 Cached Torrent)
 
-The unified scraper engine integrates 56 non-torrent cloud providers across Indian Regional, Anime/Asian, and Global networks:
+The unified scraper engine integrates 56 non-torrent direct cloud hosters alongside 7 strictly gated community torrent indexers (cached only on TorBox):
 
 ### 🇮🇳 Indian OTT & Regional Scrapers (8 Providers)
 | Scraper Provider | ID | Stream Quality | Technology / Hosters | Focus / Description |
@@ -490,6 +490,21 @@ The unified scraper engine integrates 56 non-torrent cloud providers across Indi
 | **DownloadEverything** | `downloadeverything` | 📺 1080p FHD | 🌐 Direct HTTP Extractor | Direct media download & stream extractor |
 | **Dulo** | `dulo` | 📺 1080p FHD | ⚡ Fast HLS Streams | High-speed direct stream network |
 
+### ⚡ Community Torrent Scrapers (7 Providers • Gated by TorBox Cached Torrents Toggle • Default OFF • 0 P2P)
+
+> [!NOTE]
+> **Strict 0 P2P Guarantee:** These providers are only queried when explicitly enabled by the user in settings (`enableTorboxCachedTorrents = true`). When enabled, torrent hashes are checked in batch against TorBox debrid — **only 100% pre-cached files** are served via TorBox's global high-speed HTTPS CDN (`$localBaseUrl/torbox/play`). Uncached torrents are dropped immediately (zero seeding, zero waiting, zero swarm connections).
+
+| Scraper Provider | ID | Stream Quality | Technology / Hosters | Focus / Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Nyaa Anime** | `nyaa` | 🍙 1080p FHD / Remux | ⚡ TorBox Cloud CDN | Global anime, OVA, movies, dual-audio batches & release groups |
+| **1TamilMV & TamilBlasters** | `tamilmv` | 💎 4K UHD / 1080p | ⚡ TorBox Cloud CDN | Desi & South Indian regional (Tamil, Telugu, Malayalam, Kannada, Hindi) |
+| **AsianDrama Torrent** | `asian_drama_torrent` | 📺 1080p FHD | ⚡ TorBox Cloud CDN | Live-action Asian dramas (K-Drama, J-Drama, C-Drama) from Nyaa Live Action (c=6_1) |
+| **YTS.mx API** | `yts` | 🎬 1080p / 4K UHD | ⚡ TorBox Cloud CDN | Lightweight, high-efficiency 720p/1080p/2160p x264/HEVC movie encodes |
+| **EZTV API** | `eztv` | 📺 1080p / 720p | ⚡ TorBox Cloud CDN | Daily global television broadcasts, episodic serials & sitcoms |
+| **TorrentGalaxy** | `torrent_galaxy` | 💎 1080p / 4K UHD | ⚡ TorBox Cloud CDN | High-retention global movie releases, dual audio & TV packs |
+| **Knaben Aggregator** | `knaben` | 🌐 1080p FHD | ⚡ TorBox Cloud CDN | Multi-indexer torrent aggregator for rare & archival releases |
+
 ---
 
 ## 🔄 Automated Update Pipeline & Reliable Pull Sources (No-AI Pulls)
@@ -521,12 +536,17 @@ This single command automatically pulls updates, checks upstream providers, rege
 
 ## 🏆 Credits & Acknowledgements
 
-`Hostreamio` builds upon incredible open-source innovations across the streaming community:
+`Hostreamio` stands on the shoulders of giants. We gratefully acknowledge and credit the following pioneering open source developers, communities, and services:
 
 - **[ayman708-UX / PlayTorrioV3](https://github.com/ayman708-UX/PlayTorrioV3)**: Core Dart scraper models, site extractors, and multi-source scraping architecture.
 - **[Cloudstream 3 Community](https://github.com/recloudstream/cloudstream)** & Extension Authors (*Hexated, Stormunblessed, Hindi Providers*): Pioneering hoster extraction patterns and cloud link bypass techniques.
 - **[Nuvio Team](https://nuvio.app)**: Next-gen TV and desktop streaming player with beautiful native badge pill rendering.
 - **[TorBox](https://torbox.app)**: Exceptional debrid infrastructure, lightning-fast WebDL cloud caching, and high-bandwidth global CDN delivery.
+- **[Nyaa.si & Tokyo Toshokan](https://nyaa.si)**: Global anime, Asian live-action drama & OST community metadata, indexing, and RSS feeds.
+- **[1TamilMV & TamilBlasters Community](https://1tamilmv.tf)**: Premier regional Indian entertainment trackers for Hindi, Tamil, Telugu, Malayalam, and Kannada releases.
+- **[YTS.mx & EZTV APIs](https://yts.mx)**: Public community APIs for high-efficiency movie releases and global television series episodes.
+- **[IPTV-org Community](https://iptv-org.github.io)**: Public domain worldwide live television broadcasts, logos, categories, and electronic program guides.
+- **[OpenSubtitles.org v3 API](https://opensubtitles.com)**: Direct multilingual subtitle synchronization across 90+ languages without mandatory VIP registration.
 - **[CNCVerse-Bridge](https://github.com/CNCVerse/Bridge)**: Design inspiration for DNS-over-HTTPS fallback, segment caching, and on-the-fly virtual HLS playlist converter.
 - **[Torrentio](https://torrentio.strem.fun)**, **[MediaFusion](https://github.com/mhdzumair/MediaFusion)**, **[Comet](https://github.com/g0ldy/comet)**, **[AIOStreams](https://github.com/Viren070/AIOStreams)** & **[EasyTorbox](https://github.com/sagetendo/EasyTorbox)**: For shaping modern community debrid streaming workflows and Stremio/Nuvio addon conventions.
 

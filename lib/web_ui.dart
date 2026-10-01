@@ -2077,16 +2077,20 @@ class WebUI {
       </p>
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
         <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
-          <strong style="color:#79c0ff; font-size:0.95rem;">Nuvio Streaming App</strong>
-          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Next-generation streaming client whose native badge system, sleek layout, and debrid philosophy inspired Hostreamio&apos;s UI &amp; stream architecture.</div>
-        </div>
-        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
-          <strong style="color:#a371f7; font-size:0.95rem;">Cloudstream (recloudstream)</strong>
-          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Pioneering open modular scraping framework and multi-provider cloud resolvers that inspired Hostreamio&apos;s direct hoster extractors.</div>
-        </div>
-        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
           <strong style="color:var(--blue); font-size:0.95rem;">PlayTorrio (ayman708-UX)</strong>
           <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Original base Dart scraper architecture, StreamSource models, Knaben aggregator &amp; TorrentGalaxy scrapers.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#79c0ff; font-size:0.95rem;">Cloudstream 3 Community &amp; Extension Authors</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Pioneering hoster extraction patterns and cloud link bypass techniques (Hexated, Stormunblessed, Hindi Providers).</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#7ee787; font-size:0.95rem;">Nuvio Team</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Next-gen TV and desktop streaming player with beautiful native badge pill rendering and player UX.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#0070f3; font-size:0.95rem;">TorBox</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Exceptional debrid infrastructure, lightning-fast WebDL cloud caching, and high-bandwidth global CDN delivery.</div>
         </div>
         <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
           <strong style="color:#ff69b4; font-size:0.95rem;">Nyaa.si &amp; Tokyo Toshokan</strong>
@@ -2101,12 +2105,20 @@ class WebUI {
           <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Public community APIs for high-efficiency movie releases and global television series episodes.</div>
         </div>
         <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
-          <strong style="color:#58a6ff; font-size:0.95rem;">IPTV-org Community</strong>
+          <strong style="color:#38bdf8; font-size:0.95rem;">IPTV-org Community</strong>
           <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Public domain worldwide live television broadcasts, logos, categories, and electronic program guides.</div>
         </div>
         <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
           <strong style="color:#e3b341; font-size:0.95rem;">OpenSubtitles.org v3 API</strong>
-          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Direct subtitle synchronization across 50+ languages without mandatory VIP registration.</div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Direct subtitle synchronization across 90+ languages without mandatory VIP registration.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#bc8cff; font-size:0.95rem;">CNCVerse-Bridge</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Design inspiration for DNS-over-HTTPS fallback, segment caching, and virtual HLS playlist converter.</div>
+        </div>
+        <div style="background:#090d13; border:1px solid var(--border); border-radius:8px; padding:14px;">
+          <strong style="color:#d29922; font-size:0.95rem;">Torrentio, MediaFusion, Comet, AIOStreams &amp; EasyTorbox</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">For shaping modern community debrid streaming workflows and Stremio/Nuvio addon conventions.</div>
         </div>
       </div>
     </div>
