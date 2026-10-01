@@ -93,10 +93,11 @@ class WebUI {
       min-height: 100vh;
     }
     .sidebar {
-      width: 250px;
+      width: 68px;
+      transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
       background: #0d1117;
       border-right: 1px solid var(--border);
-      padding: 20px 14px;
+      padding: 16px 8px;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -107,6 +108,27 @@ class WebUI {
       overflow-y: auto;
       box-sizing: border-box;
       z-index: 100;
+    }
+    .sidebar.expanded {
+      width: 250px;
+      padding: 20px 14px;
+    }
+    .sidebar:not(.expanded) .sidebar-brand-text,
+    .sidebar:not(.expanded) .sidebar-nav-btn > span:not(.nav-icon),
+    .sidebar:not(.expanded) .sidebar-footer span {
+      display: none;
+    }
+    .sidebar:not(.expanded) .sidebar-brand {
+      justify-content: center;
+      padding: 6px 0 14px 0;
+    }
+    .sidebar:not(.expanded) .sidebar-nav-btn {
+      justify-content: center;
+      padding: 12px 0;
+    }
+    .sidebar:not(.expanded) .sidebar-footer {
+      justify-content: center;
+      padding: 12px 0;
     }
     .sidebar-brand {
       display: flex;
@@ -1287,8 +1309,8 @@ class WebUI {
 <body>
   <div class="app-layout">
     <!-- Left Navigation Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-brand" onclick="switchMainTab('about')" title="About Hostreamio">
+    <aside class="sidebar" id="mainSidebar">
+      <div class="sidebar-brand" onclick="toggleSidebar()" title="Click to Expand / Collapse Sidebar">
         <img src="/logo.png" alt="Hostreamio" class="sidebar-brand-logo" />
         <div class="sidebar-brand-text">
           <span class="sidebar-brand-title">Hostreamio</span>
@@ -1296,33 +1318,33 @@ class WebUI {
         </div>
       </div>
       <div class="sidebar-nav-group">
-        <button id="tabBtnServer" class="sidebar-nav-btn active" onclick="switchMainTab('server')">
+        <button id="tabBtnServer" class="sidebar-nav-btn active" onclick="switchMainTab('server')" title="Server &amp; Addon">
           <span class="nav-icon">🖥️</span>
           <span>Server &amp; Addon</span>
         </button>
-        <button id="tabBtnSearch" class="sidebar-nav-btn" onclick="switchMainTab('search')">
+        <button id="tabBtnSearch" class="sidebar-nav-btn" onclick="switchMainTab('search')" title="Search &amp; Scrape">
           <span class="nav-icon">🔍</span>
           <span>Search &amp; Scrape</span>
         </button>
-        <button id="tabBtnStreaming" class="sidebar-nav-btn" onclick="switchMainTab('streaming')">
+        <button id="tabBtnStreaming" class="sidebar-nav-btn" onclick="switchMainTab('streaming')" title="Cinema &amp; Series">
           <span class="nav-icon">🎬</span>
           <span>Cinema &amp; Series</span>
         </button>
-        <button id="tabBtnIptv" class="sidebar-nav-btn" onclick="switchMainTab('iptv')">
+        <button id="tabBtnIptv" class="sidebar-nav-btn" onclick="switchMainTab('iptv')" title="Live IPTV">
           <span class="nav-icon">📺</span>
           <span>Live IPTV</span>
         </button>
-        <button id="tabBtnCaching" class="sidebar-nav-btn" onclick="switchMainTab('caching')">
+        <button id="tabBtnCaching" class="sidebar-nav-btn" onclick="switchMainTab('caching')" title="Caching Queue">
           <span class="nav-icon">⚡</span>
           <span>Caching Queue</span>
           <span id="sidebarQueueBadge" class="badge" style="display:none; background:#ff0c82; color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:10px; margin-left:auto; font-weight:bold;">0</span>
         </button>
-        <button id="tabBtnAbout" class="sidebar-nav-btn" onclick="switchMainTab('about')">
+        <button id="tabBtnAbout" class="sidebar-nav-btn" onclick="switchMainTab('about')" title="About &amp; Diagnostics">
           <span class="nav-icon">ℹ️</span>
           <span>About &amp; Diagnostics</span>
         </button>
       </div>
-      <div class="sidebar-footer">
+      <div class="sidebar-footer" onclick="toggleSidebar()" title="Click to Expand / Collapse Sidebar" style="cursor:pointer;">
         <div class="sidebar-status-dot"></div>
         <span>v1.0.0 Ready</span>
       </div>
@@ -2297,7 +2319,10 @@ class WebUI {
     let currentStreams = [];
     let activeFilter = 'all';
     let currentHls = null;
-    let activeMainTab = 'server';
+    function toggleSidebar() {
+      const sb = document.getElementById('mainSidebar');
+      if (sb) sb.classList.toggle('expanded');
+    }
 
     function switchMainTab(tab) {
       activeMainTab = tab;

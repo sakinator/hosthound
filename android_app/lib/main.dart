@@ -13,9 +13,12 @@ import 'metadata_service.dart';
 import 'scraper_engine.dart';
 import 'server_service.dart';
 import 'torbox_service.dart';
+import 'package:media_kit/media_kit.dart';
+import 'player_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   await ServerService.instance.init();
   // Auto-start server on app launch
   await ServerService.instance.startServer();
@@ -58,6 +61,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // Tab Navigation State
   int _selectedTabIndex = 0; // 0 = Server, 1 = Streaming, 2 = Live IPTV, 3 = Caching, 4 = About
+  // Sidebar state (collapsed to icon-only by default for better view on Android and Windows)
+  bool _isSidebarExpanded = false;
   final FocusNode _serverTabFocus = FocusNode();
   final FocusNode _streamingTabFocus = FocusNode();
   final FocusNode _iptvTabFocus = FocusNode();
@@ -718,66 +723,111 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   }
 
   Widget _buildSidebarNav(bool running) {
-    return Container(
-      width: 240,
+    final isExpanded = _isSidebarExpanded;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+      width: isExpanded ? 230 : 68,
       height: double.infinity,
       decoration: const BoxDecoration(
         color: Color(0xFF0D1117),
         border: Border(right: BorderSide(color: Color(0xFF1F2432))),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 14),
+      padding: EdgeInsets.symmetric(vertical: 20, horizontal: isExpanded ? 12 : 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: isExpanded ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
         children: [
-          // Brand Logo & Title
+          // Brand Logo & Expand/Collapse Toggle
           InkWell(
-            onTap: () => setState(() => _selectedTabIndex = 3),
+            onTap: () => setState(() => _isSidebarExpanded = !_isSidebarExpanded),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding: const EdgeInsets.all(6.0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF0C82).withOpacity(0.4),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/images/hostreamio_logo.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: const Color(0xFF195FEB),
-                          child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 22),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+              child: isExpanded
+                  ? Row(
                       children: [
-                        Text('Hostreamio', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFFFF0C82))),
-                        Text('Direct & Debrid', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF0C82).withOpacity(0.4),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.asset(
+                              'assets/images/hostreamio_logo.png',
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFF195FEB),
+                                child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 20),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Hostreamio', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFFFF0C82))),
+                              Text('Direct & Debrid', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.menu_open_rounded, color: Colors.grey, size: 20),
+                          tooltip: 'Collapse sidebar',
+                          onPressed: () => setState(() => _isSidebarExpanded = false),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Tooltip(
+                          message: 'Hostreamio (Click to expand)',
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFF0C82).withOpacity(0.4),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.asset(
+                                'assets/images/hostreamio_logo.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: const Color(0xFF195FEB),
+                                  child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 20),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 16),
                       ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           const Divider(color: Color(0xFF1F2432), height: 1),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
 
           // 5 Menu Buttons on Side Pane
           _buildSidebarNavButton(0, Icons.dns_rounded, 'Server & Addon', _serverTabFocus),
@@ -792,37 +842,69 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
           const Spacer(),
           // Running status indicator
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF161B22),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF30363D)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
+          isExpanded
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: running ? const Color(0xFF3FB950) : const Color(0xFFF85149),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: running ? const Color(0xFF3FB950).withOpacity(0.6) : const Color(0xFFF85149).withOpacity(0.6),
-                        blurRadius: 6,
+                    color: const Color(0xFF161B22),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF30363D)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: running ? const Color(0xFF3FB950) : const Color(0xFFF85149),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: running ? const Color(0xFF3FB950).withOpacity(0.6) : const Color(0xFFF85149).withOpacity(0.6),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        running ? 'Engine Online' : 'Engine Stopped',
+                        style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
+                )
+              : Tooltip(
+                  message: running ? 'Engine Online (Click to toggle)' : 'Engine Stopped (Click to toggle)',
+                  child: InkWell(
+                    onTap: () => setState(() => _isSidebarExpanded = true),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161B22),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF30363D)),
+                      ),
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: running ? const Color(0xFF3FB950) : const Color(0xFFF85149),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: running ? const Color(0xFF3FB950).withOpacity(0.6) : const Color(0xFFF85149).withOpacity(0.6),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  running ? 'Engine Online' : 'Engine Stopped',
-                  style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -830,51 +912,79 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   Widget _buildSidebarNavButton(int index, IconData icon, String label, FocusNode focusNode) {
     final isSelected = _selectedTabIndex == index;
-    return _TvFocusableButton(
-      focusNode: focusNode,
-      onPressed: () {
-        setState(() => _selectedTabIndex = index);
-        if (index == 2 && _iptvChannels.isEmpty && !_isLoadingIptv) {
-          _loadIptvChannels(reset: true);
-        } else if (index == 3) {
-          _loadCacheQueue(showFeedback: false);
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: isSelected ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)]) : null,
-          color: isSelected ? null : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isSelected ? const Color(0xFFFF0C82).withOpacity(0.5) : Colors.transparent),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: isSelected ? Colors.white : Colors.grey.shade400),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? Colors.white : Colors.grey.shade300,
+    final isExpanded = _isSidebarExpanded;
+
+    return Tooltip(
+      message: isExpanded ? '' : label,
+      preferBelow: false,
+      child: _TvFocusableButton(
+        focusNode: focusNode,
+        onPressed: () {
+          setState(() => _selectedTabIndex = index);
+          if (index == 2 && _iptvChannels.isEmpty && !_isLoadingIptv) {
+            _loadIptvChannels(reset: true);
+          } else if (index == 3) {
+            _loadCacheQueue(showFeedback: false);
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: isExpanded ? 12 : 8, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: isSelected ? const LinearGradient(colors: [Color(0xFF195FEB), Color(0xFFFF0C82)]) : null,
+            color: isSelected ? null : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isSelected ? const Color(0xFFFF0C82).withOpacity(0.5) : Colors.transparent),
+          ),
+          child: isExpanded
+              ? Row(
+                  children: [
+                    Icon(icon, size: 20, color: isSelected ? Colors.white : Colors.grey.shade400),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.white : Colors.grey.shade300,
+                        ),
+                      ),
+                    ),
+                    if (index == 3 && _cacheQueueItems.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF0C82),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${_cacheQueueItems.length}',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                  ],
+                )
+              : Center(
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(icon, size: 22, color: isSelected ? Colors.white : Colors.grey.shade400),
+                      if (index == 3 && _cacheQueueItems.isNotEmpty)
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF0C82),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-            if (index == 3 && _cacheQueueItems.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF0C82),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${_cacheQueueItems.length}',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ),
-          ],
         ),
       ),
     );
@@ -4260,15 +4370,53 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     return '';
   }
 
-  Future<void> _playStream(dynamic streamTarget, {String? packageName, bool forceChooser = false}) async {
+  Future<void> _playStream(
+    dynamic streamTarget, {
+    String? packageName,
+    bool forceChooser = false,
+    bool forceExternal = false,
+  }) async {
     final playUrl = _resolvePlayUrl(streamTarget);
     if (playUrl.isEmpty) return;
 
     String title = '';
+    String subtitle = '';
+    Map<String, String>? headers;
+
     if (streamTarget is Map) {
       title = streamTarget['cleanTitle']?.toString() ?? streamTarget['title']?.toString() ?? '';
+      subtitle = streamTarget['cleanName']?.toString() ?? streamTarget['name']?.toString() ?? '';
+      final bh = streamTarget['behaviorHints'] is Map ? streamTarget['behaviorHints'] as Map : null;
+      if (bh != null && bh['proxyHeaders'] is Map && bh['proxyHeaders']['request'] is Map) {
+        final headersMap = <String, String>{};
+        (bh['proxyHeaders']['request'] as Map).forEach((k, v) {
+          if (k != null && v != null) headersMap[k.toString()] = v.toString();
+        });
+        if (headersMap.isNotEmpty) headers = headersMap;
+      }
+    } else if (streamTarget is String) {
+      title = streamTarget;
     }
 
+    // Default: Open in built-in high-performance libmpv player (for both Android & Windows)
+    if (!forceChooser && !forceExternal && packageName == null) {
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PlayerScreen(
+              streamUrl: playUrl,
+              title: title.isNotEmpty ? title : 'Hostreamio Stream',
+              subtitle: subtitle.isNotEmpty ? subtitle : null,
+              headers: headers,
+              onOpenExternal: () => _playStream(streamTarget, forceChooser: true, forceExternal: true),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    // External player fallback (for Android Intent or platform default)
     try {
       if (Platform.isAndroid) {
         final success = await _playerChannel.invokeMethod<bool>('playStream', {
@@ -4290,7 +4438,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             ),
           );
         }
-        await _playStream(streamTarget, forceChooser: true);
+        await _playStream(streamTarget, forceChooser: true, forceExternal: true);
         return;
       }
     } catch (_) {}
@@ -4336,6 +4484,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     if (!mounted) return;
 
     final players = [
+      {
+        'id': 'internal_libmpv',
+        'title': 'Internal Player (libmpv)',
+        'subtitle': 'Built-in player • Hardware acceleration & styled subtitles',
+        'icon': Icons.smart_display_rounded,
+        'package': null,
+        'forceChooser': false,
+        'color': const Color(0xFFFF0C82),
+        'isInstalled': true,
+      },
       {
         'id': 'chooser',
         'title': 'App Chooser (Open With...)',
@@ -4559,11 +4717,14 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           Navigator.of(ctx).pop();
                           if (p['id'] == 'browser') {
                             _launchBrowserFallback(playUrl);
+                          } else if (p['id'] == 'internal_libmpv') {
+                            _playStream(s);
                           } else {
                             _playStream(
                               s,
                               packageName: p['package'] as String?,
                               forceChooser: p['forceChooser'] as bool,
+                              forceExternal: true,
                             );
                           }
                         },

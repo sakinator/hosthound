@@ -17,6 +17,10 @@ dependencies:
   shared_preferences: ^2.3.2
   flutter_foreground_task: ^6.1.1
   url_launcher: ^6.3.0
+  media_kit: ^1.1.11
+  media_kit_video: ^1.2.5
+  media_kit_libs_windows_video: ^1.6.0
+  media_kit_libs_android_video: ^1.6.0
 
 
 dev_dependencies:

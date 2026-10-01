@@ -42,6 +42,7 @@ class ServerService {
   }
 
   void _initForegroundTask() {
+    if (!Platform.isAndroid) return;
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'hostreamio_server_channel',
@@ -137,15 +138,17 @@ class ServerService {
       _addLog('Server started on http://${localIp.value}:${cfg.port}');
 
       // Start foreground service to keep CPU awake on Android TV / Mobile
-      try {
-        if (!await FlutterForegroundTask.isRunningService) {
-          await FlutterForegroundTask.startService(
-            notificationTitle: 'Hostreamio Server Active',
-            notificationText: 'Serving Nuvio streams on port ${cfg.port}',
-          );
+      if (Platform.isAndroid) {
+        try {
+          if (!await FlutterForegroundTask.isRunningService) {
+            await FlutterForegroundTask.startService(
+              notificationTitle: 'Hostreamio Server Active',
+              notificationText: 'Serving Nuvio streams on port ${cfg.port}',
+            );
+          }
+        } catch (e) {
+          _addLog('Foreground service note: $e');
         }
-      } catch (e) {
-        _addLog('Foreground service note: $e');
       }
 
       _listenToRequests(_server!, cfg.port);
@@ -167,11 +170,13 @@ class ServerService {
       statusMessage.value = 'Stopped';
       _addLog('Server stopped');
 
-      try {
-        if (await FlutterForegroundTask.isRunningService) {
-          await FlutterForegroundTask.stopService();
-        }
-      } catch (_) {}
+      if (Platform.isAndroid) {
+        try {
+          if (await FlutterForegroundTask.isRunningService) {
+            await FlutterForegroundTask.stopService();
+          }
+        } catch (_) {}
+      }
     } catch (e) {
       _addLog('Error stopping server: $e');
     }
