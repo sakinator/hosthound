@@ -131,13 +131,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       _subscriptions.addAll([
         _player.stream.playing.listen((playing) {
-          if (mounted) setState(() => _isPlaying = playing);
+          if (mounted) {
+            if (_hasError && playing) {
+              setState(() {
+                _hasError = false;
+                _errorMessage = '';
+                _isPlaying = playing;
+              });
+            } else {
+              setState(() => _isPlaying = playing);
+            }
+          }
         }),
         _player.stream.buffering.listen((buffering) {
           if (mounted) setState(() => _isBuffering = buffering);
         }),
         _player.stream.position.listen((pos) {
-          if (mounted) setState(() => _position = pos);
+          if (mounted) {
+            if (_hasError && pos > Duration.zero) {
+              setState(() {
+                _hasError = false;
+                _errorMessage = '';
+                _position = pos;
+              });
+            } else {
+              setState(() => _position = pos);
+            }
+          }
         }),
         _player.stream.duration.listen((dur) {
           if (mounted) setState(() => _duration = dur);
@@ -160,6 +180,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (mounted) setState(() => _volume = vol);
         }),
         _player.stream.error.listen((err) {
+          final errLower = err.toLowerCase();
+          final isNonFatal = errLower.contains('external file') ||
+              errLower.contains('sub-files') ||
+              errLower.contains('subtitle') ||
+              errLower.contains('attachment') ||
+              errLower.contains('font');
+          if (isNonFatal || _isPlaying || _position > Duration.zero) {
+            debugPrint('[Player] Suppressed non-fatal player error during active playback: $err');
+            if (isNonFatal) {
+              _showHud('Subtitle/track note: $err');
+            }
+            return;
+          }
           if (mounted) {
             setState(() {
               _hasError = true;
@@ -239,7 +272,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  /// Injects an external subtitle URL into the mpv player via sub-add.
+  /// Injects an external subtitle into the mpv player via sub-add.
+  /// Downloads locally first to prevent libmpv network stream failures or TLS timeouts.
   Future<void> _loadExternalSubtitle(int index) async {
     if (index < 0 || index >= _fetchedSubtitles.length) return;
     final sub = _fetchedSubtitles[index];
@@ -247,14 +281,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (url.isEmpty) return;
 
     try {
+      final lang = (sub['lang']?.toString() ?? 'unknown').toUpperCase();
+      _showHud('Loading $lang subtitles...');
+
+      final localPath = await OpenSubtitlesService.instance.downloadSubtitle(
+        url,
+        subId: sub['id']?.toString(),
+      );
+
+      final pathToAdd = (localPath != null && File(localPath).existsSync()) ? localPath : url;
+
       if (_player.platform is NativePlayer) {
         final np = _player.platform as NativePlayer;
-        // Clear existing external subs, then add new one
-        await np.setProperty('sub-files', '');
-        await np.command(['sub-add', url, 'select']);
+        await np.command(['sub-add', pathToAdd, 'select']);
         if (mounted) {
           setState(() => _selectedExternalSubIndex = index);
-          final lang = (sub['lang']?.toString() ?? 'unknown').toUpperCase();
           _showHud('Subtitles: $lang ✓');
         }
       }
@@ -269,14 +310,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// Clears the currently loaded external subtitle.
   Future<void> _clearExternalSubtitle() async {
     try {
-      if (_player.platform is NativePlayer) {
-        final np = _player.platform as NativePlayer;
-        await np.setProperty('sub-files', '');
-        await _player.setSubtitleTrack(SubtitleTrack.no());
-        if (mounted) {
-          setState(() => _selectedExternalSubIndex = -1);
-          _showHud('Subtitles: Off');
-        }
+      await _player.setSubtitleTrack(SubtitleTrack.no());
+      if (mounted) {
+        setState(() => _selectedExternalSubIndex = -1);
+        _showHud('Subtitles: Off');
       }
     } catch (e) {
       debugPrint('[Subtitles] clear failed: $e');
@@ -784,8 +821,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
 
-              // Error Display
-              if (_hasError)
+              // Error Display — only shown if stream failed to open and is not actually playing
+              if (_hasError && !_isPlaying && _position == Duration.zero)
                 Center(
                   child: Container(
                     margin: const EdgeInsets.all(24),
@@ -799,7 +836,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Header row with ✕ close button
+                        // Header row with ✕ dismiss button (does NOT close player, only dismisses error dialog)
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -808,8 +845,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               icon: const Icon(Icons.close_rounded, color: Colors.grey, size: 22),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
-                              tooltip: 'Close Player',
-                              onPressed: () => Navigator.of(context).pop(),
+                              tooltip: 'Dismiss Error',
+                              onPressed: () {
+                                setState(() {
+                                  _hasError = false;
+                                  _errorMessage = '';
+                                });
+                              },
                             ),
                           ],
                         ),
@@ -857,7 +899,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           runSpacing: 8,
                           alignment: WrapAlignment.center,
                           children: [
-                            // Close / Go Back
+                            // Dismiss (closes dialog, stays in player)
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _hasError = false;
+                                  _errorMessage = '';
+                                });
+                              },
+                              icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                              label: const Text('Dismiss'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white70,
+                                side: const BorderSide(color: Color(0xFF30363D)),
+                                minimumSize: const Size(100, 38),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              ),
+                            ),
+                            // Close / Go Back (exits player back to catalog)
                             OutlinedButton.icon(
                               onPressed: () => Navigator.of(context).pop(),
                               icon: const Icon(Icons.arrow_back_rounded, size: 16),
@@ -865,8 +924,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white70,
                                 side: const BorderSide(color: Color(0xFF30363D)),
-                                minimumSize: const Size(110, 38),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                minimumSize: const Size(100, 38),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               ),
                             ),
                             // Retry

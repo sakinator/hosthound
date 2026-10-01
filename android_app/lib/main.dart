@@ -10,6 +10,7 @@ import 'config.dart';
 import 'iptv_service.dart';
 import 'key_validator.dart';
 import 'metadata_service.dart';
+import 'dtdd_service.dart';
 import 'scraper_engine.dart';
 import 'server_service.dart';
 import 'torbox_service.dart';
@@ -114,6 +115,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   final TextEditingController _omdbKeyController = TextEditingController();
   final TextEditingController _fanartKeyController = TextEditingController();
   final TextEditingController _tvdbKeyController = TextEditingController();
+  final TextEditingController _dtddKeyController = TextEditingController();
   final Map<String, String?> _apiStatusMessages = {};
   final Map<String, bool> _apiValidating = {};
   final Map<String, bool> _apiValid = {};
@@ -143,6 +145,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Map<String, dynamic>? _seriesDetails;
   int _selectedSeason = 1;
   String? _selectedEpisodeId;
+  bool _isDtddExpanded = false;
+  bool _isLoadingDtdd = false;
 
   bool _isScrapingStreams = false;
   List<Map<String, dynamic>> _scrapedStreams = [];
@@ -261,6 +265,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     _omdbKeyController.text = cfg.omdbApiKey;
     _fanartKeyController.text = cfg.fanartApiKey;
     _tvdbKeyController.text = cfg.tvdbApiKey;
+    _dtddKeyController.text = cfg.dtddApiKey;
     _selectedAudioLang = cfg.preferredLanguage;
     _selectedMaxRes = cfg.maxResolution;
     _excludeCams = cfg.excludeCams;
@@ -299,6 +304,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     _omdbKeyController.dispose();
     _fanartKeyController.dispose();
     _tvdbKeyController.dispose();
+    _dtddKeyController.dispose();
     _searchQueryController.dispose();
     _seasonController.dispose();
     _episodeController.dispose();
@@ -2054,6 +2060,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     cfg.omdbApiKey = _omdbKeyController.text.trim();
     cfg.fanartApiKey = _fanartKeyController.text.trim();
     cfg.tvdbApiKey = _tvdbKeyController.text.trim();
+    cfg.dtddApiKey = _dtddKeyController.text.trim();
     await cfg.save();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2279,6 +2286,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             hintText: 'Pre-configured fallback key active',
             helpUrl: 'https://www.themoviedb.org/settings/api',
             helpLabel: 'Get TMDB Key ↗',
+          ),
+          _buildApiRow(
+            title: '5. DoesTheDogDie (DTDD) API Key (Content Warnings & Triggers)',
+            subtitle: 'Enables community trigger advisories & content warnings (e.g. animal death, jumpscares) in media details.',
+            service: 'dtdd',
+            controller: _dtddKeyController,
+            hintText: 'Leave empty for zero-key web resolution fallback',
+            helpUrl: 'https://www.doesthedogdie.com',
+            helpLabel: 'Get DTDD Key (Free) ↗',
           ),
         ],
       ),
@@ -3176,6 +3192,248 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
+  /// Asynchronously fetches full metadata details (description, multi-source ratings,
+  /// genres, cast) and DoesTheDogDie (DTDD) community trigger warnings.
+  Future<void> _fetchRichMediaDetailsAndDtdd(String rawId, String type, String name, {String? yearStr}) async {
+    setState(() => _isLoadingDtdd = true);
+
+    // 1. Fetch full metadata (ratings, description, genres, year, cast, etc.)
+    try {
+      final details = await MetadataService.getMediaDetails(rawId, type: type);
+      if (mounted && details != null && _selectedMediaMeta?['id'] == rawId) {
+        setState(() {
+          _selectedMediaMeta = {
+            ...?_selectedMediaMeta,
+            ...details,
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('[Metadata] Error loading media details: $e');
+    }
+
+    // 2. Fetch DoesTheDogDie content warnings
+    try {
+      final cleanYear = int.tryParse((yearStr ?? _selectedMediaMeta?['year']?.toString() ?? '').split('-').first);
+      final dtddData = await DtddService.instance.getContentWarnings(
+        rawId,
+        title: name,
+        year: cleanYear,
+      );
+      if (mounted && dtddData.isNotEmpty && _selectedMediaMeta?['id'] == rawId) {
+        setState(() {
+          _selectedMediaMeta = {
+            ...?_selectedMediaMeta,
+            'dtdd': dtddData,
+          };
+          _isLoadingDtdd = false;
+        });
+        return;
+      }
+    } catch (e) {
+      debugPrint('[DTDD] Error fetching content warnings: $e');
+    }
+
+    if (mounted) setState(() => _isLoadingDtdd = false);
+  }
+
+  /// Builds the DoesTheDogDie Content Advisories card with community triggers and links.
+  Widget _buildDtddCard(Map<String, dynamic>? dtdd, String title, String rawId) {
+    final triggers = (dtdd?['triggers'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final safe = (dtdd?['safe'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final dtddUrl = dtdd?['url']?.toString() ?? 'https://www.doesthedogdie.com/search?q=${Uri.encodeComponent(title)}';
+    final hasTriggers = triggers.isNotEmpty;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF11141C),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasTriggers ? const Color(0xFFF85149).withOpacity(0.5) : const Color(0xFF1F2432),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header Bar
+          InkWell(
+            onTap: () => setState(() => _isDtddExpanded = !_isDtddExpanded),
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.pets_rounded, color: Color(0xFFE3B341), size: 18),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'DoesTheDogDie Advisories',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_isLoadingDtdd)
+                    const Text('⏳ Checking...', style: TextStyle(fontSize: 11, color: Colors.grey))
+                  else if (dtdd == null)
+                    const Text('ℹ️ Community ratings', style: TextStyle(fontSize: 11, color: Colors.grey))
+                  else if (hasTriggers)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF85149).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: const Color(0xFFF85149).withOpacity(0.5)),
+                      ),
+                      child: Text(
+                        '⚠️ ${triggers.length} Triggers',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF85149)),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF238636).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: const Color(0xFF238636).withOpacity(0.5)),
+                      ),
+                      child: const Text(
+                        '✅ No Major Triggers',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF3FB950)),
+                      ),
+                    ),
+                  const Spacer(),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      minimumSize: const Size(60, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () async {
+                      try {
+                        final uri = Uri.parse(dtddUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      } catch (_) {}
+                    },
+                    icon: const Icon(Icons.open_in_new_rounded, size: 12, color: Color(0xFF58A6FF)),
+                    label: const Text('doesthedogdie.com', style: TextStyle(fontSize: 11, color: Color(0xFF58A6FF))),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _isDtddExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Expanded Content Panel
+          if (_isDtddExpanded)
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: Color(0xFF1F2432))),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  if (_isLoadingDtdd)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                          SizedBox(width: 8),
+                          Text('Checking community safety triggers...', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    )
+                  else if (dtdd == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text('No advisory data returned yet.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    )
+                  else if (triggers.isEmpty && safe.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text('No triggers submitted by community members for this title.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    )
+                  else ...[
+                    if (triggers.isNotEmpty) ...[
+                      const Text(
+                        'Community Trigger Warnings:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFFF85149)),
+                      ),
+                      const SizedBox(height: 6),
+                      ...triggers.take(8).map((t) {
+                        final topic = t['topic']?.toString() ?? '';
+                        final yes = t['yes'] ?? 0;
+                        final no = t['no'] ?? 0;
+                        final comment = t['comment']?.toString();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 2),
+                                child: Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFF85149)),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    RichText(
+                                      text: TextSpan(
+                                        text: topic,
+                                        style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500),
+                                        children: [
+                                          TextSpan(
+                                            text: '  (Yes: $yes • No: $no)',
+                                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (comment != null && comment.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          comment,
+                                          style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    if (safe.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Safe Topics: ${safe.take(5).map((s) => s['topic']?.toString() ?? '').where((s) => s.isNotEmpty).join(', ')}',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF3FB950)),
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDedicatedMediaDetailView({bool isWide = false}) {
     final meta = _selectedMediaMeta ?? {};
     final id = meta['id']?.toString() ?? '';
@@ -3183,8 +3441,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     final poster = meta['poster']?.toString() ?? (id.isNotEmpty ? 'https://images.metahub.space/poster/medium/$id/img' : '');
     final year = meta['year']?.toString() ?? '';
     final rating = meta['rating']?.toString() ?? meta['imdbRating']?.toString() ?? '';
-    final desc = meta['description']?.toString() ?? '';
+    final desc = meta['description']?.toString() ?? meta['overview']?.toString() ?? '';
     final genres = meta['genres'] is List ? (meta['genres'] as List).map((e) => e.toString()).toList() : <String>[];
+    final dtdd = meta['dtdd'] as Map<String, dynamic>?;
+    final universalAge = meta['universalAgeRating']?.toString() ?? '';
+    final indianAge = meta['indianAgeRating']?.toString() ?? '';
+    final ratingsList = (meta['ratings'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3293,7 +3555,22 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                               ),
                               if (year.isNotEmpty)
                                 Text(year, style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.bold)),
-                              if (rating.isNotEmpty && rating != '0')
+                              // Multi-source ratings
+                              if (ratingsList.isNotEmpty)
+                                ...ratingsList.map((r) {
+                                  final src = r['source']?.toString() ?? '';
+                                  final val = r['value']?.toString() ?? '';
+                                  final isRotten = src.toLowerCase().contains('rotten');
+                                  final isMeta = src.toLowerCase().contains('metacritic');
+                                  return Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(isRotten ? '🍅 ' : (isMeta ? 'Ⓜ️ ' : '★ '), style: const TextStyle(fontSize: 12)),
+                                      Text(val, style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+                                    ],
+                                  );
+                                })
+                              else if (rating.isNotEmpty && rating != '0')
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -3301,6 +3578,24 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                                     const SizedBox(width: 4),
                                     Text(rating, style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold)),
                                   ],
+                                ),
+                              if (universalAge.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade600),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(universalAge, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                ),
+                              if (indianAge.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: const Color(0xFFFF9933)),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(indianAge, style: const TextStyle(fontSize: 10, color: Color(0xFFFF9933), fontWeight: FontWeight.bold)),
                                 ),
                               ...genres.map((g) => Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -3316,7 +3611,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                             const SizedBox(height: 12),
                             Text(
                               desc,
-                              maxLines: 4,
+                              maxLines: 6,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 13, color: Colors.grey.shade300, height: 1.4),
                             ),
@@ -3384,7 +3679,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                                   ),
                                   if (year.isNotEmpty)
                                     Text(year, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                  if (rating.isNotEmpty && rating != '0')
+                                  if (ratingsList.isNotEmpty)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.star_rounded, size: 14, color: Color(0xFFE3B341)),
+                                        const SizedBox(width: 2),
+                                        Text(ratingsList.first['value']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                      ],
+                                    )
+                                  else if (rating.isNotEmpty && rating != '0')
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -3393,8 +3697,26 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                                         Text(rating, style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
+                                  if (universalAge.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey.shade600),
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: Text(universalAge, style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                    ),
                                 ],
                               ),
+                              if (genres.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  genres.take(3).join(', '),
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -3404,7 +3726,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                       const SizedBox(height: 10),
                       Text(
                         desc,
-                        maxLines: 3,
+                        maxLines: 4,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade400, height: 1.3),
                       ),
@@ -3412,6 +3734,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                   ],
                 ),
         ),
+        const SizedBox(height: 14),
+
+        // DoesTheDogDie Content Advisories & Trigger Warnings Card
+        _buildDtddCard(dtdd, name, id),
         const SizedBox(height: 16),
 
         // Series Seasons & Episode browser (if series)
@@ -3768,14 +4094,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     final name = item['name']?.toString() ?? '';
     final type = item['type']?.toString() ?? 'movie';
     final poster = item['poster']?.toString();
+    final year = item['year']?.toString() ?? item['releaseInfo']?.toString();
 
     _searchQueryController.text = id;
     setState(() {
       _selectedMediaType = type;
-      _selectedMediaMeta = item;
+      _selectedMediaMeta = Map<String, dynamic>.from(item);
       _isInDetailView = true;
       _scrapedStreams = [];
     });
+
+    _fetchRichMediaDetailsAndDtdd(id, type, name, yearStr: year);
 
     if (type == 'series') {
       _loadSeriesCatalog(id, name, poster);
@@ -4061,11 +4390,39 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             final isCacheTag = s['isCache'] == true;
 
             // Extract scene filename and extra source/host metadata cleanly
-            final titleParts = title.split(' • ');
-            final sceneFilename = titleParts.isNotEmpty ? titleParts.first.trim() : name;
-            final metaParts = titleParts.length > 1
-                ? titleParts.skip(1).where((p) => p.startsWith('Source:') || p.startsWith('Host:') || p.startsWith('Also mirrored on:')).join(' • ')
-                : '';
+            final rawLines = title.split(RegExp(r'[\r\n]+')).map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+            final sceneFilename = rawLines.isNotEmpty
+                ? rawLines.first.split(' • ').first.trim()
+                : (name.isNotEmpty ? name.split('\n').first.trim() : 'Stream Link');
+
+            final metaItems = <String>[];
+            for (final line in rawLines) {
+              for (final part in line.split(' • ')) {
+                final trimmed = part.trim();
+                if (trimmed.isEmpty) continue;
+                if (trimmed.contains('Source:') ||
+                    trimmed.contains('Host:') ||
+                    trimmed.contains('Provider:') ||
+                    trimmed.contains('mirrored') ||
+                    trimmed.contains('Broadcast')) {
+                  if (!metaItems.contains(trimmed)) {
+                    metaItems.add(trimmed);
+                  }
+                }
+              }
+            }
+
+            // Fallback to stream provider and host if not in title text
+            final provider = s['provider']?.toString() ?? '';
+            final host = s['hoster']?.toString() ?? s['host']?.toString() ?? '';
+            if (!metaItems.any((m) => m.contains('Source:') || m.contains('Provider:')) && provider.isNotEmpty) {
+              metaItems.add('🌐 Source: $provider');
+            }
+            if (!metaItems.any((m) => m.contains('Host:')) && host.isNotEmpty) {
+              metaItems.add('📦 Host: $host');
+            }
+
+            final metaParts = metaItems.join(' • ');
 
             return Container(
               padding: const EdgeInsets.all(14),
@@ -4339,6 +4696,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           };
           _isInDetailView = true;
         });
+        _fetchRichMediaDetailsAndDtdd(query, _selectedMediaType, query);
         if (_selectedMediaType == 'series') {
           await _loadSeriesCatalog(query, query, null);
         } else {
@@ -4365,6 +4723,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             };
             _isInDetailView = true;
           });
+          _fetchRichMediaDetailsAndDtdd(query, _selectedMediaType, query);
           _scrapeStreams(query, _selectedMediaType, query);
         }
       }
@@ -4384,13 +4743,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     final name = m['name']?.toString() ?? '';
     final type = m['type']?.toString() ?? _selectedMediaType;
     final poster = m['poster']?.toString();
+    final year = m['year']?.toString();
 
     _searchQueryController.text = id;
     setState(() {
       _selectedMediaType = type;
-      _selectedMediaMeta = m;
+      _selectedMediaMeta = Map<String, dynamic>.from(m);
       _isInDetailView = true;
     });
+
+    _fetchRichMediaDetailsAndDtdd(id, type, name, yearStr: year);
 
     if (type == 'series') {
       _loadSeriesCatalog(id, name, poster);
@@ -4401,7 +4763,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   Future<void> _loadSeriesCatalog(String id, String name, String? poster) async {
     setState(() {
-      _selectedMediaMeta = {'id': id, 'name': name, 'poster': poster};
+      _selectedMediaMeta = {
+        ...?_selectedMediaMeta,
+        'id': id,
+        'name': name,
+        if (poster != null) 'poster': poster,
+      };
       _seriesDetails = null;
     });
 
@@ -4410,9 +4777,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       if (mounted && details != null) {
         setState(() {
           _seriesDetails = details;
+          _selectedMediaMeta = {
+            ...?_selectedMediaMeta,
+            ...details,
+          };
           final seasons = (details['seasons'] as List?)?.map((e) => int.tryParse(e.toString()) ?? 1).toList() ?? [1];
           _selectedSeason = seasons.isNotEmpty ? seasons.first : 1;
         });
+
+        // Also fetch community trigger warnings
+        _fetchRichMediaDetailsAndDtdd(id, 'series', name, yearStr: details['year']?.toString());
 
         // Auto scrape episode 1
         final epsBySeason = details['episodesBySeason'] as Map<String, dynamic>? ?? {};
