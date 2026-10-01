@@ -24,7 +24,8 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.playtorrio.nuvio.addon"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 34
+    compileSdkVersion 34
     ndkVersion = "25.1.8937393"
 
     compileOptions {
@@ -43,7 +44,7 @@ android {
     defaultConfig {
         applicationId "com.playtorrio.nuvio.addon"
         minSdk 23
-        targetSdk flutter.targetSdkVersion
+        targetSdk 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }

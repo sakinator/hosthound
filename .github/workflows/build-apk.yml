@@ -54,7 +54,7 @@ jobs:
 
   build-windows:
     name: Build Windows Desktop App & Standalone Executable
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Checkout Code
@@ -62,6 +62,9 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -72,6 +75,9 @@ jobs:
 
       - name: Enable Windows Desktop
         run: flutter config --enable-windows-desktop
+
+      - name: Verify Flutter & Visual Studio
+        run: flutter doctor -v
 
       - name: Create Windows Runner (if needed)
         working-directory: android_app
