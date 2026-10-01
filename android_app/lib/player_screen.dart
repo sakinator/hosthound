@@ -786,17 +786,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 Center(
                   child: Container(
                     margin: const EdgeInsets.all(24),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF161B22).withOpacity(0.95),
+                      color: const Color(0xFF161B22).withOpacity(0.97),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFF85149)),
+                      border: Border.all(color: const Color(0xFFF85149), width: 1.5),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Header row with ✕ close button
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, color: Colors.grey, size: 22),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: 'Close Player',
+                              onPressed: () => Navigator.of(context).pop(),
+                            ),
+                          ],
+                        ),
                         const Icon(Icons.error_outline_rounded, color: Color(0xFFF85149), size: 48),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         const Text(
                           'Playback Error',
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
@@ -805,36 +820,88 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         Text(
                           _errorMessage,
                           textAlign: TextAlign.center,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
+                        const SizedBox(height: 10),
+                        // Hint for intermittent IPTV streams
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF21262D),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.info_outline_rounded, color: Color(0xFF58A6FF), size: 14),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Live IPTV streams may be temporarily offline or geo-restricted. '
+                                  'Try Retry or switch to another channel.',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                        // Action buttons — Wrap so they never overflow
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
                           children: [
+                            // Close / Go Back
+                            OutlinedButton.icon(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                              label: const Text('Go Back'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white70,
+                                side: const BorderSide(color: Color(0xFF30363D)),
+                                minimumSize: const Size(110, 38),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              ),
+                            ),
+                            // Retry
                             ElevatedButton.icon(
                               onPressed: () {
                                 setState(() {
                                   _hasError = false;
                                   _errorMessage = '';
+                                  _isBuffering = true;
                                 });
                                 _initPlayer();
                               },
-                              icon: const Icon(Icons.refresh_rounded, size: 16),
-                              label: const Text('Retry'),
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF195FEB)),
+                              icon: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white),
+                              label: const Text(
+                                'Retry',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF195FEB),
+                                minimumSize: const Size(100, 38),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              ),
                             ),
-                            if (widget.onOpenExternal != null) ...[
-                              const SizedBox(width: 12),
+                            // Open External
+                            if (widget.onOpenExternal != null)
                               OutlinedButton.icon(
                                 onPressed: () {
                                   Navigator.of(context).pop();
                                   widget.onOpenExternal!();
                                 },
                                 icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                                label: const Text('Open External Player'),
-                                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFFF0C82)),
+                                label: const Text('External Player'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFFF0C82),
+                                  side: const BorderSide(color: Color(0xFFFF0C82)),
+                                  minimumSize: const Size(140, 38),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                ),
                               ),
-                            ],
                           ],
                         ),
                       ],
