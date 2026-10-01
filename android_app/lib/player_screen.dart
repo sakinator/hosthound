@@ -8,7 +8,8 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 /// Full-featured, native in-app video player powered by libmpv via media_kit.
 /// Supports high-bitrate 4K Remuxes, HDR tonemapping, live IPTV streams (HLS/TS),
-/// audio track switching, styled subtitle selection, and Android TV / desktop keyboard navigation.
+/// audio track switching, styled subtitle selection, VLC-style audio gain (up to 200%),
+/// dialogue normalization, and Android TV / desktop keyboard navigation.
 class PlayerScreen extends StatefulWidget {
   final String streamUrl;
   final String title;
@@ -47,6 +48,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Track _selectedAudio = const Track();
   Track _selectedSubtitle = const Track();
 
+  // Audio Gain & Volume State (VLC-Style 0% to 200%)
+  double _volume = 100.0;
+  bool _dialogueBoost = false;
+  String? _hudMessage;
+  Timer? _hudTimer;
+
   // Overlay & TV Navigation State
   bool _showControls = true;
   Timer? _hideControlsTimer;
@@ -79,6 +86,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           logLevel: MPVLogLevel.warn,
         ),
       );
+
+      // Unlock volume-max up to 200% for classic VLC audio gain boost
+      if (_player.platform is NativePlayer) {
+        final np = _player.platform as NativePlayer;
+        try {
+          await np.setProperty('volume-max', '200');
+        } catch (_) {}
+      }
 
       _controller = VideoController(
         _player,
@@ -113,6 +128,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
               _selectedSubtitle = track.subtitle;
             });
           }
+        }),
+        _player.stream.volume.listen((vol) {
+          if (mounted) setState(() => _volume = vol);
         }),
         _player.stream.error.listen((err) {
           if (mounted) {
@@ -151,6 +169,38 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  void _showHud(String msg) {
+    _hudTimer?.cancel();
+    setState(() => _hudMessage = msg);
+    _hudTimer = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) setState(() => _hudMessage = null);
+    });
+  }
+
+  Future<void> _setVolumeWithGain(double vol) async {
+    final clamped = vol.clamp(0.0, 200.0);
+    setState(() => _volume = clamped);
+    await _player.setVolume(clamped);
+    final boostBadge = clamped > 100.0 ? '  ⚡ Gain +${(clamped - 100.0).round()}%' : '';
+    _showHud('Volume: ${clamped.round()}%$boostBadge');
+  }
+
+  Future<void> _toggleDialogueBoost() async {
+    setState(() => _dialogueBoost = !_dialogueBoost);
+    if (_player.platform is NativePlayer) {
+      final np = _player.platform as NativePlayer;
+      try {
+        if (_dialogueBoost) {
+          await np.setProperty('af', 'lavfi=[dynaudnorm=f=150:g=15]');
+          _showHud('Dialogue Booster: ON (Normalized)');
+        } else {
+          await np.setProperty('af', '');
+          _showHud('Dialogue Booster: OFF');
+        }
+      } catch (_) {}
+    }
+  }
+
   void _startHideControlsTimer() {
     _hideControlsTimer?.cancel();
     if (!_showControls) return;
@@ -185,11 +235,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } else if (key == LogicalKeyboardKey.arrowRight) {
       _seekRelative(10);
     } else if (key == LogicalKeyboardKey.arrowUp) {
-      final vol = (_player.state.volume + 5.0).clamp(0.0, 100.0);
-      _player.setVolume(vol);
+      _setVolumeWithGain(_volume + 5.0);
     } else if (key == LogicalKeyboardKey.arrowDown) {
-      final vol = (_player.state.volume - 5.0).clamp(0.0, 100.0);
-      _player.setVolume(vol);
+      _setVolumeWithGain(_volume - 5.0);
     } else if (key == LogicalKeyboardKey.escape) {
       Navigator.of(context).maybePop();
     }
@@ -221,6 +269,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    _hudTimer?.cancel();
     _hideControlsTimer?.cancel();
     for (final s in _subscriptions) {
       s.cancel();
@@ -332,6 +381,52 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
 
+              // Floating Audio & Volume HUD Notification (VLC Style)
+              if (_hudMessage != null)
+                Positioned(
+                  top: 70,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: AnimatedOpacity(
+                      opacity: _hudMessage != null ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D1117).withOpacity(0.92),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _volume > 100.0 ? const Color(0xFFFF0C82) : const Color(0xFF195FEB),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_volume > 100.0 ? const Color(0xFFFF0C82) : const Color(0xFF195FEB)).withOpacity(0.4),
+                              blurRadius: 14,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _volume > 100.0 ? Icons.bolt_rounded : Icons.volume_up_rounded,
+                              color: _volume > 100.0 ? const Color(0xFFFF0C82) : const Color(0xFF58A6FF),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _hudMessage!,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
               // Touch / TV Overlay Controls
               AnimatedOpacity(
                 opacity: _showControls ? 1.0 : 0.0,
@@ -373,7 +468,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             child: _buildCenterControls(),
           ),
 
-          // Bottom Bar (Progress, Audio/Subtitle Selectors, Fullscreen)
+          // Bottom Bar (Progress, Audio Gain, Audio/Subtitle Selectors, Fullscreen)
           _buildBottomBar(),
         ],
       ),
@@ -472,6 +567,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Widget _buildBottomBar() {
     final live = _isLiveStream;
+    final isGainBoosted = _volume > 100.0;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -599,6 +696,60 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     ],
                   ),
 
+                const SizedBox(width: 6),
+
+                // VLC-Style Audio Gain & Volume Booster Button
+                InkWell(
+                  onTap: _showAudioGainDialog,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isGainBoosted
+                          ? const Color(0xFFFF0C82).withOpacity(0.2)
+                          : const Color(0xFF161B22),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isGainBoosted ? const Color(0xFFFF0C82) : const Color(0xFF30363D),
+                        width: isGainBoosted ? 1.2 : 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isGainBoosted ? Icons.bolt_rounded : Icons.volume_up_rounded,
+                          color: isGainBoosted ? const Color(0xFFFF0C82) : Colors.white70,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_volume.round()}%',
+                          style: TextStyle(
+                            color: isGainBoosted ? const Color(0xFFFF0C82) : Colors.white70,
+                            fontSize: 11,
+                            fontWeight: isGainBoosted ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                        if (isGainBoosted) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF0C82),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'GAIN',
+                              style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
                 const Spacer(),
 
                 // Engine Badge
@@ -617,6 +768,185 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showAudioGainDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF11141C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final isBoosted = _volume > 100.0;
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isBoosted ? const Color(0xFFFF0C82).withOpacity(0.2) : const Color(0xFF195FEB).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            isBoosted ? Icons.bolt_rounded : Icons.volume_up_rounded,
+                            color: isBoosted ? const Color(0xFFFF0C82) : const Color(0xFF58A6FF),
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'VLC Audio Gain & Volume Booster',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              Text(
+                                isBoosted
+                                    ? 'Classic VLC Boost Active (${_volume.round()}%) • Preamp Gain'
+                                    : 'Standard Volume Range (${_volume.round()}%)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isBoosted ? const Color(0xFFFF0C82) : Colors.grey,
+                                  fontWeight: isBoosted ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Slider (0 to 200%)
+                    Row(
+                      children: [
+                        const Icon(Icons.volume_mute_rounded, color: Colors.grey, size: 20),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(ctx).copyWith(
+                              activeTrackColor: isBoosted ? const Color(0xFFFF0C82) : const Color(0xFF195FEB),
+                              thumbColor: isBoosted ? const Color(0xFFFF0C82) : const Color(0xFF195FEB),
+                              inactiveTrackColor: Colors.white12,
+                              trackHeight: 6,
+                            ),
+                            child: Slider(
+                              min: 0.0,
+                              max: 200.0,
+                              divisions: 40,
+                              value: _volume.clamp(0.0, 200.0),
+                              onChanged: (val) {
+                                setModalState(() {});
+                                _setVolumeWithGain(val);
+                              },
+                            ),
+                          ),
+                        ),
+                        Container(
+                          width: 48,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '${_volume.round()}%',
+                            style: TextStyle(
+                              color: isBoosted ? const Color(0xFFFF0C82) : Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Quick Preset Pills
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildGainPill(setModalState, 100.0, '100% Normal'),
+                        _buildGainPill(setModalState, 125.0, '125% Mild'),
+                        _buildGainPill(setModalState, 150.0, '150% Boost'),
+                        _buildGainPill(setModalState, 200.0, '200% Max Gain'),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    const Divider(color: Color(0xFF21262D), height: 1),
+                    const SizedBox(height: 12),
+
+                    // Speech & Dialogue Normalizer (dynaudnorm)
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _dialogueBoost,
+                      activeColor: const Color(0xFFFF0C82),
+                      title: const Text(
+                        'Dialogue & Speech Normalizer',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      subtitle: const Text(
+                        'Boosts quiet whispered dialogue while normalizing ear-splitting explosions (mpv dynaudnorm).',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      onChanged: (val) {
+                        setModalState(() {});
+                        _toggleDialogueBoost();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildGainPill(void Function(void Function()) setModalState, double target, String label) {
+    final isSelected = (_volume - target).abs() < 2.5;
+    final isBoost = target > 100.0;
+    return InkWell(
+      onTap: () {
+        setModalState(() {});
+        _setVolumeWithGain(target);
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isBoost ? const Color(0xFFFF0C82).withOpacity(0.25) : const Color(0xFF195FEB).withOpacity(0.25))
+              : const Color(0xFF161B22),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected
+                ? (isBoost ? const Color(0xFFFF0C82) : const Color(0xFF58A6FF))
+                : const Color(0xFF30363D),
+            width: isSelected ? 1.4 : 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? Colors.white : Colors.grey.shade400,
+          ),
         ),
       ),
     );
