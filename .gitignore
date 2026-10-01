@@ -6,6 +6,10 @@ data/settings.json
 data/config.json
 *.zip
 *.exe
+*.dll
+data/app.so
+data/icudtl.dat
+data/flutter_assets/
 /upstream/
 !lib/upstream/
 !android_app/lib/upstream/
