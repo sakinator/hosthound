@@ -128,3 +128,52 @@ This document defines the mandatory development, UI/UX, release, and synchroniza
   1. **▶ Play:** Launches default internal player or primary player.
   2. **🚀 Play With...:** Displays a native Android app chooser dialog with 1-tap launching for **VLC for Android**, **Just Player**, **MPV**, **MX Player**, and system App Chooser.
 
+---
+
+## 16. In-App Video Player (`media_kit` / `libmpv`) & Super Audio Gain Invariant
+- **Cross-Platform In-App Engine:** Both Android and Windows native apps feature an embedded, high-performance in-app video player (`PlayerScreen`) powered by `media_kit` and `libmpv`.
+- **Stream Capabilities:**
+  - VOD playback (seekable, buffered, position tracking) for high-bitrate 4K Remuxes with hardware decoding and 32MB readahead buffer.
+  - Live Stream IPTV detection (`.m3u8` / `.ts`): automatically disables VOD seek controls, displays live latency badge, and enables automatic reconnection on network drops.
+  - Strongly-typed `AudioTrack` and `SubtitleTrack` track selection (`SubtitleTrack.no()`).
+- **Classic VLC Audio Gain (0% to 200%):**
+  - Configured with `volume-max: 200` on the underlying `NativePlayer`.
+  - Floating volume HUD pill at the top of the viewport when adjusting volume.
+  - Dialogue normalization toggle (`lavfi=[dynaudnorm=f=75:g=15:p=0.95:m=10]`) to bring quiet dialogue forward while taming loud explosions.
+  - Quick-jump preset pills: `100%`, `125%`, `150%`, `200%` Super Gain.
+
+---
+
+## 17. Collapsible Sidebar & Screen Real Estate Invariant
+- **Default State:** In both native Flutter apps (Windows & Android) and the Web UI (`web_ui.dart`), the navigation sidebar menu must collapse to **icon-only (68px width)** by default.
+- **Toggle Control:** Provide a prominent animated expand/collapse toggle button allowing users to expand the full sidebar labels on demand without losing screen space for posters and stream cards.
+
+---
+
+## 18. Windows Desktop Native Runner & Brand Icon Invariant
+- **Permanent Git Tracking:** The Windows native runner (`android_app/windows`) is permanently tracked in Git. Never rely on dynamic `flutter create` in CI builds.
+- **Embedded Brand Icon:** The official Hostreamio icon (`hostreamio.ico`) must be embedded directly at `android_app/windows/runner/resources/app_icon.ico` so MSVC natively builds `hostreamio.exe` with the brand icon.
+- **Dual Binaries in Release:** Windows releases must bundle both:
+  - `hostreamio.exe`: Native Flutter desktop GUI application.
+  - `hostreamio-cli.exe`: Standalone headless HTTP server daemon.
+- **Icon Stamping:** `tool/rcedit.exe` is executed in the packaging pipeline to stamp the brand icon onto all `.exe` binaries.
+
+---
+
+## 19. CI/CD Build & Toolchain Invariants
+- **Flutter SDK:** Must use `channel: 'stable'` (do NOT pin to versions older than `3.27.0`, as older Flutter SDKs lack the `android.flutter` extension, causing modern Flutter plugins to fail project evaluation).
+- **Gradle & AGP Alignment:**
+  - Gradle Wrapper: `gradle-8.14-all.zip`.
+  - Android Gradle Plugin (AGP): `8.11.1`.
+  - Kotlin Android: `2.2.20`.
+- **Android SDK & NDK:**
+  - `compileSdk` must be set to `36` (Android API 36) in `android_app/android/app/build.gradle` to satisfy modern AndroidX AAR metadata requirements (`androidx.browser:1.9.0`, `androidx.core:1.17.0`).
+  - `ndkVersion` must be `"27.0.12077973"`.
+- **DSL Compatibility Flags:** `android_app/android/gradle.properties` must always include:
+  ```properties
+  android.builtInKotlin=false
+  android.newDsl=false
+  ```
+- **Post-Build Local Sync:** Immediately after every successful GitHub Actions release run, download and overwrite local copies of `hostreamio.apk`, `hostreamio.exe`, and `hostreamio-windows-x64.zip` in `D:\hostreamio` so local files match release artifacts.
+
+

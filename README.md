@@ -36,9 +36,18 @@ A high-performance local Stremio & Nuvio-compatible addon server featuring **70 
 - **Direct Subtitle APIs (OpenSubtitles v3):** Integrated official zero-rate-limit OpenSubtitles v3 REST API delivering subtitles in 90+ languages with direct `.srt` downloads and a user-facing toggle in settings (`enableOpenSubtitles`).
 - **Expanded DDL Hosters (Direct & TorBox):** Direct streaming and TorBox cloud caching across **PixelDrain, GoFile, Buzzheavier, Qiwi, MultiUp, Krakenfiles, Mixdrop, Voe, Filemoon, Doodstream, Streamtape**, and **HubCloud**.
 - **Free Global Live IPTV Broadcasts (`iptv-org`):** Over 8,000+ free broadcast channels with live Search, Category filters (*News, Sports, Movies, Animation, Music, Entertainment, Documentary*), and Country filters (*Global, US, UK, IN, CA, FR, DE, ES, IT, AU, JP, BR*). Available both in the native Android app and as the Stremio addon catalog `iptv_global`.
-- **Nuvio Side Navigation Rail & Dedicated Menus (Windows & Android):**
+- **In-App Video Player (`media_kit` / `libmpv`) & 200% VLC Super Audio Gain:**
+  - Embedded cross-platform video player (`PlayerScreen`) for Android TV, Mobile, and Windows Desktop with hardware-accelerated 4K HEVC/AV1/H.264 rendering.
+  - **200% VLC Super Gain:** Amplifies audio up to 200% with floating volume HUD pill and quick-jump preset pills (`100%`, `125%`, `150%`, `200%`).
+  - **Dialogue Normalizer:** Real-time FFmpeg `dynaudnorm` filter toggle (`lavfi=[dynaudnorm=f=75:g=15:p=0.95:m=10]`) boosts quiet whispers while softening deafening action explosions.
+  - **Smart IPTV / VOD Adaptation:** Automatically detects live IPTV `.m3u8` streams, removes VOD timeline scrubbing, displays live latency status, and auto-reconnects on network drops.
+- **Dual Windows Binaries (Desktop GUI + Headless Server Daemon):**
+  - **`hostreamio.exe`:** Full native Flutter desktop application with embedded brand icon, 5-tab UI, video player, and theater.
+  - **`hostreamio-cli.exe`:** Standalone headless HTTP server daemon (`dart compile exe bin/server.dart`) listening on port 7002.
+  - Both executables are bundled together in `hostreamio-windows-x64.zip`.
+- **Nuvio Side Navigation Rail & Collapsible Menu (Windows, Android & Web):**
   - **5-Tab Navigation:** 🖥️ **Server & Addon**, 🎬 **Cinema & Series Theater**, 📺 **Free Global Live IPTV**, ⚡ **Caching Queue**, ℹ️ **About & Diagnostics**.
-  - Left navigation rail on wide screens (desktop, TV, tablet) and responsive tab selector on mobile.
+  - **Collapsible 68px Icon-Only Rail:** Defaults to a sleek 68px icon-only width to maximize poster and card screen real estate, expandable on demand.
   - Header and footer cleanly organized into a dedicated About menu to maintain focused, distraction-free playback views.
 - **Live TorBox Cloud Caching Queue & In-Video Notice:**
   - Real-time caching status monitor tracking progress bars, download speed, ETA, file size, and state (`⏳ QUEUED`, `⚡ CACHING (xx%)`, `✅ READY TO STREAM`, `❌ FAILED`) with live auto-refresh polling.

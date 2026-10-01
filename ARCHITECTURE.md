@@ -153,18 +153,24 @@ D:\hostreamio\
 │   ├── assets/
 │   │   └── caching_video.dart  # Embedded Base64 MP4 in-video caching notification slate
 │   └── upstream/               # PlayTorrio scraper site extractors (63 files)
-├── android_app/                # Flutter Android TV, Fire TV & Mobile client
+├── android_app/                # Flutter Android TV, Fire TV, Mobile & Windows client
 │   ├── lib/
 │   │   ├── main.dart           # 5-Tab dashboard (Server, Cinema, IPTV, Caching, About) with Nuvio detail view
+│   │   ├── player_screen.dart  # In-App Video Player (media_kit, libmpv, 4K, Live IPTV, 200% audio gain, dynaudnorm)
 │   │   ├── server_service.dart # Embedded foreground server manager
 │   │   └── [mirrored files]    # (web_ui.dart, catalog_service.dart, torbox_service.dart, assets/, etc.)
+│   └── windows/                # Native Windows Desktop Runner tracked in Git (CMake, Runner.rc, app_icon.ico)
 ├── tool/
 │   ├── rcedit.exe              # Windows PE icon injector tool
+│   ├── sync_android.ps1        # 1-click 100% parity synchronization script between lib/ and android_app/
 │   └── update.dart             # Automated compilation and upgrade script
 ├── data/
 │   └── config.json             # Runtime user settings & local API keys (gitignored)
-├── hostreamio.ico              # Official application icon
-└── hostreamio.exe              # Single target production binary
+├── hostreamio.ico              # Official application icon (6 resolutions: 16 to 256px)
+├── hostreamio.exe              # Native Windows Desktop GUI Application (with embedded brand icon)
+├── hostreamio-cli.exe          # Standalone Headless HTTP Server Daemon (compiled from bin/server.dart)
+├── hostreamio.apk              # Android TV & Mobile Production APK
+└── hostreamio-windows-x64.zip  # Windows Release Archive containing both GUI and CLI binaries
 ```
 
 ---
@@ -190,20 +196,21 @@ In `lib/web_ui.dart`, the entire frontend HTML/CSS/JavaScript is embedded inside
 ### ⚠️ Invariant 2: Mandatory File Mirroring
 `android_app/` runs an embedded instance of the server. Changes to core server logic in `lib/` must be mirrored to `android_app/lib/`:
 ```powershell
-Copy-Item "lib/web_ui.dart" "android_app/lib/web_ui.dart" -Force
-Copy-Item "lib/catalog_service.dart" "android_app/lib/catalog_service.dart" -Force
-Copy-Item "lib/scraper_engine.dart" "android_app/lib/scraper_engine.dart" -Force
+powershell -File tool/sync_android.ps1
 ```
 
-### ⚠️ Invariant 3: Single Binary Deployment
-The project must always compile to the root executable `hostreamio.exe`. Never compile to `bin/server.exe`.
+### ⚠️ Invariant 3: Dual Windows Binaries & Deployment Architecture
+The Windows release ecosystem consists of two distinct, complementary executables:
+1. **`hostreamio.exe` (Desktop GUI):** The native Flutter desktop application for Windows, featuring the full 5-tab UI, embedded `media_kit` / `libmpv` video player, and collapsible 68px icon-only navigation rail.
+2. **`hostreamio-cli.exe` (Headless Server Daemon):** The standalone HTTP server daemon compiled directly via `dart compile exe bin/server.dart -o hostreamio-cli.exe`. It runs headlessly in the background, listening on port 7002.
+Both executables have the Hostreamio brand icon embedded (`rcedit.exe` / `Runner.rc`) and are bundled in `hostreamio-windows-x64.zip`.
 ```powershell
-Stop-Process -Name "hostreamio" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "hostreamio-cli" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
-dart compile exe bin/server.dart -o D:\hostreamio\hostreamio.exe
-& "D:\hostreamio\tool\rcedit.exe" "D:\hostreamio\hostreamio.exe" --set-icon "D:\hostreamio\hostreamio.ico"
+dart compile exe bin/server.dart -o D:\hostreamio\hostreamio-cli.exe
+& "D:\hostreamio\tool\rcedit.exe" "D:\hostreamio\hostreamio-cli.exe" --set-icon "D:\hostreamio\hostreamio.ico"
 ```
-*Note:* `rcedit.exe` will fail with exit code 1 if `hostreamio.exe` is currently running. Always terminate the process before compiling or injecting icons.
+*Note:* `rcedit.exe` will fail with exit code 1 if the target binary is currently running. Always terminate the process before injecting icons.
 
 ### ⚠️ Invariant 4: Working Directory Stabilization (`_ensureProjectRoot()`)
 All data paths (`data/config.json`, `hostreamio_logo.png`) are relative to the project root. When Windows launches an executable from Start Menu, Startup Folder, or Task Scheduler, CWD defaults to `C:\Windows\System32`.  
@@ -261,6 +268,38 @@ Whenever updating the version number, you **MUST** update all 4 locations in loc
 3. **Scoped TLS Validation:** Never enforce strict TLS globally with `badCertificateCallback = false`. 30–50% of direct pirate video hosters have expired, self-signed, or Cloudflare origin SSL certificates. Strictly validate official APIs (`themoviedb.org`, `torbox.app`, `omdbapi.com`, `thetvdb.com`, `fanart.tv`, `github.com`) while keeping scrapers relaxed.
 4. **Proxy Memory Streaming:** Never buffer media streams (`.mp4`, `.mkv`, `>8MB`) into RAM with `res.fold()`. Always use `response.addStream(res)` chunk-by-chunk. Only small micro-segments (`<8MB`) belong in the in-memory `SegmentCache`.
 5. **Atomic Config Saving:** Always write config updates to `${path}.tmp` with flush, followed by atomic rename and Windows file-lock copy/delete fallback. Debounce rapid toggles by 300ms.
+
+### ⚠️ Invariant 11: In-App Video Player (`media_kit` / `libmpv`) & Super Audio Gain
+Both Android (Mobile/TV) and Windows desktop apps incorporate a high-performance in-app video player (`PlayerScreen` in `android_app/lib/player_screen.dart`):
+1. **Engine:** Built upon `media_kit` and `libmpv` with hardware decoding and a 32MB readahead buffer.
+2. **Stream Intelligence:** Automatically detects Live IPTV streams (`.m3u8` / `.ts`): hides VOD seek bars, displays live latency status, and auto-reconnects on network interruptions.
+3. **200% VLC Super Audio Gain:** Configured with `volume-max: 200` on the native player instance.
+4. **Dialogue Normalization:** Audio filter switch applying `lavfi=[dynaudnorm=f=75:g=15:p=0.95:m=10]` to boost whisper-quiet voices and compress overly loud sound effects.
+
+### ⚠️ Invariant 12: Collapsible 68px Icon-Only Sidebar Navigation
+Across Android, Windows desktop, and the Web UI (`lib/web_ui.dart`):
+- Navigation sidebars default to an **icon-only compact width of 68px** to maximize video thumbnail and card browsing space.
+- A toggle button is provided to expand/collapse labels smoothly without breaking viewport layout.
+
+### ⚠️ Invariant 13: Windows Desktop Native Runner & Brand Icon Invariant
+- **Permanent Git Tracking:** The Windows native runner files (`android_app/windows/`) are permanently tracked in Git. Never delete or overwrite with unbranded `flutter create`.
+- **Embedded Brand Icon:** The official multi-resolution icon (`hostreamio.ico` containing 16x16, 32x32, 48x48, 64x64, 128x128, and 256x256 frames) is committed at `android_app/windows/runner/resources/app_icon.ico` and embedded into `Runner.rc`.
+- **PE Header Icon Stamping:** `tool/rcedit.exe` is run post-compilation to guarantee PE header branding across all generated `.exe` binaries.
+
+### ⚠️ Invariant 14: CI/CD Toolchain Compatibility Requirements
+GitHub Actions builds (`.github/workflows/build-apk.yml`) enforce strict toolchain compatibility:
+- **Flutter SDK:** Must use `channel: 'stable'` (do NOT pin to versions older than `3.27.0` to ensure `android.flutter` Gradle extension is present).
+- **Gradle & AGP Alignment:** Gradle `8.14-all.zip`, Android Gradle Plugin `8.11.1`, Kotlin `2.2.20`.
+- **Compile SDK:** Set to `36` (`compileSdk 36`) and `ndkVersion = "27.0.12077973"` in `android_app/android/app/build.gradle` to satisfy modern AndroidX AAR metadata requirements (`androidx.browser:1.9.0`, `androidx.core:1.17.0`).
+- **DSL Flags:** `android_app/android/gradle.properties` must declare:
+  ```properties
+  android.builtInKotlin=false
+  android.newDsl=false
+  ```
+
+### ⚠️ Invariant 15: Post-Build Local Synchronization & v1.0.0 Tag Preservation
+- **Local File Sync:** Immediately after every successful CI run, all local binaries in `D:\hostreamio` (`hostreamio.apk`, `hostreamio.exe`, `hostreamio-windows-x64.zip`) must be updated and verified.
+- **Tag Preservation:** Releases remain pinned to `v1.0.0` unless explicitly instructed otherwise. Do not bump version tags arbitrarily.
 
 ---
 
@@ -476,11 +515,21 @@ Rather than stacking episodes and streams vertically on the catalog browsing pag
 
 ---
 
+## 12. In-App Video Player (`media_kit` / `libmpv`) & Super Audio Gain
+- **Architecture & Foundation:**
+  - Built with `media_kit` (FFI bindings to `libmpv`) supporting hardware-accelerated 4K HEVC/AV1/H.264 playback across Android and Windows.
+  - Implements dedicated `PlayerScreen` (`android_app/lib/player_screen.dart`) with auto-hiding gesture/mouse overlay, buffering indicator, and live progress reporting.
+- **Smart IPTV / VOD Adaptation:**
+  - Detects live IPTV `.m3u8` streams and switches off standard timeline scrubbing while activating real-time latency indicators and infinite reconnect logic.
+- **200% VLC Super Audio Gain:**
+  - Initializes the player with `volume-max: 200` to amplify quiet web-dl tracks beyond standard system limits.
+  - Features dialogue normalization via FFmpeg dynaudnorm filter (`lavfi=[dynaudnorm=f=75:g=15:p=0.95:m=10]`), ensuring clear speech even during explosive action scenes.
+
 ---
 
 ## 13. Nuvio-Style Side Navigation Rail & Dedicated About View
 - **Multi-Platform Navigation Architecture:**
-  - **Wide Screens (Desktop / Tablet / TV):** 250px persistent left navigation rail (`.sidebar` in Web UI, `_buildSidebarNav` in Flutter) with active state indicators, hover animations, and persistent engine connectivity status.
+  - **Collapsible Compact Navigation Rail:** Defaults to **68px icon-only width** across Windows desktop, Android TV/tablet, and the Web UI (`web_ui.dart`) to maximize media browse surface. Smooth expand/collapse toggle reveals full labels on user demand.
   - **Compact Screens (Mobile Portrait):** Top responsive selector (`_buildTabSelector`) that collapses gracefully.
 - **Dedicated 4-Tab Separation:**
   - 🖥️ **Server & Addon:** Setup instructions, TorBox API key, scraper toggles, and streaming profile options.
