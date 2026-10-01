@@ -12,9 +12,15 @@ namespace HostreamioLauncher {
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string appDir = Path.Combine(localAppData, "Hostreamio", "app");
                 string exePath = Path.Combine(appDir, "hostreamio.exe");
+                var assembly = Assembly.GetExecutingAssembly();
+                long payloadSize = 0;
+                using (Stream probeStream = assembly.GetManifestResourceStream("payload.zip")) {
+                    if (probeStream != null) {
+                        payloadSize = probeStream.Length;
+                    }
+                }
+                string currentVersion = "1.0.0_" + payloadSize;
                 string versionFile = Path.Combine(appDir, "version.txt");
-                string currentVersion = "1.0.0_r1";
-
                 bool needsExtract = !File.Exists(exePath) || !File.Exists(versionFile) || File.ReadAllText(versionFile).Trim() != currentVersion;
 
                 if (needsExtract) {
@@ -25,7 +31,6 @@ namespace HostreamioLauncher {
                     }
                     Directory.CreateDirectory(appDir);
 
-                    var assembly = Assembly.GetExecutingAssembly();
                     using (Stream stream = assembly.GetManifestResourceStream("payload.zip")) {
                         if (stream != null) {
                             using (ZipArchive archive = new ZipArchive(stream)) {
