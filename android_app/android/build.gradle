@@ -3,6 +3,17 @@ allprojects {
         google()
         mavenCentral()
     }
+    ext {
+        set('compileSdkVersion', 34)
+        set('targetSdkVersion', 34)
+        set('minSdkVersion', 23)
+        flutter = [
+            compileSdkVersion: 34,
+            targetSdkVersion: 34,
+            minSdkVersion: 23,
+            ndkVersion: "25.1.8937393"
+        ]
+    }
 }
 
 rootProject.buildDir = '../build'
@@ -11,6 +22,18 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(':app')
+}
+
+subprojects { subproject ->
+    if (subproject.name != 'app') {
+        subproject.afterEvaluate {
+            if (subproject.hasProperty('android')) {
+                subproject.android {
+                    compileSdkVersion 34
+                }
+            }
+        }
+    }
 }
 
 tasks.register("clean", Delete) {
