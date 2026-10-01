@@ -6,6 +6,7 @@ data/settings.json
 data/config.json
 *.zip
 *.exe
+!tool/rcedit.exe
 *.dll
 data/app.so
 data/icudtl.dat

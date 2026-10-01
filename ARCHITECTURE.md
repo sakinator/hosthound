@@ -167,10 +167,9 @@ D:\hostreamio\
 ├── data/
 │   └── config.json             # Runtime user settings & local API keys (gitignored)
 ├── hostreamio.ico              # Official application icon (6 resolutions: 16 to 256px)
-├── hostreamio.exe              # Native Windows Desktop GUI Application (with embedded brand icon)
-├── hostreamio-cli.exe          # Standalone Headless HTTP Server Daemon (compiled from bin/server.dart)
+├── hostreamio.exe              # Standalone Windows Executable (Zero Dependencies, Embedded Brand Icon)
 ├── hostreamio.apk              # Android TV & Mobile Production APK
-└── hostreamio-windows-x64.zip  # Windows Release Archive containing both GUI and CLI binaries
+└── hostreamio-windows-x64.zip  # Windows Release Archive containing Desktop GUI, DLLs, and standalone server
 ```
 
 ---
@@ -199,16 +198,16 @@ In `lib/web_ui.dart`, the entire frontend HTML/CSS/JavaScript is embedded inside
 powershell -File tool/sync_android.ps1
 ```
 
-### ⚠️ Invariant 3: Dual Windows Binaries & Deployment Architecture
-The Windows release ecosystem consists of two distinct, complementary executables:
-1. **`hostreamio.exe` (Desktop GUI):** The native Flutter desktop application for Windows, featuring the full 5-tab UI, embedded `media_kit` / `libmpv` video player, and collapsible 68px icon-only navigation rail.
-2. **`hostreamio-cli.exe` (Headless Server Daemon):** The standalone HTTP server daemon compiled directly via `dart compile exe bin/server.dart -o hostreamio-cli.exe`. It runs headlessly in the background, listening on port 7002.
-Both executables have the Hostreamio brand icon embedded (`rcedit.exe` / `Runner.rc`) and are bundled in `hostreamio-windows-x64.zip`.
+### ⚠️ Invariant 3: Single Truly Standalone Binary Deployment (`hostreamio.exe`)
+`hostreamio.exe` is the flagship Windows executable:
+- **100% Standalone:** Compiled directly from `bin/server.dart` via `dart compile exe bin/server.dart -o hostreamio.exe`. It has **ZERO external DLL dependencies**, requires no external runtime, and can be placed anywhere on the filesystem.
+- **Branded:** Stamped with `tool/rcedit.exe hostreamio.exe --set-icon hostreamio.ico`.
+- **Desktop Bundle:** The Flutter GUI application is packaged with its runtime DLLs (`flutter_windows.dll`, `media_kit_video_plugin.dll`, `mpv-2.dll`) inside `hostreamio-windows-x64.zip`.
 ```powershell
-Stop-Process -Name "hostreamio-cli" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "hostreamio" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
-dart compile exe bin/server.dart -o D:\hostreamio\hostreamio-cli.exe
-& "D:\hostreamio\tool\rcedit.exe" "D:\hostreamio\hostreamio-cli.exe" --set-icon "D:\hostreamio\hostreamio.ico"
+dart compile exe bin/server.dart -o D:\hostreamio\hostreamio.exe
+& "D:\hostreamio\tool\rcedit.exe" "D:\hostreamio\hostreamio.exe" --set-icon "D:\hostreamio\hostreamio.ico"
 ```
 *Note:* `rcedit.exe` will fail with exit code 1 if the target binary is currently running. Always terminate the process before injecting icons.
 

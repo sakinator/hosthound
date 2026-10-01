@@ -150,13 +150,11 @@ This document defines the mandatory development, UI/UX, release, and synchroniza
 
 ---
 
-## 18. Windows Desktop Native Runner & Brand Icon Invariant
-- **Permanent Git Tracking:** The Windows native runner (`android_app/windows`) is permanently tracked in Git. Never rely on dynamic `flutter create` in CI builds.
-- **Embedded Brand Icon:** The official Hostreamio icon (`hostreamio.ico`) must be embedded directly at `android_app/windows/runner/resources/app_icon.ico` so MSVC natively builds `hostreamio.exe` with the brand icon.
-- **Dual Binaries in Release:** Windows releases must bundle both:
-  - `hostreamio.exe`: Native Flutter desktop GUI application.
-  - `hostreamio-cli.exe`: Standalone headless HTTP server daemon.
-- **Icon Stamping:** `tool/rcedit.exe` is executed in the packaging pipeline to stamp the brand icon onto all `.exe` binaries.
+## 18. Standalone Executable & Brand Icon Invariant
+- **Single Standalone Executable (`hostreamio.exe`):** The primary Windows binary `hostreamio.exe` is compiled directly via `dart compile exe bin/server.dart -o hostreamio.exe` and stamped with `tool/rcedit.exe --set-icon hostreamio.ico`. It is **100% standalone with ZERO external DLL dependencies**, requiring no Flutter runtime, and runs anywhere on Windows without missing DLL errors.
+- **Embedded Brand Icon:** The official multi-resolution icon (`hostreamio.ico`) is embedded directly into `hostreamio.exe` via `tool/rcedit.exe`.
+- **Permanent Tool Tracking:** `tool/rcedit.exe` is tracked directly in Git (`!tool/rcedit.exe` in `.gitignore`) so CI/CD always stamps the brand icon during automated builds.
+- **Flutter Desktop GUI Bundle:** The native Flutter desktop application is bundled along with all required runtime DLLs (`flutter_windows.dll`, `media_kit_video_plugin.dll`, `mpv-2.dll`) inside `hostreamio-windows-x64.zip`.
 
 ---
 
