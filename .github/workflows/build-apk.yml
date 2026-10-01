@@ -82,12 +82,15 @@ jobs:
       - name: Verify Flutter & Visual Studio
         run: flutter doctor -v
 
-      - name: Create Windows Runner (if needed)
+      - name: Create Windows Runner (if needed) & Inject Brand Icon
         working-directory: android_app
         shell: powershell
         run: |
           if (-not (Test-Path "windows")) {
             flutter create --platforms=windows --project-name=hostreamio .
+          }
+          if (Test-Path "../hostreamio.ico") {
+            Copy-Item ../hostreamio.ico windows/runner/resources/app_icon.ico -Force
           }
 
       - name: Install Dependencies
@@ -118,6 +121,13 @@ jobs:
           Copy-Item data/badges.json dist/data/ -ErrorAction SilentlyContinue
           Copy-Item data/config.json dist/data/ -ErrorAction SilentlyContinue
           Copy-Item "android_app\build\windows\x64\runner\Release\hostreamio.exe" ./hostreamio.exe -Force
+          if (Test-Path "tool/rcedit.exe") {
+            & "tool/rcedit.exe" hostreamio.exe --set-icon hostreamio.ico
+            & "tool/rcedit.exe" dist/hostreamio.exe --set-icon hostreamio.ico
+            if (Test-Path "dist/hostreamio-cli.exe") {
+              & "tool/rcedit.exe" dist/hostreamio-cli.exe --set-icon hostreamio.ico
+            }
+          }
           Compress-Archive -Path dist/* -DestinationPath hostreamio-windows-x64.zip -Force
 
       - name: Upload Windows Artifacts
