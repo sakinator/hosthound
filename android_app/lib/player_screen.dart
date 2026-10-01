@@ -22,6 +22,8 @@ class PlayerScreen extends StatefulWidget {
   final String? imdbId;
   /// "movie" or "series" — used for OpenSubtitles API query type
   final String? mediaType;
+  /// Whether this stream is a live IPTV broadcast (true) or VOD movie/episode (false)
+  final bool isLive;
 
   const PlayerScreen({
     super.key,
@@ -32,6 +34,7 @@ class PlayerScreen extends StatefulWidget {
     this.onOpenExternal,
     this.imdbId,
     this.mediaType,
+    this.isLive = false,
   });
 
   @override
@@ -665,7 +668,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _showHud('Playback Speed: ${speed}x');
   }
 
-  bool get _isLiveStream => _duration == Duration.zero || (widget.streamUrl.contains('.m3u8') && _duration.inSeconds > 43200);
+  bool get _isLiveStream => widget.isLive;
 
   String _formatDuration(Duration d) {
     final hours = d.inHours;
@@ -825,7 +828,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           style: const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         const SizedBox(height: 10),
-                        // Hint for intermittent IPTV streams
+                        // Context-aware hint for stream errors
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
@@ -836,11 +839,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             children: [
                               const Icon(Icons.info_outline_rounded, color: Color(0xFF58A6FF), size: 14),
                               const SizedBox(width: 8),
-                              const Expanded(
+                              Expanded(
                                 child: Text(
-                                  'Live IPTV streams may be temporarily offline or geo-restricted. '
-                                  'Try Retry or switch to another channel.',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.4),
+                                  _isLiveStream
+                                      ? 'Live IPTV broadcast may be temporarily offline or geo-restricted. Try Retry or switch to another channel.'
+                                      : 'Stream failed to load or the video host timed out. Try another stream link from the list, or open with an External Player.',
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey, height: 1.4),
                                 ),
                               ),
                             ],

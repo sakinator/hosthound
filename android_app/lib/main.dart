@@ -4639,6 +4639,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     String? packageName,
     bool forceChooser = false,
     bool forceExternal = false,
+    bool isLive = false,
   }) async {
     final playUrl = _resolvePlayUrl(streamTarget);
     if (playUrl.isEmpty) return;
@@ -4681,10 +4682,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               title: title.isNotEmpty ? title : 'Hostreamio Stream',
               subtitle: subtitle.isNotEmpty ? subtitle : null,
               headers: headers,
-              onOpenExternal: () => _playStream(streamTarget, forceChooser: true, forceExternal: true),
-              // Pass IMDb ID + type for auto subtitle fetching via OpenSubtitles
-              imdbId: _selectedMediaMeta?['id']?.toString(),
-              mediaType: _selectedMediaType,
+              onOpenExternal: () => _playStream(streamTarget, forceChooser: true, forceExternal: true, isLive: isLive),
+              // Pass IMDb ID + type for auto subtitle fetching via OpenSubtitles (VOD only)
+              imdbId: isLive ? null : _selectedMediaMeta?['id']?.toString(),
+              mediaType: isLive ? null : _selectedMediaType,
+              isLive: isLive,
             ),
           ),
         );
@@ -4714,7 +4716,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             ),
           );
         }
-        await _playStream(streamTarget, forceChooser: true, forceExternal: true);
+        await _playStream(streamTarget, forceChooser: true, forceExternal: true, isLive: isLive);
         return;
       }
     } catch (_) {}
@@ -4740,7 +4742,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }
   }
 
-  Future<void> _showPlayWithDialog(Map<String, dynamic> s) async {
+  Future<void> _showPlayWithDialog(Map<String, dynamic> s, {bool isLive = false}) async {
     final playUrl = _resolvePlayUrl(s);
     if (playUrl.isEmpty) return;
 
@@ -4994,13 +4996,14 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           if (p['id'] == 'browser') {
                             _launchBrowserFallback(playUrl);
                           } else if (p['id'] == 'internal_libmpv') {
-                            _playStream(s);
+                            _playStream(s, isLive: isLive);
                           } else {
                             _playStream(
                               s,
                               packageName: p['package'] as String?,
                               forceChooser: p['forceChooser'] as bool,
                               forceExternal: true,
+                              isLive: isLive,
                             );
                           }
                         },
@@ -5653,7 +5656,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => _playStream(streamData),
+                  onPressed: () => _playStream(streamData, isLive: true),
                   icon: const Icon(Icons.play_arrow_rounded, size: 16, color: Colors.white),
                   label: const Text('Play', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
@@ -5667,7 +5670,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               const SizedBox(width: 6),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _showPlayWithDialog(streamData),
+                  onPressed: () => _showPlayWithDialog(streamData, isLive: true),
                   icon: const Icon(Icons.launch_rounded, size: 13, color: Color(0xFF58A6FF)),
                   label: const Text('Play With...', style: TextStyle(fontSize: 10.5, color: Color(0xFF58A6FF))),
                   style: OutlinedButton.styleFrom(
