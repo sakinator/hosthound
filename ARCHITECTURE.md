@@ -198,18 +198,12 @@ In `lib/web_ui.dart`, the entire frontend HTML/CSS/JavaScript is embedded inside
 powershell -File tool/sync_android.ps1
 ```
 
-### ⚠️ Invariant 3: Single Truly Standalone Binary Deployment (`hostreamio.exe`)
+### ⚠️ Invariant 3: Single Truly Standalone GUI Binary Deployment (`hostreamio.exe`)
 `hostreamio.exe` is the flagship Windows executable:
-- **100% Standalone:** Compiled directly from `bin/server.dart` via `dart compile exe bin/server.dart -o hostreamio.exe`. It has **ZERO external DLL dependencies**, requires no external runtime, and can be placed anywhere on the filesystem.
-- **Branded:** Stamped with `tool/rcedit.exe hostreamio.exe --set-icon hostreamio.ico`.
-- **Desktop Bundle:** The Flutter GUI application is packaged with its runtime DLLs (`flutter_windows.dll`, `media_kit_video_plugin.dll`, `mpv-2.dll`) inside `hostreamio-windows-x64.zip`.
-```powershell
-Stop-Process -Name "hostreamio" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 800
-dart compile exe bin/server.dart -o D:\hostreamio\hostreamio.exe
-& "D:\hostreamio\tool\rcedit.exe" "D:\hostreamio\hostreamio.exe" --set-icon "D:\hostreamio\hostreamio.ico"
-```
-*Note:* `rcedit.exe` will fail with exit code 1 if the target binary is currently running. Always terminate the process before injecting icons.
+- **100% Standalone GUI:** Compiled with `csc.exe /target:winexe /win32icon:hostreamio.ico` via `tool/launcher.cs`, embedding the application bundle payload. It launches the full graphical UI with **ZERO console windows** and **ZERO missing DLL errors**.
+- **Branded:** Uses `/win32icon:hostreamio.ico` for native PE header icon rendering in Windows Explorer.
+- **Headless Server Daemon:** `hostreamio-server.exe` is available for headless server environments (`dart compile exe bin/server.dart -o hostreamio-server.exe`).
+- **Desktop Bundle:** The raw Flutter GUI application and plugin DLLs are packaged inside `hostreamio-windows-x64.zip`.
 
 ### ⚠️ Invariant 4: Working Directory Stabilization (`_ensureProjectRoot()`)
 All data paths (`data/config.json`, `hostreamio_logo.png`) are relative to the project root. When Windows launches an executable from Start Menu, Startup Folder, or Task Scheduler, CWD defaults to `C:\Windows\System32`.  

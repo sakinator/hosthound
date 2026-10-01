@@ -150,11 +150,11 @@ This document defines the mandatory development, UI/UX, release, and synchroniza
 
 ---
 
-## 18. Standalone Executable & Brand Icon Invariant
-- **Single Standalone Executable (`hostreamio.exe`):** The primary Windows binary `hostreamio.exe` is compiled directly via `dart compile exe bin/server.dart -o hostreamio.exe` and stamped with `tool/rcedit.exe --set-icon hostreamio.ico`. It is **100% standalone with ZERO external DLL dependencies**, requiring no Flutter runtime, and runs anywhere on Windows without missing DLL errors.
-- **Embedded Brand Icon:** The official multi-resolution icon (`hostreamio.ico`) is embedded directly into `hostreamio.exe` via `tool/rcedit.exe`.
-- **Permanent Tool Tracking:** `tool/rcedit.exe` is tracked directly in Git (`!tool/rcedit.exe` in `.gitignore`) so CI/CD always stamps the brand icon during automated builds.
-- **Flutter Desktop GUI Bundle:** The native Flutter desktop application is bundled along with all required runtime DLLs (`flutter_windows.dll`, `media_kit_video_plugin.dll`, `mpv-2.dll`) inside `hostreamio-windows-x64.zip`.
+## 18. Standalone Single-File Windows GUI Executable Invariant
+- **Single Standalone GUI Executable (`hostreamio.exe`):** The primary Windows binary `hostreamio.exe` is a single, standalone Win32 GUI executable (`/target:winexe`) built via `tool/launcher.cs` embedding the complete application payload. It launches the full graphical UI directly with **ZERO black console windows** and **ZERO missing DLL errors**.
+- **Embedded Brand Icon:** Compiled natively with `/win32icon:hostreamio.ico` so Windows Explorer displays the official Hostreamio brand logo directly.
+- **Headless Server CLI (`hostreamio-server.exe`):** For server-only/daemon deployments, compiled via `dart compile exe bin/server.dart -o hostreamio-server.exe` and stamped with `tool/rcedit.exe`.
+- **Desktop Bundle Archive:** `hostreamio-windows-x64.zip` bundles the full desktop application, plugins, and server binaries.
 
 ---
 
