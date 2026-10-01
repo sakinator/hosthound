@@ -128,7 +128,7 @@ jobs:
       - name: Build Standalone Single-File GUI Executable
         shell: powershell
         run: |
-          & 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /target:winexe /win32icon:hostreamio.ico /resource:hostreamio-windows-x64.zip,payload.zip /reference:System.IO.Compression.dll,System.IO.Compression.FileSystem.dll,System.Windows.Forms.dll /out:hostreamio.exe tool/launcher.cs
+          & 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /target:winexe /win32icon:hostreamio.ico /resource:hostreamio-windows-x64.zip,payload.zip /reference:System.IO.Compression.dll,System.IO.Compression.FileSystem.dll,System.Windows.Forms.dll /out:hostreamio.exe .\tool\launcher.cs
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4

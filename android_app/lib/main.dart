@@ -5072,7 +5072,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             builder: (context, constraints) {
               final width = constraints.maxWidth;
               final cols = isWide
-                  ? (width >= 900 ? 3 : 2)
+                  ? (width >= 1200 ? 4 : (width >= 800 ? 3 : 2))
                   : (width >= 550 ? 2 : 1);
 
               return GridView.builder(
@@ -5080,9 +5080,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: cols,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: cols == 1 ? 2.8 : 2.4,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: cols == 1 ? 2.5 : 2.35,
                 ),
                 itemCount: displayedChannels.length,
                 itemBuilder: (context, index) {
@@ -5134,109 +5134,132 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     };
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF11141C),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF1F2432)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Logo or fallback TV icon
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFF090D13),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF1F2432)),
-            ),
-            child: ch.logo.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(7),
-                    child: Image.network(
-                      ch.logo,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.live_tv_rounded, color: Colors.grey, size: 24),
-                    ),
-                  )
-                : const Icon(Icons.live_tv_rounded, color: Colors.grey, size: 24),
-          ),
-          const SizedBox(width: 10),
-
-          // Name and Badges
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  ch.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Large Prominent 72x72 Logo container
+              Container(
+                width: 72,
+                height: 72,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF161B22),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF30363D)),
                 ),
-                const SizedBox(height: 4),
-                Row(
+                child: ch.logo.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(
+                          ch.logo,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.live_tv_rounded, color: Colors.grey, size: 32),
+                        ),
+                      )
+                    : const Icon(Icons.live_tv_rounded, color: Colors.grey, size: 32),
+              ),
+              const SizedBox(width: 12),
+
+              // Name, Badges & Live Status
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF195FEB).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF195FEB), width: 0.8),
-                      ),
-                      child: Text(
-                        ch.category.toUpperCase(),
-                        style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF58A6FF)),
-                      ),
+                    Text(
+                      ch.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.white, height: 1.2),
                     ),
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF238636).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF238636), width: 0.8),
-                      ),
-                      child: Text(
-                        ch.country,
-                        style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF3FB950)),
-                      ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 4,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF195FEB).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFF195FEB), width: 0.8),
+                          ),
+                          child: Text(
+                            ch.category.toUpperCase(),
+                            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF58A6FF)),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF238636).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFF238636), width: 0.8),
+                          ),
+                          child: Text(
+                            ch.country,
+                            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF3FB950)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    const Row(
+                      children: [
+                        Icon(Icons.circle, color: Color(0xFF3FB950), size: 7),
+                        SizedBox(width: 4),
+                        Text(
+                          'LIVE STREAM',
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFF3FB950)),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
+          const SizedBox(height: 8),
 
           // Action Buttons
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Row(
             children: [
-              ElevatedButton(
-                onPressed: () => _playStream(streamData),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF195FEB),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _playStream(streamData),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 16, color: Colors.white),
+                  label: const Text('Play', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF195FEB),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
                 ),
-                child: const Text('Play', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
-              const SizedBox(height: 4),
-              OutlinedButton(
-                onPressed: () => _showPlayWithDialog(streamData),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF388BFD), width: 0.8),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _showPlayWithDialog(streamData),
+                  icon: const Icon(Icons.launch_rounded, size: 13, color: Color(0xFF58A6FF)),
+                  label: const Text('Play With...', style: TextStyle(fontSize: 10.5, color: Color(0xFF58A6FF))),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF388BFD), width: 0.8),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
                 ),
-                child: const Text('Play With...', style: TextStyle(fontSize: 9.5, color: Color(0xFF58A6FF))),
               ),
             ],
           ),
