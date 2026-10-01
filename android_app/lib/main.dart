@@ -13,12 +13,19 @@ import 'metadata_service.dart';
 import 'scraper_engine.dart';
 import 'server_service.dart';
 import 'torbox_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 import 'player_screen.dart';
+import 'window_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+    await windowManager.ensureInitialized();
+    await WindowService.instance.initialize();
+  }
   await ServerService.instance.init();
   // Auto-start server on app launch
   await ServerService.instance.startServer();
@@ -361,7 +368,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     final server = ServerService.instance;
     final cfg = AddonConfig.instance;
 
-    return Scaffold(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.f11) {
+          WindowService.instance.toggleFullscreen();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Scaffold(
       body: SafeArea(
         child: ValueListenableBuilder<bool>(
           valueListenable: server.isRunning,
@@ -494,6 +510,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           },
         ),
       ),
+    ),
     );
   }
 
@@ -841,6 +858,20 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           _buildSidebarNavButton(4, Icons.info_outline_rounded, 'About & Diagnostics', _aboutTabFocus),
 
           const Spacer(),
+
+          // Fullscreen Toggle Button (Desktop & Mobile)
+          ValueListenableBuilder<bool>(
+            valueListenable: WindowService.instance.isFullscreenNotifier,
+            builder: (context, isFs, _) {
+              return _buildSidebarActionButton(
+                icon: isFs ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                label: isFs ? 'Exit Fullscreen' : 'Fullscreen (F11)',
+                onPressed: () => WindowService.instance.toggleFullscreen(),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+
           // Running status indicator
           isExpanded
               ? Container(
@@ -985,6 +1016,47 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     ],
                   ),
                 ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    final isExpanded = _isSidebarExpanded;
+    return Tooltip(
+      message: isExpanded ? '' : label,
+      preferBelow: false,
+      child: _TvFocusableButton(
+        onPressed: onPressed,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: isExpanded ? 12 : 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF161B22),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF30363D)),
+          ),
+          child: isExpanded
+              ? Row(
+                  children: [
+                    Icon(icon, size: 20, color: const Color(0xFF58A6FF)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Center(child: Icon(icon, size: 20, color: const Color(0xFF58A6FF))),
         ),
       ),
     );

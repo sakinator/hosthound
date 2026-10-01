@@ -2151,6 +2151,7 @@ class WebUI {
             <option value="0.75">0.75x</option>
           </select>
           <button class="btn btn-sm btn-open-with" onclick="openWithFromPlayer()" style="font-size:0.75rem; padding:3px 8px;">🚀 Open With...</button>
+          <button class="btn btn-sm" onclick="toggleWebPlayerFullscreen()" style="font-size:0.75rem; padding:3px 8px; background:rgba(88,166,255,0.15); color:#58a6ff; border:1px solid rgba(88,166,255,0.3);" title="Toggle Fullscreen">⛶ Fullscreen</button>
           <button class="player-close-btn" onclick="closePlayerModal()">✕</button>
         </div>
       </div>
@@ -4673,6 +4674,24 @@ class WebUI {
       if (selectedStreamForOpenWith && selectedStreamForOpenWith.url) {
         navigator.clipboard.writeText(selectedStreamForOpenWith.url);
         showToast('📋 Stream URL copied to clipboard!');
+      }
+    }
+
+    function toggleWebPlayerFullscreen() {
+      const vid = document.getElementById('previewVideoPlayer');
+      if (!vid) return;
+      if (!document.fullscreenElement) {
+        if (vid.requestFullscreen) {
+          vid.requestFullscreen();
+        } else if (vid.webkitRequestFullscreen) {
+          vid.webkitRequestFullscreen();
+        } else if (vid.msRequestFullscreen) {
+          vid.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
       }
     }
 

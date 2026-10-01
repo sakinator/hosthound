@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'window_service.dart';
 
 /// Full-featured, native in-app video player powered by libmpv via media_kit.
 /// Supports high-bitrate 4K Remuxes, HDR tonemapping, live IPTV streams (HLS/TS),
@@ -230,6 +231,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.space || key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.enter) {
       _player.playOrPause();
+    } else if (key == LogicalKeyboardKey.keyF || key == LogicalKeyboardKey.f11) {
+      WindowService.instance.toggleFullscreen();
     } else if (key == LogicalKeyboardKey.arrowLeft) {
       _seekRelative(-10);
     } else if (key == LogicalKeyboardKey.arrowRight) {
@@ -239,7 +242,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } else if (key == LogicalKeyboardKey.arrowDown) {
       _setVolumeWithGain(_volume - 5.0);
     } else if (key == LogicalKeyboardKey.escape) {
-      Navigator.of(context).maybePop();
+      if (WindowService.instance.isFullscreen) {
+        WindowService.instance.exitFullscreen();
+      } else {
+        Navigator.of(context).maybePop();
+      }
     }
   }
 
@@ -277,6 +284,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _keyboardFocusNode.dispose();
     _player.dispose();
 
+    if (WindowService.instance.isFullscreen) {
+      WindowService.instance.exitFullscreen();
+    }
+
     if (Platform.isAndroid) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setPreferredOrientations([
@@ -299,6 +310,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         backgroundColor: Colors.black,
         body: GestureDetector(
           onTap: _toggleControls,
+          onDoubleTap: () => WindowService.instance.toggleFullscreen(),
           behavior: HitTestBehavior.opaque,
           child: Stack(
             fit: StackFit.expand,
@@ -519,6 +531,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   widget.onOpenExternal!();
                 },
               ),
+            ValueListenableBuilder<bool>(
+              valueListenable: WindowService.instance.isFullscreenNotifier,
+              builder: (context, isFs, _) {
+                return IconButton(
+                  icon: Icon(
+                    isFs ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                    color: Colors.white70,
+                    size: 24,
+                  ),
+                  tooltip: isFs ? 'Exit Fullscreen (F / Esc)' : 'Fullscreen (F / F11)',
+                  onPressed: () => WindowService.instance.toggleFullscreen(),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -764,6 +790,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     'libmpv',
                     style: TextStyle(color: Color(0xFF58A6FF), fontSize: 10, fontWeight: FontWeight.bold),
                   ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Fullscreen Button
+                ValueListenableBuilder<bool>(
+                  valueListenable: WindowService.instance.isFullscreenNotifier,
+                  builder: (context, isFs, _) {
+                    return IconButton(
+                      icon: Icon(
+                        isFs ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      tooltip: isFs ? 'Exit Fullscreen (F / Esc)' : 'Fullscreen (F / F11)',
+                      onPressed: () => WindowService.instance.toggleFullscreen(),
+                    );
+                  },
                 ),
               ],
             ),
