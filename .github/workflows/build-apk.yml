@@ -34,6 +34,11 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Ensure Android SDK 36 & Licenses
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-36" || true
+
       - name: Install Dependencies
         working-directory: android_app
         run: flutter pub get
