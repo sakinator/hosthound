@@ -56,7 +56,10 @@ class ScraperEngine {
   final Map<String, Future<List<ScrapedStream>>> _inFlight = {};
 
   /// Short-term Scrape Cache (12m TTL) for instant replay and seamless browsing
+  /// Max 100 entries LRU — evicts oldest when cap is exceeded
   final Map<String, _CachedScrape> _scrapeCache = {};
+  static const int _scrapeCacheMaxSize = 100;
+  final List<String> _scrapeCacheOrder = []; // LRU order tracking
 
   /// Circuit Breaker: maps providerId to consecutive failure count
   final Map<String, int> _consecutiveFailures = {};
@@ -79,9 +82,24 @@ class ScraperEngine {
   void reloadScrapers() {
     _inFlight.clear(); // Invalidate any in-flight results after a reload
     _scrapeCache.clear();
+    _scrapeCacheOrder.clear();
     _consecutiveFailures.clear();
     _trippedUntil.clear();
     _initScrapers();
+  }
+
+  /// Insert into scrape cache with LRU eviction (max _scrapeCacheMaxSize entries)
+  void _putScrapeCache(String key, _CachedScrape value) {
+    // Remove stale key from order list if present
+    _scrapeCacheOrder.remove(key);
+    _scrapeCacheOrder.add(key);
+    _scrapeCache[key] = value;
+
+    // Evict oldest entries if over cap
+    while (_scrapeCacheOrder.length > _scrapeCacheMaxSize) {
+      final oldest = _scrapeCacheOrder.removeAt(0);
+      _scrapeCache.remove(oldest);
+    }
   }
 
   List<StreamScraper> get activeScrapers {
@@ -141,7 +159,7 @@ class ScraperEngine {
     _inFlight[key] = future;
     future.then((streams) {
       if (streams.isNotEmpty) {
-        _scrapeCache[key] = _CachedScrape(streams, DateTime.now().add(const Duration(minutes: 12)));
+        _putScrapeCache(key, _CachedScrape(streams, DateTime.now().add(const Duration(minutes: 12))));
       }
     }).whenComplete(() => _inFlight.remove(key));
     return future;

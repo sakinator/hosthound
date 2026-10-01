@@ -91,6 +91,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   List<IptvChannel> _iptvChannels = [];
   bool _isLoadingIptv = false;
   int _iptvDisplayLimit = 60;
+  Set<String> _iptvFavourites = {};
+  bool _showOnlyFavourites = false;
 
   final FocusNode _startStopFocus = FocusNode();
   final FocusNode _oneClickInstallFocus = FocusNode();
@@ -145,6 +147,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   bool _isScrapingStreams = false;
   List<Map<String, dynamic>> _scrapedStreams = [];
   String _activeStreamFilter = 'all';
+
+  // Watch History — tracks recently played items (max 30, with position_ms)
+  List<Map<String, dynamic>> _watchHistory = [];
+  // Watchlist — bookmarked items to watch later
+  List<Map<String, dynamic>> _watchlist = [];
+  bool _showWatchHistory = false;
 
   // Catalog Browser State
   String _activeCatalogTab = 'trending-movie';
@@ -4384,6 +4392,46 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }
   }
 
+  void _addToWatchHistory(Map<String, dynamic> entry) {
+    setState(() {
+      // Remove existing entry with same URL to avoid duplicates
+      _watchHistory.removeWhere((h) => h['url'] == entry['url']);
+      // Insert at front (most recent first)
+      _watchHistory.insert(0, entry);
+      // Cap at 30 entries
+      if (_watchHistory.length > 30) {
+        _watchHistory = _watchHistory.sublist(0, 30);
+      }
+    });
+  }
+
+  void _toggleWatchlist(Map<String, dynamic> meta) {
+    final id = meta['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    setState(() {
+      final existing = _watchlist.indexWhere((w) => w['id'] == id);
+      if (existing >= 0) {
+        _watchlist.removeAt(existing);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Removed "${meta['name']}" from Watchlist'),
+            duration: const Duration(seconds: 1),
+            backgroundColor: const Color(0xFF21262D),
+          ),
+        );
+      } else {
+        _watchlist.insert(0, meta);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added "${meta['name']}" to Watchlist ✓'),
+            duration: const Duration(seconds: 1),
+            backgroundColor: const Color(0xFF238636),
+          ),
+        );
+      }
+    });
+  }
+
   Future<void> _startTorboxCache(String url) async {
     final apiKey = AddonConfig.instance.torboxApiKey.trim();
     if (apiKey.isEmpty) {
@@ -4481,6 +4529,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     // Default: Open in built-in high-performance libmpv player (for both Android & Windows)
     if (!forceChooser && !forceExternal && packageName == null) {
       if (mounted) {
+        // Record to watch history (max 30 entries)
+        _addToWatchHistory({
+          'title': title.isNotEmpty ? title : 'Hostreamio Stream',
+          'subtitle': subtitle,
+          'url': playUrl,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'meta': _selectedMediaMeta,
+        });
+
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => PlayerScreen(
@@ -4489,6 +4546,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               subtitle: subtitle.isNotEmpty ? subtitle : null,
               headers: headers,
               onOpenExternal: () => _playStream(streamTarget, forceChooser: true, forceExternal: true),
+              // Pass IMDb ID + type for auto subtitle fetching via OpenSubtitles
+              imdbId: _selectedMediaMeta?['id']?.toString(),
+              mediaType: _selectedMediaType,
             ),
           ),
         );
@@ -4885,13 +4945,28 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   }
 
   void _onFilterIptv() {
-    final filtered = IptvService.instance.filterChannels(
+    var filtered = IptvService.instance.filterChannels(
       search: _iptvSearchController.text.trim(),
       category: _selectedIptvCategory == 'All' ? null : _selectedIptvCategory,
       country: _selectedIptvCountry == 'All' ? null : _selectedIptvCountry,
     );
+    if (_showOnlyFavourites) {
+      filtered = filtered.where((ch) => _iptvFavourites.contains(ch.id)).toList();
+    }
     setState(() {
       _iptvChannels = filtered;
+    });
+  }
+
+  void _toggleIptvFavourite(IptvChannel ch) {
+    setState(() {
+      if (_iptvFavourites.contains(ch.id)) {
+        _iptvFavourites.remove(ch.id);
+      } else {
+        _iptvFavourites.add(ch.id);
+      }
+      // Update filtered list if showing favourites
+      if (_showOnlyFavourites) _onFilterIptv();
     });
   }
 
@@ -5027,14 +5102,57 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 height: 32,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: categories.length,
+                  itemCount: categories.length + 1, // +1 for Favourites chip
                   separatorBuilder: (_, __) => const SizedBox(width: 6),
                   itemBuilder: (context, index) {
-                    final cat = categories[index];
-                    final isActive = (_selectedIptvCategory == cat);
+                    // First chip is always Favourites
+                    if (index == 0) {
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showOnlyFavourites = !_showOnlyFavourites;
+                            if (_showOnlyFavourites) _selectedIptvCategory = 'All';
+                          });
+                          _onFilterIptv();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _showOnlyFavourites ? const Color(0xFFE3B341) : const Color(0xFF090D13),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _showOnlyFavourites ? const Color(0xFFE3B341) : const Color(0xFF1F2432)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _showOnlyFavourites ? Icons.star_rounded : Icons.star_border_rounded,
+                                color: _showOnlyFavourites ? Colors.white : Colors.grey.shade400,
+                                size: 13,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Favourites (${_iptvFavourites.length})',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _showOnlyFavourites ? Colors.white : Colors.grey.shade400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    final cat = categories[index - 1];
+                    final isActive = (!_showOnlyFavourites && _selectedIptvCategory == cat);
                     return GestureDetector(
                       onTap: () {
-                        setState(() => _selectedIptvCategory = cat);
+                        setState(() {
+                          _selectedIptvCategory = cat;
+                          _showOnlyFavourites = false;
+                        });
                         _onFilterIptv();
                       },
                       child: Container(
@@ -5327,7 +5445,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () => _showPlayWithDialog(streamData),
@@ -5338,6 +5456,35 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 7),
                     minimumSize: Size.zero,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Favourite Star Button
+              GestureDetector(
+                onTap: () => _toggleIptvFavourite(ch),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: _iptvFavourites.contains(ch.id)
+                        ? const Color(0xFFE3B341).withOpacity(0.2)
+                        : const Color(0xFF161B22),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: _iptvFavourites.contains(ch.id)
+                          ? const Color(0xFFE3B341)
+                          : const Color(0xFF30363D),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Icon(
+                    _iptvFavourites.contains(ch.id)
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    color: _iptvFavourites.contains(ch.id)
+                        ? const Color(0xFFE3B341)
+                        : Colors.grey.shade500,
+                    size: 16,
                   ),
                 ),
               ),

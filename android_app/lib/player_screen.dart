@@ -6,10 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'window_service.dart';
+import 'opensubtitles_service.dart';
 
 /// Full-featured, native in-app video player powered by libmpv via media_kit.
 /// Supports high-bitrate 4K Remuxes, HDR tonemapping, live IPTV streams (HLS/TS),
-/// audio track switching, styled subtitle selection, VLC-style audio gain (up to 200%),
+/// audio track switching, styled subtitle selection, audio gain boost (up to 200%),
 /// dialogue normalization, and Android TV / desktop keyboard navigation.
 class PlayerScreen extends StatefulWidget {
   final String streamUrl;
@@ -17,6 +18,10 @@ class PlayerScreen extends StatefulWidget {
   final String? subtitle;
   final Map<String, String>? headers;
   final VoidCallback? onOpenExternal;
+  /// Optional IMDb ID (e.g. "tt1375666") for auto-subtitle fetching via OpenSubtitles
+  final String? imdbId;
+  /// "movie" or "series" — used for OpenSubtitles API query type
+  final String? mediaType;
 
   const PlayerScreen({
     super.key,
@@ -25,6 +30,8 @@ class PlayerScreen extends StatefulWidget {
     this.subtitle,
     this.headers,
     this.onOpenExternal,
+    this.imdbId,
+    this.mediaType,
   });
 
   @override
@@ -49,7 +56,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   AudioTrack _selectedAudio = AudioTrack.auto();
   SubtitleTrack _selectedSubtitle = SubtitleTrack.no();
 
-  // Audio Gain & Volume State (VLC-Style 0% to 200%)
+  // Audio Gain & Volume State (0% to 200% with preamp boost)
   double _volume = 100.0;
   bool _dialogueBoost = false;
   String? _hudMessage;
@@ -62,6 +69,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // Subscriptions
   final List<StreamSubscription> _subscriptions = [];
+
+  // Playback Speed State
+  double _playbackSpeed = 1.0;
+  static const List<double> _speedOptions = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
+  // Gesture State (swipe controls)
+  Offset? _gestureStart;
+  double _gestureStartVolume = 100.0;
+  double _gestureStartBrightness = 0.5;
+  bool _isHorizontalGesture = false;
+
+  // Subtitle State — OpenSubtitles fetched list + selected external sub
+  List<Map<String, dynamic>> _fetchedSubtitles = [];
+  int? _selectedExternalSubIndex; // null = none loaded, -1 = off, ≥0 = index in _fetchedSubtitles
+  bool _isLoadingSubtitles = false;
+  bool _subtitleAutoLoaded = false;
 
   @override
   void initState() {
@@ -88,7 +111,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ),
       );
 
-      // Unlock volume-max up to 200% for classic VLC audio gain boost
+      // Unlock volume-max to 200% for audio gain boost
       if (_player.platform is NativePlayer) {
         final np = _player.platform as NativePlayer;
         try {
@@ -160,6 +183,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       );
 
       _startHideControlsTimer();
+
+      // Auto-load subtitles from OpenSubtitles in background (non-blocking)
+      if (widget.imdbId != null && widget.imdbId!.isNotEmpty) {
+        _loadOpenSubtitles(autoSelect: true);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -168,6 +196,372 @@ class _PlayerScreenState extends State<PlayerScreen> {
         });
       }
     }
+  }
+
+  /// Fetches subtitles from OpenSubtitles v3 for the current media.
+  /// If [autoSelect] is true, automatically injects the best-matching English subtitle.
+  Future<void> _loadOpenSubtitles({bool autoSelect = false}) async {
+    if (_isLoadingSubtitles) return;
+    if (mounted) setState(() => _isLoadingSubtitles = true);
+
+    try {
+      final id = widget.imdbId ?? '';
+      final type = widget.mediaType ?? 'movie';
+      if (id.isEmpty) return;
+
+      final subs = await OpenSubtitlesService.instance.getSubtitles(
+        type: type,
+        id: id,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _fetchedSubtitles = subs;
+        _isLoadingSubtitles = false;
+      });
+
+      if (autoSelect && subs.isNotEmpty && !_subtitleAutoLoaded) {
+        // Pick the best English sub first, then fall back to first available
+        final engSub = subs.firstWhere(
+          (s) => (s['lang']?.toString() ?? '').toLowerCase().contains('en'),
+          orElse: () => subs.first,
+        );
+        final idx = subs.indexOf(engSub);
+        await _loadExternalSubtitle(idx);
+        if (mounted) setState(() => _subtitleAutoLoaded = true);
+      }
+    } catch (e) {
+      debugPrint('[Subtitles] Error: $e');
+      if (mounted) setState(() => _isLoadingSubtitles = false);
+    }
+  }
+
+  /// Injects an external subtitle URL into the mpv player via sub-add.
+  Future<void> _loadExternalSubtitle(int index) async {
+    if (index < 0 || index >= _fetchedSubtitles.length) return;
+    final sub = _fetchedSubtitles[index];
+    final url = sub['url']?.toString() ?? '';
+    if (url.isEmpty) return;
+
+    try {
+      if (_player.platform is NativePlayer) {
+        final np = _player.platform as NativePlayer;
+        // Clear existing external subs, then add new one
+        await np.setProperty('sub-files', '');
+        await np.command(['sub-add', url, 'select']);
+        if (mounted) {
+          setState(() => _selectedExternalSubIndex = index);
+          final lang = (sub['lang']?.toString() ?? 'unknown').toUpperCase();
+          _showHud('Subtitles: $lang ✓');
+        }
+      }
+    } catch (e) {
+      debugPrint('[Subtitles] sub-add failed: $e');
+      if (mounted) {
+        _showHud('Subtitle load failed');
+      }
+    }
+  }
+
+  /// Clears the currently loaded external subtitle.
+  Future<void> _clearExternalSubtitle() async {
+    try {
+      if (_player.platform is NativePlayer) {
+        final np = _player.platform as NativePlayer;
+        await np.setProperty('sub-files', '');
+        await _player.setSubtitleTrack(SubtitleTrack.no());
+        if (mounted) {
+          setState(() => _selectedExternalSubIndex = -1);
+          _showHud('Subtitles: Off');
+        }
+      }
+    } catch (e) {
+      debugPrint('[Subtitles] clear failed: $e');
+    }
+  }
+
+  /// Shows the full subtitle picker sheet with all fetched matches + manual search.
+  void _showSubtitlePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF11141C),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.35,
+              maxChildSize: 0.92,
+              expand: false,
+              builder: (ctx, scrollCtrl) {
+                return Column(
+                  children: [
+                    // Handle bar
+                    Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 4),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade600,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 12, 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF195FEB).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.subtitles_rounded, color: Color(0xFF58A6FF), size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Select Subtitles',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                Text(
+                                  _isLoadingSubtitles
+                                    ? 'Fetching from OpenSubtitles…'
+                                    : '${_fetchedSubtitles.length} subtitle track(s) found',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_isLoadingSubtitles)
+                            const SizedBox(
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF58A6FF)),
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.grey, size: 20),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Divider(height: 1, color: Color(0xFF21262D)),
+
+                    // Reload button if empty
+                    if (!_isLoadingSubtitles && _fetchedSubtitles.isEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.subtitles_off_rounded, size: 42, color: Colors.grey.shade600),
+                            const SizedBox(height: 10),
+                            Text(
+                              widget.imdbId != null
+                                ? 'No subtitles found for this title.\nTry refreshing or check your network.'
+                                : 'Subtitles require an IMDb ID.\nOpen via the Cinema tab to enable auto-fetch.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey.shade400, fontSize: 13, height: 1.5),
+                            ),
+                            const SizedBox(height: 14),
+                            if (widget.imdbId != null)
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  setSheet(() {});
+                                  await _loadOpenSubtitles(autoSelect: false);
+                                  setSheet(() {});
+                                },
+                                icon: const Icon(Icons.refresh_rounded, size: 16),
+                                label: const Text('Retry'),
+                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF195FEB)),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // Subtitle list
+                    if (_fetchedSubtitles.isNotEmpty)
+                      Expanded(
+                        child: ListView.builder(
+                          controller: scrollCtrl,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          itemCount: _fetchedSubtitles.length + 1, // +1 for "Off" row
+                          itemBuilder: (c, i) {
+                            // First row = Off
+                            if (i == 0) {
+                              final isOff = _selectedExternalSubIndex == -1 || _selectedExternalSubIndex == null;
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                                leading: Container(
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(
+                                    color: isOff
+                                      ? const Color(0xFFFF0C82).withOpacity(0.15)
+                                      : const Color(0xFF21262D),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.subtitles_off_rounded,
+                                    color: isOff ? const Color(0xFFFF0C82) : Colors.grey,
+                                    size: 18,
+                                  ),
+                                ),
+                                title: Text(
+                                  'Off (No Subtitles)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isOff ? FontWeight.bold : FontWeight.normal,
+                                    color: isOff ? const Color(0xFFFF0C82) : Colors.white,
+                                  ),
+                                ),
+                                trailing: isOff
+                                  ? const Icon(Icons.check_circle_rounded, color: Color(0xFFFF0C82), size: 18)
+                                  : null,
+                                onTap: () async {
+                                  Navigator.of(ctx).pop();
+                                  await _clearExternalSubtitle();
+                                },
+                              );
+                            }
+
+                            final idx = i - 1;
+                            final sub = _fetchedSubtitles[idx];
+                            final lang = sub['lang']?.toString() ?? 'Unknown';
+                            final isSelected = _selectedExternalSubIndex == idx;
+                            final langUpper = lang.toUpperCase();
+                            // Map common lang codes to readable names
+                            final langName = _langCodeToName(lang);
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                              leading: Container(
+                                width: 36, height: 36,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                    ? const Color(0xFF195FEB).withOpacity(0.2)
+                                    : const Color(0xFF161B22),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected ? const Color(0xFF58A6FF) : const Color(0xFF30363D),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    langUpper.length > 3 ? langUpper.substring(0, 3) : langUpper,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: isSelected ? const Color(0xFF58A6FF) : Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                langName,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? const Color(0xFF58A6FF) : Colors.white,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Track ${idx + 1} • OpenSubtitles',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                              ),
+                              trailing: isSelected
+                                ? const Icon(Icons.check_circle_rounded, color: Color(0xFF58A6FF), size: 18)
+                                : const Icon(Icons.download_rounded, color: Colors.grey, size: 16),
+                              onTap: () async {
+                                Navigator.of(ctx).pop();
+                                await _loadExternalSubtitle(idx);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+
+                    // Bottom note
+                    if (_fetchedSubtitles.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded, size: 14, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Powered by OpenSubtitles v3 — 90+ languages',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                              ),
+                            ),
+                            if (widget.imdbId != null)
+                              TextButton(
+                                onPressed: () async {
+                                  await _loadOpenSubtitles(autoSelect: false);
+                                  setSheet(() {});
+                                },
+                                child: const Text('Refresh', style: TextStyle(fontSize: 11)),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Maps ISO 639 language codes to human-readable names.
+  String _langCodeToName(String code) {
+    const Map<String, String> names = {
+      'en': 'English', 'eng': 'English',
+      'hi': 'Hindi', 'hin': 'Hindi',
+      'es': 'Spanish', 'spa': 'Spanish',
+      'fr': 'French', 'fre': 'French', 'fra': 'French',
+      'de': 'German', 'ger': 'German', 'deu': 'German',
+      'it': 'Italian', 'ita': 'Italian',
+      'pt': 'Portuguese', 'por': 'Portuguese',
+      'ru': 'Russian', 'rus': 'Russian',
+      'ar': 'Arabic', 'ara': 'Arabic',
+      'zh': 'Chinese', 'chi': 'Chinese', 'zho': 'Chinese',
+      'ja': 'Japanese', 'jpn': 'Japanese',
+      'ko': 'Korean', 'kor': 'Korean',
+      'tr': 'Turkish', 'tur': 'Turkish',
+      'pl': 'Polish', 'pol': 'Polish',
+      'nl': 'Dutch', 'dut': 'Dutch', 'nld': 'Dutch',
+      'sv': 'Swedish', 'swe': 'Swedish',
+      'no': 'Norwegian', 'nor': 'Norwegian',
+      'da': 'Danish', 'dan': 'Danish',
+      'fi': 'Finnish', 'fin': 'Finnish',
+      'cs': 'Czech', 'cze': 'Czech',
+      'ro': 'Romanian', 'rum': 'Romanian',
+      'hu': 'Hungarian', 'hun': 'Hungarian',
+      'el': 'Greek', 'gre': 'Greek',
+      'he': 'Hebrew', 'heb': 'Hebrew',
+      'th': 'Thai', 'tha': 'Thai',
+      'vi': 'Vietnamese', 'vie': 'Vietnamese',
+      'id': 'Indonesian', 'ind': 'Indonesian',
+      'ta': 'Tamil', 'tam': 'Tamil',
+      'te': 'Telugu', 'tel': 'Telugu',
+      'ml': 'Malayalam', 'mal': 'Malayalam',
+      'bn': 'Bengali', 'ben': 'Bengali',
+      'pa': 'Punjabi', 'pan': 'Punjabi',
+    };
+    return names[code.toLowerCase()] ?? code.toUpperCase();
   }
 
   void _showHud(String msg) {
@@ -192,7 +586,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final np = _player.platform as NativePlayer;
       try {
         if (_dialogueBoost) {
-          await np.setProperty('af', 'lavfi=[dynaudnorm=f=150:g=15]');
+          await np.setProperty('af', 'lavfi=[dynaudnorm=f=75:g=15:p=0.95:m=10]');
           _showHud('Dialogue Booster: ON (Normalized)');
         } else {
           await np.setProperty('af', '');
@@ -265,7 +659,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _player.seek(clamped);
   }
 
-  bool get _isLiveStream => _duration == Duration.zero || widget.streamUrl.contains('.m3u8') && _duration.inSeconds > 43200;
+  void _setPlaybackSpeed(double speed) {
+    setState(() => _playbackSpeed = speed);
+    _player.setRate(speed);
+    _showHud('Playback Speed: ${speed}x');
+  }
+
+  bool get _isLiveStream => _duration == Duration.zero || (widget.streamUrl.contains('.m3u8') && _duration.inSeconds > 43200);
 
   String _formatDuration(Duration d) {
     final hours = d.inHours;
@@ -312,6 +712,55 @@ class _PlayerScreenState extends State<PlayerScreen> {
           onTap: _toggleControls,
           onDoubleTap: () => WindowService.instance.toggleFullscreen(),
           behavior: HitTestBehavior.opaque,
+          onPanStart: (details) {
+            _gestureStart = details.globalPosition;
+            _gestureStartVolume = _volume;
+            _isHorizontalGesture = false;
+          },
+          onPanUpdate: (details) {
+            if (_gestureStart == null) return;
+            final dx = details.globalPosition.dx - _gestureStart!.dx;
+            final dy = details.globalPosition.dy - _gestureStart!.dy;
+
+            if (!_isHorizontalGesture && (dx.abs() > dy.abs() + 10)) {
+              _isHorizontalGesture = true;
+            }
+
+            if (_isHorizontalGesture) {
+              // Horizontal swipe → seek
+              if (!_isLiveStream && _duration.inSeconds > 0) {
+                final screenWidth = MediaQuery.of(context).size.width;
+                final seekSeconds = (dx / screenWidth * 120).round();
+                final target = _position + Duration(seconds: seekSeconds);
+                final clamped = Duration(milliseconds: target.inMilliseconds.clamp(0, _duration.inMilliseconds));
+                _showHud('${seekSeconds > 0 ? '+' : ''}${seekSeconds}s → ${_formatDuration(clamped)}');
+              }
+            } else {
+              // Vertical swipe → volume (right half) or show gesture info
+              final screenWidth = MediaQuery.of(context).size.width;
+              final isRightSide = (_gestureStart?.dx ?? 0) > screenWidth / 2;
+              if (isRightSide) {
+                // Right side: volume control
+                final screenHeight = MediaQuery.of(context).size.height;
+                final volumeDelta = -dy / screenHeight * 150;
+                _setVolumeWithGain(_gestureStartVolume + volumeDelta);
+              }
+            }
+          },
+          onPanEnd: (details) {
+            if (_isHorizontalGesture && !_isLiveStream && _duration.inSeconds > 0) {
+              // Commit seek on release
+              final dx = _gestureStart != null
+                  ? (details.velocity.pixelsPerSecond.dx / 10 + (_gestureStart!.dx))
+                  : 0.0;
+              final screenWidth = MediaQuery.of(context).size.width;
+              final totalDx = (_gestureStart != null) ? 0.0 : 0.0; // we'll use velocity instead
+              final seekSeconds = (details.velocity.pixelsPerSecond.dx / screenWidth * 30).round();
+              _seekRelative(seekSeconds);
+            }
+            _gestureStart = null;
+          },
+
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -393,7 +842,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
 
-              // Floating Audio & Volume HUD Notification (VLC Style)
+              // Floating Audio & Volume HUD Notification
               if (_hudMessage != null)
                 Positioned(
                   top: 70,
@@ -525,7 +974,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             if (widget.onOpenExternal != null)
               IconButton(
                 icon: const Icon(Icons.open_in_new_rounded, color: Colors.white70, size: 22),
-                tooltip: 'Open in External Player (VLC / Just Player)',
+                tooltip: 'Open in External Player',
                 onPressed: () {
                   Navigator.of(context).pop();
                   widget.onOpenExternal!();
@@ -555,7 +1004,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (!_isLiveStream)
+        if (!_isLiveStream) ...[
+          // −30s button
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.replay_30_rounded, color: Colors.white70, size: 34),
+                onPressed: () {
+                  _showControlsTemporarily();
+                  _seekRelative(-30);
+                },
+                tooltip: 'Rewind 30s',
+              ),
+            ],
+          ),
+          // −10s button
           IconButton(
             icon: const Icon(Icons.replay_10_rounded, color: Colors.white, size: 40),
             onPressed: () {
@@ -564,7 +1028,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             },
             tooltip: 'Rewind 10s',
           ),
-        const SizedBox(width: 28),
+        ],
+        const SizedBox(width: 20),
         IconButton(
           icon: Icon(
             _isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
@@ -577,8 +1042,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           },
           tooltip: _isPlaying ? 'Pause' : 'Play',
         ),
-        const SizedBox(width: 28),
-        if (!_isLiveStream)
+        const SizedBox(width: 20),
+        if (!_isLiveStream) ...[
+          // +10s button
           IconButton(
             icon: const Icon(Icons.forward_10_rounded, color: Colors.white, size: 40),
             onPressed: () {
@@ -587,6 +1053,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
             },
             tooltip: 'Forward 10s',
           ),
+          // +30s button
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.forward_30_rounded, color: Colors.white70, size: 34),
+                onPressed: () {
+                  _showControlsTemporarily();
+                  _seekRelative(30);
+                },
+                tooltip: 'Forward 30s',
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -634,24 +1115,48 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   Expanded(
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        trackHeight: 3.5,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                        activeTrackColor: const Color(0xFFFF0C82),
-                        inactiveTrackColor: Colors.white24,
-                        thumbColor: const Color(0xFFFF0C82),
-                      ),
-                      child: Slider(
-                        value: _duration.inMilliseconds > 0
-                            ? (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0)
-                            : 0.0,
-                        onChanged: (ratio) {
-                          _showControlsTemporarily();
-                          final target = Duration(milliseconds: (_duration.inMilliseconds * ratio).round());
-                          _player.seek(target);
-                        },
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final totalW = constraints.maxWidth;
+                        final bufferRatio = _duration.inMilliseconds > 0
+                            ? (_buffer.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0)
+                            : 0.0;
+                        return Stack(
+                          alignment: Alignment.centerLeft,
+                          children: [
+                            // Buffer progress bar (grey background)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: Container(
+                                height: 3.5,
+                                width: totalW * bufferRatio,
+                                color: Colors.white24,
+                              ),
+                            ),
+                            // Seek Slider (foreground - active position)
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3.5,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                activeTrackColor: const Color(0xFFFF0C82),
+                                inactiveTrackColor: Colors.transparent,
+                                thumbColor: const Color(0xFFFF0C82),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                              ),
+                              child: Slider(
+                                value: _duration.inMilliseconds > 0
+                                    ? (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0)
+                                    : 0.0,
+                                onChanged: (ratio) {
+                                  _showControlsTemporarily();
+                                  final target = Duration(milliseconds: (_duration.inMilliseconds * ratio).round());
+                                  _player.seek(target);
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   Text(
@@ -691,40 +1196,58 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     }).toList(),
                   ),
 
-                // Subtitle Track Menu
-                if (_tracks.subtitle.isNotEmpty)
-                  PopupMenuButton<SubtitleTrack>(
-                    tooltip: 'Subtitles',
-                    icon: const Icon(Icons.subtitles_rounded, color: Colors.white70, size: 20),
-                    onSelected: (t) => _player.setSubtitleTrack(t),
-                    itemBuilder: (ctx) => [
-                      PopupMenuItem<SubtitleTrack>(
-                        value: SubtitleTrack.no(),
-                        child: const Text('Off', style: TextStyle(color: Colors.white70)),
+                // Subtitle Button — always visible, opens full picker
+                GestureDetector(
+                  onTap: _showSubtitlePicker,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _selectedExternalSubIndex != null && _selectedExternalSubIndex! >= 0
+                          ? const Color(0xFF195FEB).withOpacity(0.2)
+                          : const Color(0xFF161B22),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _selectedExternalSubIndex != null && _selectedExternalSubIndex! >= 0
+                            ? const Color(0xFF58A6FF)
+                            : const Color(0xFF30363D),
+                        width: 0.8,
                       ),
-                      ..._tracks.subtitle.map((t) {
-                        final selected = t == _selectedSubtitle;
-                        final title = t.title ?? t.language ?? 'Subtitle ${t.id}';
-                        return PopupMenuItem<SubtitleTrack>(
-                          value: t,
-                          child: Row(
-                            children: [
-                              if (selected)
-                                const Icon(Icons.check_rounded, color: Color(0xFFFF0C82), size: 16)
-                              else
-                                const SizedBox(width: 16),
-                              const SizedBox(width: 8),
-                              Expanded(child: Text(title, style: TextStyle(color: selected ? const Color(0xFFFF0C82) : Colors.white))),
-                            ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isLoadingSubtitles)
+                          const SizedBox(
+                            width: 14, height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF58A6FF)),
+                          )
+                        else
+                          Icon(
+                            _selectedExternalSubIndex != null && _selectedExternalSubIndex! >= 0
+                                ? Icons.subtitles_rounded
+                                : Icons.subtitles_off_rounded,
+                            color: _selectedExternalSubIndex != null && _selectedExternalSubIndex! >= 0
+                                ? const Color(0xFF58A6FF)
+                                : Colors.white54,
+                            size: 16,
                           ),
-                        );
-                      }),
-                    ],
+                        if (_selectedExternalSubIndex != null && _selectedExternalSubIndex! >= 0) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            (_fetchedSubtitles.isNotEmpty && _selectedExternalSubIndex! < _fetchedSubtitles.length)
+                                ? _langCodeToName(_fetchedSubtitles[_selectedExternalSubIndex!]['lang']?.toString() ?? '').substring(0, 2).toUpperCase()
+                                : 'ON',
+                            style: const TextStyle(color: Color(0xFF58A6FF), fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
+                ),
 
                 const SizedBox(width: 6),
 
-                // VLC-Style Audio Gain & Volume Booster Button
+                // Audio Gain & Volume Booster Button
                 InkWell(
                   onTap: _showAudioGainDialog,
                   borderRadius: BorderRadius.circular(8),
@@ -775,6 +1298,68 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     ),
                   ),
                 ),
+
+                const SizedBox(width: 6),
+
+                // Playback Speed Control Button
+                if (!live)
+                  PopupMenuButton<double>(
+                    tooltip: 'Playback Speed',
+                    initialValue: _playbackSpeed,
+                    onSelected: _setPlaybackSpeed,
+                    padding: EdgeInsets.zero,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _playbackSpeed != 1.0
+                            ? const Color(0xFF195FEB).withOpacity(0.2)
+                            : const Color(0xFF161B22),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _playbackSpeed != 1.0 ? const Color(0xFF58A6FF) : const Color(0xFF30363D),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.speed_rounded,
+                            color: _playbackSpeed != 1.0 ? const Color(0xFF58A6FF) : Colors.white54,
+                            size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_playbackSpeed}x',
+                            style: TextStyle(
+                              color: _playbackSpeed != 1.0 ? const Color(0xFF58A6FF) : Colors.white70,
+                              fontSize: 11,
+                              fontWeight: _playbackSpeed != 1.0 ? FontWeight.bold : FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    itemBuilder: (ctx) => _speedOptions.map((speed) {
+                      final selected = (speed - _playbackSpeed).abs() < 0.01;
+                      return PopupMenuItem<double>(
+                        value: speed,
+                        child: Row(
+                          children: [
+                            if (selected)
+                              const Icon(Icons.check_rounded, color: Color(0xFFFF0C82), size: 16)
+                            else
+                              const SizedBox(width: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              speed == 1.0 ? '1.0x  Normal' : '${speed}x',
+                              style: TextStyle(
+                                color: selected ? const Color(0xFFFF0C82) : Colors.white,
+                                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
 
                 const Spacer(),
 
@@ -855,12 +1440,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'VLC Audio Gain & Volume Booster',
+                                'Audio Gain & Volume Booster',
                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                               ),
                               Text(
                                 isBoosted
-                                    ? 'Classic VLC Boost Active (${_volume.round()}%) • Preamp Gain'
+                                    ? 'Boost Active (${_volume.round()}%) • Preamp Gain'
                                     : 'Standard Volume Range (${_volume.round()}%)',
                                 style: TextStyle(
                                   fontSize: 12,

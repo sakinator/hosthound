@@ -55,6 +55,8 @@ class IptvService {
 
   List<IptvChannel> get allChannels => _channels;
 
+  Completer<void>? _loadCompleter;
+
   /// Loads channels from memory, local cache, or remote iptv-org M3U.
   Future<List<IptvChannel>> loadChannels({bool forceRefresh = false}) async {
     if (!forceRefresh && _channels.isNotEmpty && _lastLoaded != null) {
@@ -64,13 +66,13 @@ class IptvService {
     }
 
     if (_isLoading) {
-      while (_isLoading) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
+      // Wait for the current load to complete (no CPU spin-wait)
+      await _loadCompleter?.future;
       return _channels;
     }
 
     _isLoading = true;
+    _loadCompleter = Completer<void>();
     try {
       // 1. Try reading local cache file if fresh (< 24h)
       if (!forceRefresh && await _cacheFile.exists()) {
@@ -95,6 +97,8 @@ class IptvService {
       await _fetchRemoteM3u();
     } finally {
       _isLoading = false;
+      _loadCompleter?.complete();
+      _loadCompleter = null;
     }
 
     return _channels;
