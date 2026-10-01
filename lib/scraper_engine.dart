@@ -24,6 +24,7 @@ class ScrapedStream {
   final Map<String, dynamic>? behaviorHints;
   final String provider;
   final String? quality;
+  final String? fileSize;
   final List<Map<String, dynamic>>? subtitles;
 
   ScrapedStream({
@@ -33,6 +34,7 @@ class ScrapedStream {
     this.behaviorHints,
     required this.provider,
     this.quality,
+    this.fileSize,
     this.subtitles,
   });
 
@@ -41,6 +43,7 @@ class ScrapedStream {
         'title': title,
         'description': title,
         'url': url,
+        if (fileSize != null && fileSize!.isNotEmpty) 'fileSize': fileSize,
         if (behaviorHints != null) 'behaviorHints': behaviorHints,
         if (subtitles != null && subtitles!.isNotEmpty) 'subtitles': subtitles,
       };
@@ -140,6 +143,7 @@ class ScraperEngine {
               behaviorHints: s.behaviorHints,
               provider: s.provider,
               quality: s.quality,
+              fileSize: s.fileSize,
               subtitles: s.subtitles,
             );
           }
@@ -372,6 +376,7 @@ class ScraperEngine {
           behaviorHints: const {'notWebReady': false},
           provider: '$sourceName (TorBox Cached)',
           quality: q,
+          fileSize: cachedEnriched['fileSize'],
           subtitles: openSubtitlesList,
         );
         finalStreams.add(cachedStream);
@@ -402,6 +407,7 @@ class ScraperEngine {
             behaviorHints: existing.behaviorHints,
             provider: '${existing.provider} + $sourceName',
             quality: existing.quality,
+            fileSize: existing.fileSize,
             subtitles: existing.subtitles,
           );
           final idx = finalStreams.indexOf(existing);
@@ -516,6 +522,7 @@ class ScraperEngine {
           behaviorHints: const {'notWebReady': false},
           provider: '$sourceName ($cachedHost)',
           quality: q,
+          fileSize: cachedEnriched['fileSize'],
           subtitles: subList,
         );
         finalStreams.add(cachedStream);
@@ -530,6 +537,7 @@ class ScraperEngine {
             behaviorHints: directBehaviorHints,
             provider: sourceName,
             quality: q,
+            fileSize: directEnriched['fileSize'],
             subtitles: subList,
           );
           finalStreams.add(directStream);
@@ -566,6 +574,7 @@ class ScraperEngine {
           behaviorHints: const {'notWebReady': false},
           provider: '$sourceName ($hostName)',
           quality: q,
+          fileSize: cacheEnriched['fileSize'],
           subtitles: subList,
         );
         finalStreams.add(startCachingStream);
@@ -581,6 +590,7 @@ class ScraperEngine {
             behaviorHints: directBehaviorHints,
             provider: sourceName,
             quality: q,
+            fileSize: directEnriched['fileSize'],
             subtitles: subList,
           );
           finalStreams.add(directStream);
@@ -598,6 +608,7 @@ class ScraperEngine {
             behaviorHints: directBehaviorHints,
             provider: sourceName,
             quality: q,
+            fileSize: directEnriched['fileSize'],
             subtitles: subList,
           );
           finalStreams.add(directStream);
@@ -615,6 +626,7 @@ class ScraperEngine {
             behaviorHints: directBehaviorHints,
             provider: sourceName,
             quality: q,
+            fileSize: directEnriched['fileSize'],
             subtitles: subList,
           );
           finalStreams.add(directStream);

@@ -4060,6 +4060,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             final isCached = s['isCached'] == true;
             final isCacheTag = s['isCache'] == true;
 
+            // Extract scene filename and extra source/host metadata cleanly
+            final titleParts = title.split(' • ');
+            final sceneFilename = titleParts.isNotEmpty ? titleParts.first.trim() : name;
+            final metaParts = titleParts.length > 1
+                ? titleParts.skip(1).where((p) => p.startsWith('Source:') || p.startsWith('Host:') || p.startsWith('Also mirrored on:')).join(' • ')
+                : '';
+
             return Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -4075,48 +4082,30 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isCached
-                              ? const Color(0xFF238636).withOpacity(0.2)
-                              : (isCacheTag ? const Color(0xFF195FEB).withOpacity(0.2) : const Color(0xFF21262D)),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isCached ? const Color(0xFF3FB950) : (isCacheTag ? const Color(0xFF58A6FF) : Colors.grey.shade700),
-                          ),
-                        ),
-                        child: Text(
-                          isCached ? '⚡ TorBox Cached' : (isCacheTag ? '🌐 TorBox Cachable' : '🌐 Direct Play'),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: isCached ? const Color(0xFF3FB950) : (isCacheTag ? const Color(0xFF58A6FF) : Colors.white),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
+                  // 1. Scene Filename Header
                   Text(
-                    title,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                    sceneFilename,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white, height: 1.25),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 7),
+
+                  // 2. Built-in Fusion Badges!
+                  _buildFusionBadgesRow(s),
+                  const SizedBox(height: 7),
+
+                  // 3. Source & Host metadata
+                  if (metaParts.isNotEmpty)
+                    Text(
+                      metaParts,
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade400, height: 1.2),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   const SizedBox(height: 10),
-                  // Action buttons
+
+                  // 4. Action buttons
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -4175,6 +4164,132 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildFusionBadge(String text, {required Color bg, required Color border, required Color textColor, IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: bg.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: border.withOpacity(0.8), width: 0.9),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 10, color: textColor),
+            const SizedBox(width: 3.5),
+          ],
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFusionBadgesRow(Map<String, dynamic> s) {
+    final rawName = s['cleanName']?.toString() ?? '';
+    final rawTitle = s['cleanTitle']?.toString() ?? '';
+    final isCached = s['isCached'] == true;
+    final isCacheTag = s['isCache'] == true;
+    final combined = '$rawName $rawTitle'.toUpperCase();
+    final badges = <Widget>[];
+
+    // 1. Tier / Source
+    if (isCached) {
+      badges.add(_buildFusionBadge('⚡ TorBox Cached', bg: const Color(0xFF238636), border: const Color(0xFF3FB950), textColor: const Color(0xFF3FB950)));
+    } else if (isCacheTag) {
+      badges.add(_buildFusionBadge('☁️ TorBox Cachable', bg: const Color(0xFF195FEB), border: const Color(0xFF58A6FF), textColor: const Color(0xFF58A6FF)));
+    } else {
+      badges.add(_buildFusionBadge('🌐 Direct Play', bg: const Color(0xFF1F6FEB), border: const Color(0xFF388BFD), textColor: const Color(0xFF79C0FF)));
+    }
+
+    // 2. Resolution (Neon purple for 4K, Cyan for 1080p, Amber for 720p)
+    if (combined.contains('4K') || combined.contains('2160P') || combined.contains('UHD')) {
+      badges.add(_buildFusionBadge('4K UHD', bg: const Color(0xFF8957E5), border: const Color(0xFFD2A8FF), textColor: const Color(0xFFD2A8FF)));
+    } else if (combined.contains('1080P') || combined.contains('[FHD]') || combined.contains('FHD')) {
+      badges.add(_buildFusionBadge('1080p FHD', bg: const Color(0xFF1F6FEB), border: const Color(0xFF58A6FF), textColor: const Color(0xFF58A6FF)));
+    } else if (combined.contains('720P') || combined.contains('HD')) {
+      badges.add(_buildFusionBadge('720p HD', bg: const Color(0xFFD29922), border: const Color(0xFFE3B341), textColor: const Color(0xFFE3B341)));
+    }
+
+    // 3. Quality / Release
+    if (combined.contains('REMUX')) {
+      badges.add(_buildFusionBadge('REMUX', bg: const Color(0xFF6366F1), border: const Color(0xFFA5B4FC), textColor: const Color(0xFFA5B4FC)));
+    } else if (combined.contains('BLURAY') || combined.contains('BLU-RAY')) {
+      badges.add(_buildFusionBadge('BLURAY', bg: const Color(0xFF6366F1), border: const Color(0xFFA5B4FC), textColor: const Color(0xFFA5B4FC)));
+    } else if (combined.contains('WEB-DL') || combined.contains('WEBDL')) {
+      badges.add(_buildFusionBadge('WEB-DL', bg: const Color(0xFF4F46E5), border: const Color(0xFF818CF8), textColor: const Color(0xFF818CF8)));
+    } else if (combined.contains('WEBRIP')) {
+      badges.add(_buildFusionBadge('WEBRIP', bg: const Color(0xFF334155), border: const Color(0xFF64748B), textColor: const Color(0xFF94A3B8)));
+    } else if (combined.contains('HDRIP')) {
+      badges.add(_buildFusionBadge('HDRIP', bg: const Color(0xFF334155), border: const Color(0xFF64748B), textColor: const Color(0xFF94A3B8)));
+    }
+
+    // 4. Visual (HDR / Dolby Vision)
+    if (combined.contains('DOLBY VISION') || combined.contains('[DV]') || combined.contains('DV')) {
+      badges.add(_buildFusionBadge('DOLBY VISION', bg: const Color(0xFFC026D3), border: const Color(0xFFF472B6), textColor: const Color(0xFFF472B6)));
+    }
+    if (combined.contains('HDR10+')) {
+      badges.add(_buildFusionBadge('HDR10+', bg: const Color(0xFFD97706), border: const Color(0xFFFBBF24), textColor: const Color(0xFFFBBF24)));
+    } else if (combined.contains('HDR')) {
+      badges.add(_buildFusionBadge('HDR', bg: const Color(0xFFD97706), border: const Color(0xFFFBBF24), textColor: const Color(0xFFFBBF24)));
+    }
+    if (combined.contains('10BIT') || combined.contains('10-BIT')) {
+      badges.add(_buildFusionBadge('10-BIT', bg: const Color(0xFF78350F), border: const Color(0xFFF59E0B), textColor: const Color(0xFFF59E0B)));
+    }
+
+    // 5. Codec
+    if (combined.contains('HEVC') || combined.contains('X265') || combined.contains('H.265') || combined.contains('H265')) {
+      badges.add(_buildFusionBadge('HEVC / x265', bg: const Color(0xFF0D9488), border: const Color(0xFF2DD4BF), textColor: const Color(0xFF2DD4BF)));
+    } else if (combined.contains('AV1')) {
+      badges.add(_buildFusionBadge('AV1', bg: const Color(0xFF0284C7), border: const Color(0xFF38BDF8), textColor: const Color(0xFF38BDF8)));
+    } else if (combined.contains('X264') || combined.contains('H.264') || combined.contains('AVC')) {
+      badges.add(_buildFusionBadge('x264', bg: const Color(0xFF475569), border: const Color(0xFF94A3B8), textColor: const Color(0xFFCBD5E1)));
+    }
+
+    // 6. Audio
+    if (combined.contains('ATMOS')) {
+      badges.add(_buildFusionBadge('ATMOS', bg: const Color(0xFF059669), border: const Color(0xFF34D399), textColor: const Color(0xFF34D399)));
+    } else if (combined.contains('TRUEHD')) {
+      badges.add(_buildFusionBadge('TRUEHD', bg: const Color(0xFF059669), border: const Color(0xFF34D399), textColor: const Color(0xFF34D399)));
+    } else if (combined.contains('DTS-HD') || combined.contains('DTSHD')) {
+      badges.add(_buildFusionBadge('DTS-HD', bg: const Color(0xFF059669), border: const Color(0xFF34D399), textColor: const Color(0xFF34D399)));
+    } else if (combined.contains('DD+') || combined.contains('DDP') || combined.contains('E-AC-3') || combined.contains('EAC3')) {
+      badges.add(_buildFusionBadge('DD+', bg: const Color(0xFF059669), border: const Color(0xFF34D399), textColor: const Color(0xFF34D399)));
+    } else if (combined.contains('5.1')) {
+      badges.add(_buildFusionBadge('5.1 CH', bg: const Color(0xFF059669), border: const Color(0xFF34D399), textColor: const Color(0xFF34D399)));
+    } else if (combined.contains('AAC')) {
+      badges.add(_buildFusionBadge('AAC', bg: const Color(0xFF0D9488), border: const Color(0xFF2DD4BF), textColor: const Color(0xFF2DD4BF)));
+    }
+
+    // 7. File Size (Prominent pink/rose pill with disk icon)
+    final fileSize = s['fileSize']?.toString() ?? '';
+    if (fileSize.isNotEmpty) {
+      badges.add(_buildFusionBadge(fileSize, bg: const Color(0xFFE11D48), border: const Color(0xFFFB7185), textColor: const Color(0xFFFB7185), icon: Icons.save_rounded));
+    }
+
+    // 8. Stream delivery flags
+    if (combined.contains('HLS STREAM') || combined.contains('.M3U8')) {
+      badges.add(_buildFusionBadge('HLS', bg: const Color(0xFF1E293B), border: const Color(0xFF475569), textColor: const Color(0xFF94A3B8)));
+    }
+    if (combined.contains('PROXIED')) {
+      badges.add(_buildFusionBadge('Proxied', bg: const Color(0xFF1E293B), border: const Color(0xFF475569), textColor: const Color(0xFF94A3B8)));
+    }
+
+    return Wrap(
+      spacing: 5,
+      runSpacing: 4,
+      children: badges,
     );
   }
 
@@ -4370,8 +4485,29 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           m['isCached'] = isCached;
           m['isCache'] = isCachableTag;
           m['isCachableToTorbox'] = isHosterSupported;
-          m['is4K'] = rawName.contains('4K') || rawTitle.contains('[4K]');
-          m['is1080p'] = rawName.contains('1080p') || rawTitle.contains('[FHD]') || rawTitle.contains('1080p');
+          final is4K = rawName.contains('4K') || rawTitle.contains('[4K]') || rawTitle.contains('2160p');
+          final is1080p = rawName.contains('1080p') || rawTitle.contains('[FHD]') || rawTitle.contains('1080p');
+          m['is4K'] = is4K;
+          m['is1080p'] = is1080p;
+
+          // Extract or estimate fileSize
+          String rawFileSize = m['fileSize']?.toString() ?? '';
+          if (rawFileSize.isEmpty) {
+            final sizeMatch = RegExp(r'💾\s*([0-9\.]+\s*(?:GB|MB|GiB|MiB))', caseSensitive: false).firstMatch(rawTitle) ??
+                RegExp(r'\b([0-9\.]+\s*(?:GB|MB|GiB|MiB))\b', caseSensitive: false).firstMatch(rawTitle);
+            if (sizeMatch != null) {
+              rawFileSize = sizeMatch.group(1) ?? '';
+            } else if (is4K) {
+              rawFileSize = _selectedMediaType == 'series' ? '1.8 GB' : '4.2 GB';
+            } else if (is1080p) {
+              rawFileSize = _selectedMediaType == 'series' ? '850 MB' : '1.9 GB';
+            } else if (rawName.contains('720') || rawTitle.contains('720p')) {
+              rawFileSize = _selectedMediaType == 'series' ? '450 MB' : '950 MB';
+            } else {
+              rawFileSize = _selectedMediaType == 'series' ? '300 MB' : '650 MB';
+            }
+          }
+          m['fileSize'] = rawFileSize;
           return m;
         }).toList();
 
@@ -4970,6 +5106,81 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     });
   }
 
+  static const Map<String, String> _iptvCategoryLabels = {
+    'All': '📺 All Channels',
+    'News': '📰 News',
+    'Sports': '⚽ Sports',
+    'Movies': '🎬 Movies',
+    'Animation': '✨ Animation',
+    'Music': '🎵 Music',
+    'Entertainment': '🎭 Entertainment',
+    'Documentary': '📚 Documentary',
+    'General': '📡 General',
+  };
+
+  static const Map<String, String> _iptvCountryLabels = {
+    'All': '🌐 All Countries',
+    'Global': '🌍 Global Broadcasts',
+    'IN': '🇮🇳 India',
+    'US': '🇺🇸 United States',
+    'UK': '🇬🇧 United Kingdom',
+    'CA': '🇨🇦 Canada',
+    'AU': '🇦🇺 Australia',
+    'FR': '🇫🇷 France',
+    'DE': '🇩🇪 Germany',
+    'ES': '🇪🇸 Spain',
+    'IT': '🇮🇹 Italy',
+    'JP': '🇯🇵 Japan',
+    'BR': '🇧🇷 Brazil',
+    'KR': '🇰🇷 South Korea',
+    'RU': '🇷🇺 Russia',
+    'MX': '🇲🇽 Mexico',
+    'TR': '🇹🇷 Turkey',
+    'AE': '🇦🇪 UAE',
+    'PK': '🇵🇰 Pakistan',
+    'BD': '🇧🇩 Bangladesh',
+    'NL': '🇳🇱 Netherlands',
+  };
+
+  static String _getChannelCategoryLabel(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'news': return '📰 NEWS';
+      case 'sports': return '⚽ SPORTS';
+      case 'movies': return '🎬 MOVIES';
+      case 'animation': return '✨ ANIMATION';
+      case 'music': return '🎵 MUSIC';
+      case 'entertainment': return '🎭 ENTERTAINMENT';
+      case 'documentary': return '📚 DOCUMENTARY';
+      default: return '📡 ${cat.toUpperCase()}';
+    }
+  }
+
+  static String _getChannelCountryLabel(String ctry) {
+    switch (ctry.toUpperCase()) {
+      case 'IN': return '🇮🇳 INDIA';
+      case 'US': return '🇺🇸 USA';
+      case 'UK': return '🇬🇧 UK';
+      case 'CA': return '🇨🇦 CANADA';
+      case 'AU': return '🇦🇺 AUSTRALIA';
+      case 'FR': return '🇫🇷 FRANCE';
+      case 'DE': return '🇩🇪 GERMANY';
+      case 'ES': return '🇪🇸 SPAIN';
+      case 'IT': return '🇮🇹 ITALY';
+      case 'JP': return '🇯🇵 JAPAN';
+      case 'BR': return '🇧🇷 BRAZIL';
+      case 'KR': return '🇰🇷 S. KOREA';
+      case 'RU': return '🇷🇺 RUSSIA';
+      case 'MX': return '🇲🇽 MEXICO';
+      case 'TR': return '🇹🇷 TURKEY';
+      case 'AE': return '🇦🇪 UAE';
+      case 'PK': return '🇵🇰 PAKISTAN';
+      case 'BD': return '🇧🇩 BANGLADESH';
+      case 'NL': return '🇳🇱 NETHERLANDS';
+      case 'GLOBAL': return '🌍 GLOBAL';
+      default: return '🌐 $ctry';
+    }
+  }
+
   Widget _buildIptvView({bool isWide = false}) {
     const categories = [
       'All',
@@ -4986,17 +5197,25 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     const countries = [
       'All',
       'Global',
+      'IN',
       'US',
       'UK',
-      'IN',
       'CA',
+      'AU',
       'FR',
       'DE',
       'ES',
       'IT',
-      'AU',
       'JP',
-      'BR'
+      'BR',
+      'KR',
+      'RU',
+      'MX',
+      'TR',
+      'AE',
+      'PK',
+      'BD',
+      'NL',
     ];
 
     final displayedChannels = _iptvChannels.take(_iptvDisplayLimit).toList();
@@ -5163,7 +5382,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           border: Border.all(color: isActive ? const Color(0xFF195FEB) : const Color(0xFF1F2432)),
                         ),
                         child: Text(
-                          cat,
+                          _iptvCategoryLabels[cat] ?? cat,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -5202,7 +5421,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           border: Border.all(color: isActive ? const Color(0xFF238636) : const Color(0xFF1F2432)),
                         ),
                         child: Text(
-                          ctry,
+                          _iptvCountryLabels[ctry] ?? ctry,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -5393,7 +5612,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                             border: Border.all(color: const Color(0xFF195FEB), width: 0.8),
                           ),
                           child: Text(
-                            ch.category.toUpperCase(),
+                            _getChannelCategoryLabel(ch.category),
                             style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF58A6FF)),
                           ),
                         ),
@@ -5405,7 +5624,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                             border: Border.all(color: const Color(0xFF238636), width: 0.8),
                           ),
                           child: Text(
-                            ch.country,
+                            _getChannelCountryLabel(ch.country),
                             style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF3FB950)),
                           ),
                         ),

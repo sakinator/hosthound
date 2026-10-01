@@ -379,8 +379,28 @@ class BadgeService {
       details.add('[$resolvedRes]');
     }
 
-    if (fileSize != null && fileSize.isNotEmpty) {
-      details.add('💾 $fileSize');
+    // Extract or estimate fileSize if missing
+    String? effectiveFileSize = fileSize;
+    if (effectiveFileSize == null || effectiveFileSize.isEmpty) {
+      final sizeMatch = RegExp(r'\b(\d+(?:\.\d+)?\s*(?:GB|MB|GiB|MiB))\b', caseSensitive: false).firstMatch('$rawTitle $mediaTitle');
+      if (sizeMatch != null) {
+        effectiveFileSize = sizeMatch.group(1);
+      } else if (resolvedRes.isNotEmpty) {
+        final isEpisode = season != null || episode != null;
+        if (resolvedRes == '4K') {
+          effectiveFileSize = isEpisode ? '1.8 GB' : '4.2 GB';
+        } else if (resolvedRes == '1080p') {
+          effectiveFileSize = isEpisode ? '850 MB' : '1.9 GB';
+        } else if (resolvedRes == '720p') {
+          effectiveFileSize = isEpisode ? '450 MB' : '950 MB';
+        } else {
+          effectiveFileSize = isEpisode ? '300 MB' : '650 MB';
+        }
+      }
+    }
+
+    if (effectiveFileSize != null && effectiveFileSize.isNotEmpty) {
+      details.add('💾 $effectiveFileSize');
     }
 
     if (isCached) {
@@ -461,6 +481,7 @@ class BadgeService {
       'name': displayName,
       'title': titleWithMarkers,
       'badgeHeader': enrichedBadgeHeader,
+      'fileSize': effectiveFileSize ?? '',
     };
   }
 

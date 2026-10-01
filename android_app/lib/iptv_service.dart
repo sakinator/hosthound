@@ -229,6 +229,13 @@ class IptvService {
     if (lowerId.contains('.jp@') || lowerId.endsWith('.jp') || lowerLine.contains('country="jp"')) return 'JP';
     if (lowerId.contains('.br@') || lowerId.endsWith('.br') || lowerLine.contains('country="br"')) return 'BR';
     if (lowerId.contains('.mx@') || lowerId.endsWith('.mx') || lowerLine.contains('country="mx"')) return 'MX';
+    if (lowerId.contains('.kr@') || lowerId.endsWith('.kr') || lowerLine.contains('country="kr"')) return 'KR';
+    if (lowerId.contains('.ru@') || lowerId.endsWith('.ru') || lowerLine.contains('country="ru"')) return 'RU';
+    if (lowerId.contains('.tr@') || lowerId.endsWith('.tr') || lowerLine.contains('country="tr"')) return 'TR';
+    if (lowerId.contains('.ae@') || lowerId.endsWith('.ae') || lowerLine.contains('country="ae"')) return 'AE';
+    if (lowerId.contains('.pk@') || lowerId.endsWith('.pk') || lowerLine.contains('country="pk"')) return 'PK';
+    if (lowerId.contains('.bd@') || lowerId.endsWith('.bd') || lowerLine.contains('country="bd"')) return 'BD';
+    if (lowerId.contains('.nl@') || lowerId.endsWith('.nl') || lowerLine.contains('country="nl"')) return 'NL';
     return fallback;
   }
 
