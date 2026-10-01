@@ -45,8 +45,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // Track State
   Tracks _tracks = const Tracks();
-  Track _selectedAudio = const Track();
-  Track _selectedSubtitle = const Track();
+  AudioTrack _selectedAudio = AudioTrack.auto();
+  SubtitleTrack _selectedSubtitle = SubtitleTrack.no();
 
   // Audio Gain & Volume State (VLC-Style 0% to 200%)
   double _volume = 100.0;
@@ -642,14 +642,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
               children: [
                 // Audio Track Menu
                 if (_tracks.audio.isNotEmpty)
-                  PopupMenuButton<Track>(
+                  PopupMenuButton<AudioTrack>(
                     tooltip: 'Audio Track',
                     icon: const Icon(Icons.audiotrack_rounded, color: Colors.white70, size: 20),
                     onSelected: (t) => _player.setAudioTrack(t),
                     itemBuilder: (ctx) => _tracks.audio.map((t) {
                       final selected = t == _selectedAudio;
                       final title = t.title ?? t.language ?? 'Audio Track ${t.id}';
-                      return PopupMenuItem<Track>(
+                      return PopupMenuItem<AudioTrack>(
                         value: t,
                         child: Row(
                           children: [
@@ -667,19 +667,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
                 // Subtitle Track Menu
                 if (_tracks.subtitle.isNotEmpty)
-                  PopupMenuButton<Track>(
+                  PopupMenuButton<SubtitleTrack>(
                     tooltip: 'Subtitles',
                     icon: const Icon(Icons.subtitles_rounded, color: Colors.white70, size: 20),
                     onSelected: (t) => _player.setSubtitleTrack(t),
                     itemBuilder: (ctx) => [
-                      PopupMenuItem<Track>(
-                        value: Track.subtitleNone(),
+                      PopupMenuItem<SubtitleTrack>(
+                        value: SubtitleTrack.no(),
                         child: const Text('Off', style: TextStyle(color: Colors.white70)),
                       ),
                       ..._tracks.subtitle.map((t) {
                         final selected = t == _selectedSubtitle;
                         final title = t.title ?? t.language ?? 'Subtitle ${t.id}';
-                        return PopupMenuItem<Track>(
+                        return PopupMenuItem<SubtitleTrack>(
                           value: t,
                           child: Row(
                             children: [
